@@ -69,7 +69,6 @@ def render():
     st.markdown("##### 2. Diagnósticos (HD) & Condutas")
     
     # --- A: HDS ATUAIS VISÍVEIS (1 e 2) ---
-    st.info("**Problemas Ativos**")
     _render_card_atual(1)
     st.write("") 
     _render_card_atual(2)

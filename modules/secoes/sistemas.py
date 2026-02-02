@@ -284,9 +284,9 @@ def render():
         with c:
             st.text_input("Conduta Nutri", key="sis_nutri_conduta", placeholder="Ex: Progredir dieta, Jejum...")
 
-    # 🩸 HEMATOLÓGICO
+    # HEMATOLÓGICO
     with st.container(border=True):
-        st.markdown("**🩸 Hematológico**")
+        st.markdown("**Hematológico**")
         c1, c2, c3 = st.columns(3)
         c1.text_input("Hb / Plaq", key="sis_hemato_hb", placeholder="Hb 8.0 / Plaq 150k")
         c2.selectbox("Coagulopatia", ["Ausente", "Presente (INR/TTPA alt)", "CIVD"], key="sis_hemato_coag")

@@ -46,15 +46,6 @@ Ferramenta em desenvolvimento por *Dr. Gabriel Valladão Vicino – CRM-SP 223.2
 
 <br>
 
-
-
-
-
-
-
-
-
-
 """, unsafe_allow_html=True)
 
 # Rodapé com nota legal

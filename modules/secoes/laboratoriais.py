@@ -130,7 +130,7 @@ def _render_slot(i):
         with g2[5]: st.text_input("Cai", key=f'lab_{i}_gas_cai')
 
         # LINHA 7: Gasometria Venosa / Perfusão
-        st.caption("🩸 Perfusão")
+        st.caption("Perfusão")
         gp1, gp2, gp3 = st.columns([1, 1, 4])
         with gp1: st.text_input("pCO2(v)", key=f'lab_{i}_gasv_pco2')
         with gp2: st.text_input("SvO2", key=f'lab_{i}_svo2')

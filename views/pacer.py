@@ -29,7 +29,420 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. PROMPTS E MODELOS
+# 2. PROMPTS DOS 6 AGENTES ESPECIALIZADOS (FIXOS - NÃO EDITÁVEIS)
+# ==============================================================================
+
+# AGENTE 0: IDENTIFICAÇÃO (Nome, HC, Data)
+PROMPT_AGENTE_IDENTIFICACAO = """# ATUE COMO
+Um formatador de identificação hospitalar.
+
+# TAREFA
+Extraia Nome, Registro (HC) e Data do texto.
+
+# REGRAS DE FORMATAÇÃO (RIGOROSAS)
+1. NOME: Converta OBRIGATORIAMENTE para Title Case (Apenas primeiras letras maiúsculas).
+   - Entrada: "MARCOS PAULO DE GODOY" -> Saída: "Marcos Paulo de Godoy"
+2. DATA: Se não houver data no texto, use a data de hoje.
+3. SAÍDA: Exatamente duas linhas. Mantenha o travessão final.
+
+# FORMATO DE RESPOSTA
+Linha 1: [Nome Title Case] [HC]
+Linha 2: [Data DD/MM/AAAA] –
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+João da Silva 1234567
+01/02/2026 –
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 1: HEMATOLOGIA + RENAL + ELETRÓLITOS
+PROMPT_AGENTE_HEMATOLOGIA_RENAL = """# ATUE COMO
+Especialista em Hematologia e Nefrologia.
+
+# TAREFA
+Varra o texto buscando os dados abaixo.
+Retorne APENAS os itens que possuem valor numérico, separados por " | ".
+
+# REGRAS DE LIMPEZA (CRÍTICO)
+- Se um item não tiver valor, IGNORE-O completamente.
+- NÃO deixe pipes duplos "||".
+- NÃO escreva o nome do exame se não houver número (Ex: Proibido retornar "Ur |").
+
+# ORDEM DE BUSCA
+1. Hb (1 casa decimal)
+2. Ht (Inteiro + %)
+3. [CONDICIONAL]: Se Hb < 9,0 inclua: VCM | HCM | RDW. (Se Hb >= 9,0, ignore estes 3).
+4. Leuco (Se <500, converta ex: 0,4->400)
+5. Fórmula (Bast X% / Seg Y% / Linf Z% / Mon W% / Eos K% / Bas H%). Use barras "/" internas.
+6. Plaq
+7. Cr (1 casa decimal)
+8. Ur (Inteiro)
+9. Na (Inteiro)
+10. K (1 casa decimal)
+11. Mg (1 casa decimal)
+12. Pi (1 casa decimal)
+13. CaT (1 casa decimal)
+14. Cai (2 casas decimais)
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+Hb 8,0 | Ht 24% | VCM 82 | HCM 27 | RDW 15 | Leuco 12.500 (Bast 2% / Seg 68% / Linf 20% / Mon 6% / Eos 4% / Bas 0%) | Plaq 150.000 | Cr 1,2 | Ur 45 | Na 138 | K 4,0 | Mg 1,8 | Pi 3,5 | CaT 8,9 | Cai 1,01
+
+# FORMATO DE RESPOSTA
+- Apenas a string de dados ou VAZIO. Sem markdown.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 2: FUNÇÃO HEPÁTICA
+PROMPT_AGENTE_HEPATICO = """# ATUE COMO
+Especialista em Gastroenterologia.
+
+# TAREFA
+Extraia os dados abaixo. Se o dado não existir, PULE para o próximo.
+Não deixe espaços vazios ou pipes extras.
+
+# ORDEM DE PREFERÊNCIA
+1. TGP
+2. TGO
+3. FAL
+4. GGT
+5. BT (Se houver direta: BT X,X (Y,Y))
+6. Prot Tot
+7. Alb
+8. Amil
+9. Lipas
+
+# REGRAS DE LIMPEZA
+- Retorne apenas o que tiver valor.
+- Exemplo: Se só tem TGP e Amilase, retorne: "TGP 32 | Amil 65".
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+TGP 32 | TGO 35 | FAL 80 | GGT 45 | BT 1,0 (0,3) | Prot Tot 6,5 | Alb 3,8 | Amil 65 | Lipas 40
+
+# FORMATO DE RESPOSTA
+- Apenas a string de dados ou VAZIO. Sem markdown.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 3: COAGULAÇÃO + INFLAMATÓRIOS
+PROMPT_AGENTE_COAGULACAO = """# ATUE COMO
+Especialista em Marcadores Críticos.
+
+# TAREFA
+Extraia apenas os marcadores presentes no texto.
+
+# LISTA ALVO
+1. PCR
+2. CPK
+3. CK-MB
+4. Trop
+5. TP Ativ (com RNI entre parênteses)
+6. TTPa (com Relação entre parênteses)
+
+# REGRA DE OURO (ANTI-ALUCINAÇÃO)
+- Se o texto menciona "CPK" mas não traz o resultado numérico, NÃO inclua "CPK" na saída.
+- Proibido saídas como: "CPK | CK-MB".
+- Correto: "PCR 12 | Trop 0,01".
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+PCR 12 | CPK 150 | CK-MB 12 | Trop 0,01 | TP Ativ 14,2s (1,1) | TTPa 30s (1,0)
+
+# FORMATO DE RESPOSTA
+- Apenas a string de dados ou VAZIO. Sem markdown.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 4: URINA I (EAS)
+PROMPT_AGENTE_URINA = """# ATUE COMO
+Especialista em Urinálise.
+
+# TAREFA
+Verifique se há exame de URINA TIPO I (EAS).
+- SE SIM: Monte a string completa.
+- SE NÃO: Retorne string vazia.
+
+# ESTRUTURA
+Urn: Den: [Val] / Leu Est: [Val] / Nit: [Val] / Leuco [Val] / Hm : [Val] / Prot: [Val] / Cet: [Val] / Glic: [Val]
+
+# REGRAS
+- Den (Densidade): Ex 1.020.
+- Qualitativos: Use "Pos" ou "Neg".
+- Quantitativos: Use números.
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+Urn: Den: 1.020 / Leu Est: Neg / Nit: Neg / Leuco 4.000 / Hm : 2.000 / Prot: Neg / Cet: Neg / Glic: Neg
+
+# FORMATO DE RESPOSTA
+- Apenas a string formatada ou VAZIO. Sem markdown.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 5: GASOMETRIA
+PROMPT_AGENTE_GASOMETRIA = """# ATUE COMO
+Especialista em Gasometria.
+
+# TAREFA
+Identifique Gasometria (Arterial, Venosa ou Ambas).
+REGRA DE DATA: Se houver múltiplas coletas, extraia APENAS a que tiver horário mais recente.
+
+# REGRAS DE PRECISÃO NUMÉRICA (RIGOROSO)
+Aplique estas regras de arredondamento/formatação para cada item:
+1. INTEIROS (Sem vírgula): pCO2, pO2, HCO3, SatO2, SvO2, AG, Cl, Na.
+2. 1 CASA DECIMAL: BE (Ex: -2,3), Lac (Ex: 1,5), K (Ex: 4,0).
+3. 2 CASAS DECIMAIS: pH (Ex: 7,35), Cai (Ex: 1,15).
+
+# ESTRUTURA
+- Use " / " entre valores.
+- Use " | " entre blocos (apenas se for mista).
+
+# CENÁRIOS
+A. ARTERIAL: pH / pCO2 / pO2 / HCO3 / BE / SatO2 / Lac / AG / Cl / Na / K / Cai
+B. VENOSA: pH / pCO2 / HCO3 / BE / SvO2 / Lac / AG / Cl / Na / K / Cai
+
+# EXEMPLOS DE SAÍDA (TEMPLATES)
+Exemplo 1 (Só Arterial):
+Gas Art pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15
+
+Exemplo 2 (Só Venosa):
+Gas Ven pH 7,31 / pCO2 48 / HCO3 24 / BE -1,5 / SvO2 70% / Lac 1,8 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,10
+
+Exemplo 3 (Mista - Arterial Completa + Venosa Resumida):
+Gas Art pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15 | Gas Ven pCO2 48 / SvO2 70%
+
+# FORMATO DE RESPOSTA
+- Escolha UM cenário. Retorne APENAS a string formatada conforme as regras de precisão.
+- Se não houver dados, retorne VAZIO.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 6: ANALISTA DE HIPÓTESES DIAGNÓSTICAS
+PROMPT_AGENTE_ANALISE = """# ATUE COMO
+Um Assistente de Decisão Clínica Sênior para Medicina Intensiva.
+Seu usuário é um médico experiente. NÃO explique fisiopatologia básica. NÃO seja prolixo.
+
+# TAREFA
+Analise a string de exames laboratoriais fornecida.
+1. Identifique valores críticos ou alterados (considere valores de referência padrão para adultos).
+2. Gere hipóteses diagnósticas diretas baseadas nessas alterações.
+
+# FORMATO DE RESPOSTA (RIGOROSO)
+A resposta deve conter APENAS duas seções, com quebras de linha OBRIGATÓRIAS:
+
+SEÇÃO 1:
+**Laboratoriais Alterados:** [Lista dos exames fora da faixa, separados por vírgula]
+
+[LINHA EM BRANCO OBRIGATÓRIA]
+
+SEÇÃO 2:
+**Hipóteses Diagnósticas:**  
+1- [Item 1]  
+2- [Item 2]  
+3- [Item 3]  
+(etc.)
+
+REGRAS DE FORMATAÇÃO:
+- Coloque DOIS espaços no final de cada linha antes de quebrar (markdown)
+- OU use quebra de linha dupla entre as seções
+- Cada item numerado deve estar em sua própria linha
+
+# REGRAS DE RACIOCÍNIO CLÍNICO
+- ANEMIA: Classifique por VCM (Micro/Normo/Macro). Ex: "Anemia Microcítica | Ferropriva; Talassemia; Doença Crônica".
+- LEUCOGRAMA: Se Leucocitose com desvio (Bast > %) -> Sugerir Infecção Bacteriana/Sepse. Se Eosinofilia -> Alergia/Parasitose.
+- RIM: Se Cr/Ur elevadas -> IRA (Pré-renal vs NTA) ou DRC.
+- GASOMETRIA: Classifique o distúrbio (ex: Acidose Metabólica). Se houver AG (Anion Gap) calculado, use-o.
+- INFLAMATÓRIOS: PCR/Leuco altos -> SIRS/Sepse vs Inflamação estéril (Pancreatite, Trauma).
+- CARDIO: Trop positiva -> IAM vs Injúria Miocárdica (Sepse/TEP/Renal).
+
+# EXEMPLO DE SAÍDA (TEMPLATE)
+**Laboratoriais Alterados:** Hb, VCM, Leuco, Cr, PCR, Gasometria (Acidose)
+
+**Hipóteses Diagnósticas:**  
+1- Anemia Microcítica | Ferropriva; Sangramento crônico; Doença Crônica  
+2- Injúria Renal Aguda (Cr 3.5) | NTA; Pré-renal; Obstrutiva  
+3- Síndrome Inflamatória | Sepse bacteriana; Foco abdominal; Pneumonia  
+4- Acidose Metabólica | Hiperlactatemia (Perfusional); Uremia
+
+IMPORTANTE: Cada linha numerada DEVE terminar com dois espaços OU quebra de linha real.
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_CONSOLIDADO_DOS_EXAMES}}"""
+
+# ==============================================================================
+# DICIONÁRIO DE AGENTES (Configuração dos 5 Agentes de Extração)
+# ==============================================================================
+AGENTES_EXAMES = {
+    "hematologia_renal": {
+        "nome": "🔵 Hematologia + Renal",
+        "descricao": "Hemograma completo + Função Renal + Eletrólitos",
+        "prompt": PROMPT_AGENTE_HEMATOLOGIA_RENAL,
+        "ativado_default": True
+    },
+    "hepatico": {
+        "nome": "🟡 Função Hepática",
+        "descricao": "TGP, TGO, FAL, GGT, BT, Alb, Amil, Lipas",
+        "prompt": PROMPT_AGENTE_HEPATICO,
+        "ativado_default": True
+    },
+    "coagulacao": {
+        "nome": "🟠 Coagulação + Inflamatórios",
+        "descricao": "PCR, CPK, Trop, TP, TTPa",
+        "prompt": PROMPT_AGENTE_COAGULACAO,
+        "ativado_default": True
+    },
+    "urina": {
+        "nome": "🟣 Urina I (EAS)",
+        "descricao": "Exame de Urina Completo",
+        "prompt": PROMPT_AGENTE_URINA,
+        "ativado_default": True
+    },
+    "gasometria": {
+        "nome": "🔴 Gasometria",
+        "descricao": "Gas Arterial, Venosa ou Mista",
+        "prompt": PROMPT_AGENTE_GASOMETRIA,
+        "ativado_default": True
+    }
+}
+
+# ==============================================================================
+# 3. PROMPTS MULTI-AGENTE - PRESCRIÇÃO (3 AGENTES)
+# ==============================================================================
+
+# AGENTE 1: IDENTIFICAÇÃO DO PACIENTE E PERÍODO
+PROMPT_AGENTE_IDENTIFICACAO_PRESCRICAO = """# ROLE
+Você é um Especialista em Admissão e Registro Hospitalar.
+
+# TAREFA
+Sua única função é extrair os dados de identificação do paciente e o período da prescrição a partir do texto bruto.
+
+# REGRAS DE EXTRAÇÃO
+1. NOME: Converta OBRIGATORIAMENTE para Title Case (Apenas primeiras letras maiúsculas).
+2. IDADE: Extraia apenas o número.
+3. DATAS: Formato DD/MM/AAAA.
+4. REGISTRO/LEITO: Se não encontrar, deixe em branco, mas mantenha a estrutura.
+
+# ESTRUTURA DE SAÍDA (FORMATO RÍGIDO)
+Retorne APENAS duas linhas de texto bruto (Plaintext). Nada mais.
+
+Linha 1: [Nome Completo], [Idade] anos - [Registro] - [Leito]
+Linha 2: Prescrição: [Data Início] até [Data Fim]
+
+# EXEMPLO DE SAÍDA
+João da Silva - 74 anos - 1570869/3 - 643A
+Prescrição: 09/01/2026 até 10/01/2026
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 2: DIETA, SUPLEMENTOS E HIDRATAÇÃO
+PROMPT_AGENTE_DIETA = """# ROLE
+Você é um Auditor de Nutrição Clínica.
+
+# TAREFA
+Extraia e organize os itens de nutrição.
+Sua prioridade máxima é a CONSISTÊNCIA: Você deve gerar no máximo 1 linha para cada categoria nutricional.
+
+# AS 6 CATEGORIAS PERMITIDAS (HIERARQUIA RÍGIDA)
+1. Dieta Oral
+2. Suplemento Oral
+3. Hidratação (Água livre/Flush)
+4. Dieta Enteral
+5. Suplemento Enteral
+6. Nutrição Parenteral (NPP)
+
+# REGRAS DE PROCESSAMENTO (CRÍTICO)
+1. REGRA DE FUSÃO (UNICIDADE): É estritamente PROIBIDO ter duas linhas da mesma categoria.
+   - Cenário: O texto diz "Dieta branda" e depois "Dieta para diabetes".
+   - Ação: Funda as características em uma única linha.
+   - Resultado: "1. Dieta oral branda para diabetes".
+   
+2. O QUE INCLUIR:
+   - Dietas, Suplementos (mesmo se estiverem em medicamentos) e NPP (mesmo se estiver em soluções).
+   - Cuidados EXCLUSIVOS de hidratação.
+
+3. LIMPEZA:
+   - Troque ";" por " e ".
+   - Padronize para Title Case na primeira letra.
+
+# FORMATO DE SAÍDA
+- Título: DIETA
+- Lista numerada sequencial (iniciando em 1).
+- Se uma categoria não existir, pule-a (não deixe linha vazia).
+
+# EXEMPLO DE SAÍDA (CENÁRIO COMPLETO)
+DIETA
+1. Dieta oral liquidificada para diabetes e hepatopata
+2. Suplemento oral hiperproteico 900 kcal
+3. Hidratação via sonda 500ml a cada 8 horas
+4. Dieta enteral oligomérica padrão 1000 kcal
+5. Suplemento enteral hiperproteico 200 kcal
+6. NPP individualizada oligomérica 1500 kcal
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# AGENTE 3: MEDICAÇÕES E SOLUÇÕES
+PROMPT_AGENTE_MEDICACOES = """# ROLE
+Você é um Farmacêutico Clínico Especialista em Segurança do Paciente.
+
+# TAREFA
+Extraia, Padronize e ORDENE as Medicações e Soluções.
+
+# REGRAS DE PADRONIZAÇÃO
+1. NOME: Fármaco + Concentração (Ex: Dipirona 1g).
+2. DOSE: A quantidade final prescrita (Ex: 2 amp, 40mg). Não confunda com a concentração do frasco.
+3. VIAS: Padronize para: Endovenoso, Intramuscular, Subcutâneo, Oral, Por Sonda, Inalatória, Retal.
+4. FREQUÊNCIA:
+   - "24/24h" -> converta para "1 vez ao dia".
+   - Fixos: use separador " x " (Ex: 40 mg x 1 vez ao dia).
+   - Se Necessário (ACM/SOS): use separador " ; " (Ex: Se Necessário).
+
+# REGRAS DE SOLUÇÕES (SOROS/DILUENTES)
+- Se houver dois volumes (ex: "Soro 250ml INJ 234ml"), escolha SEMPRE o volume de preparo (234ml) e ignore o nominal (250ml).
+- Remova termos: "Base", "INJ", "Solução".
+
+# O QUE IGNORAR (CRÍTICO)
+- NÃO inclua Nutrição Parenteral (NPP) aqui. Isso pertence à Dieta.
+- NÃO inclua Suplementos Nutricionais.
+
+# ALGORITMO DE ORDENAÇÃO (OBRIGATÓRIO)
+Processe tudo na memória e imprima nesta ordem estrita:
+
+GRUPO 1: MEDICAMENTOS FIXOS (Horário agendado)
+   Ordem: Endovenoso > Intramuscular > Subcutâneo > Oral > Sonda > Outros.
+
+GRUPO 2: MEDICAMENTOS "SE NECESSÁRIO" (SOS/ACM)
+   Ordem: Endovenoso > Intramuscular > Subcutâneo > Oral > Sonda > Outros.
+
+GRUPO 3: SOLUÇÕES (Soros e Infusões Contínuas)
+   Siga a mesma lógica (Fixos > SN).
+
+# ESTRUTURA DE SAÍDA
+Separe em dois blocos: MEDICAÇÕES e SOLUÇÕES.
+Inicie a numeração em 1 para cada bloco.
+Use quebra de linha dupla entre os blocos.
+
+# FORMATO DE CADA LINHA
+[Número]. [Nome]; [Dose]; [Via]; [Dose x Frequência ou Se Necessário]
+
+# EXEMPLO DE SAÍDA
+MEDICAÇÕES
+1. Amicacina 500mg; 1 amp; Endovenoso; 1 amp x 1 vez ao dia
+2. Sinvastatina 20mg; 40 mg; Oral; 40 mg x 1 vez ao dia
+3. Dipirona 1g; 1 g; Endovenoso; Se Necessário
+
+SOLUÇÕES
+1. Norepinefrina 4 amp + Cloreto de Sodio 0,9% 234 ml; Endovenoso; A Critério Médico
+
+# INPUT PARA PROCESSAR:
+{{TEXTO_INPUT}}"""
+
+# ==============================================================================
+# 4. PROMPTS E MODELOS (LEGADO - MANTER POR COMPATIBILIDADE)
 # ==============================================================================
 
 # ==============================================================================
@@ -572,6 +985,185 @@ SOLUÇÕES
 # 3. FUNÇÕES DE PROCESSAMENTO
 # ==============================================================================
 
+def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text):
+    """
+    Processa o texto usando múltiplos agentes especializados.
+    
+    Fluxo:
+    1. Chama o agente de IDENTIFICAÇÃO (sempre)
+    2. Chama os agentes SELECIONADOS pelo usuário
+    3. Concatena os resultados com " | "
+    
+    Args:
+        api_source: "Google Gemini" ou "OpenAI GPT"
+        api_key: Chave da API
+        model_name: Nome do modelo
+        agentes_selecionados: Lista de IDs dos agentes (ex: ["hematologia_renal", "hepatico"])
+        input_text: Texto de entrada
+    
+    Returns:
+        String formatada com Nome, HC, Data e dados dos agentes
+    """
+    if not input_text:
+        return "⚠️ O campo de entrada está vazio.", ""
+    if not api_key:
+        return f"⚠️ Configure a chave de API do {api_source}.", ""
+    if not agentes_selecionados:
+        return "⚠️ Selecione pelo menos um agente.", ""
+    
+    # PASSO 1: Extrair identificação (SEMPRE)
+    try:
+        resultado_identificacao = processar_texto(
+            api_source, api_key, model_name, 
+            PROMPT_AGENTE_IDENTIFICACAO, 
+            input_text
+        )
+        
+        # Verifica se houve erro
+        if "❌" in resultado_identificacao or "⚠️" in resultado_identificacao:
+            return resultado_identificacao, ""
+        
+        # Parseia o resultado (2 linhas)
+        linhas = resultado_identificacao.strip().split('\n')
+        if len(linhas) < 2:
+            return "❌ Erro ao extrair identificação. Verifique o texto de entrada.", ""
+        
+        nome_hc = linhas[0].strip()  # Ex: "Carlos Eduardo Souza 9876543"
+        data_linha = linhas[1].strip()  # Ex: "29/12/2025 –"
+        
+    except Exception as e:
+        return f"❌ Erro no agente de identificação: {str(e)}", ""
+    
+    # PASSO 2: Processar agentes selecionados
+    exames_concatenados = []
+    
+    for agente_id in agentes_selecionados:
+        if agente_id not in AGENTES_EXAMES:
+            continue
+        
+        agente = AGENTES_EXAMES[agente_id]
+        prompt = agente["prompt"]
+        
+        try:
+            resultado = processar_texto(api_source, api_key, model_name, prompt, input_text)
+            
+            # Ignora erros, strings vazias, e palavras como "VAZIO"
+            if resultado and "❌" not in resultado and "⚠️" not in resultado:
+                resultado_limpo = resultado.strip()
+                # Filtra strings vazias ou que contenham apenas "VAZIO"
+                if resultado_limpo and resultado_limpo.upper() != "VAZIO":
+                    exames_concatenados.append(resultado_limpo)
+        
+        except Exception as e:
+            # Ignora erros silenciosamente (pode ser que o agente não encontre dados)
+            pass
+    
+    # PASSO 3: Montar resultado final dos exames
+    if exames_concatenados:
+        resultado_exames = f"{nome_hc}\n{data_linha} " + " | ".join(exames_concatenados)
+    else:
+        resultado_exames = f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
+    
+    # PASSO 4: Análise clínica (AGENTE 6)
+    # Só processa se houver dados de exames
+    analise_clinica = ""
+    if exames_concatenados:
+        try:
+            analise_clinica = processar_texto(
+                api_source, api_key, model_name,
+                PROMPT_AGENTE_ANALISE,
+                resultado_exames  # INPUT: resultado dos agentes 0-5
+            )
+            
+            # Se houver erro, mantém vazio
+            if "❌" in analise_clinica or "⚠️" in analise_clinica:
+                analise_clinica = ""
+        except Exception:
+            analise_clinica = ""
+    
+    # Retorna tupla: (exames, análise)
+    return resultado_exames, analise_clinica
+
+
+def processar_multi_agente_prescricao(api_source, api_key, model_name, input_text):
+    """
+    Processa prescrição usando 3 agentes especializados.
+    
+    Fluxo:
+    1. Agente 1: Identificação (Nome, Idade, Registro, Leito, Datas)
+    2. Agente 2: Dieta (Oral, Enteral, Parenteral, Suplementos, Hidratação)
+    3. Agente 3: Medicações e Soluções (ordenadas por via e tipo)
+    
+    Retorna: string completa da prescrição formatada
+    """
+    # Validações
+    if not input_text:
+        return "⚠️ O campo de entrada está vazio."
+    if not api_key:
+        return f"⚠️ Configure a chave de API do {api_source}."
+    
+    # PASSO 1: Extrair identificação (SEMPRE)
+    try:
+        resultado_identificacao = processar_texto(
+            api_source, api_key, model_name, 
+            PROMPT_AGENTE_IDENTIFICACAO_PRESCRICAO, 
+            input_text
+        )
+        
+        # Verifica se houve erro
+        if "❌" in resultado_identificacao or "⚠️" in resultado_identificacao:
+            return resultado_identificacao
+        
+        identificacao_completa = resultado_identificacao.strip()
+        
+    except Exception as e:
+        return f"❌ Erro no agente de identificação: {str(e)}"
+    
+    # PASSO 2: Extrair Dieta
+    resultado_dieta = ""
+    try:
+        dieta_raw = processar_texto(api_source, api_key, model_name, PROMPT_AGENTE_DIETA, input_text)
+        
+        # Ignora erros e strings vazias
+        if dieta_raw and "❌" not in dieta_raw and "⚠️" not in dieta_raw:
+            dieta_limpa = dieta_raw.strip()
+            if dieta_limpa and dieta_limpa.upper() != "VAZIO":
+                # O prompt já retorna "DIETA" no início, não precisa adicionar
+                resultado_dieta = dieta_limpa
+    
+    except Exception:
+        pass  # Ignora erros na dieta
+    
+    # PASSO 3: Extrair Medicações e Soluções
+    resultado_medicacoes = ""
+    try:
+        med_raw = processar_texto(api_source, api_key, model_name, PROMPT_AGENTE_MEDICACOES, input_text)
+        
+        # Ignora erros e strings vazias
+        if med_raw and "❌" not in med_raw and "⚠️" not in med_raw:
+            med_limpa = med_raw.strip()
+            if med_limpa and med_limpa.upper() != "VAZIO":
+                resultado_medicacoes = med_limpa
+    
+    except Exception:
+        pass  # Ignora erros nas medicações
+    
+    # PASSO 4: Montar resultado final
+    partes = [identificacao_completa]
+    
+    if resultado_dieta:
+        partes.append("\n" + resultado_dieta)
+    
+    if resultado_medicacoes:
+        partes.append("\n" + resultado_medicacoes)
+    
+    # Se não houver dieta nem medicações
+    if not resultado_dieta and not resultado_medicacoes:
+        partes.append("\n(Nenhum dado de prescrição encontrado)")
+    
+    return "\n".join(partes)
+
+
 def verificar_modelos_ativos(api_key):
     modelos_validos = []
     genai.configure(api_key=api_key)
@@ -632,43 +1224,22 @@ if "lista_modelos_validos" not in st.session_state:
 
 st.header("📃 Pacer - Exames & Prescrição")
 
+# CONFIGURAÇÃO FIXA: OpenAI GPT-4o
+# API Key (configure abaixo ou use variável de ambiente)
+# IMPORTANTE: Insira sua chave OpenAI aqui ou crie arquivo .env
+OPENAI_API_KEY = "SUA_CHAVE_OPENAI_AQUI"  # Substitua pela sua chave
+
+# Tenta ler de variável de ambiente se não estiver configurada
+import os
+if OPENAI_API_KEY == "SUA_CHAVE_OPENAI_AQUI":
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+motor_escolhido = "OpenAI GPT"
+modelo_escolhido = "gpt-4o"
+
 with st.sidebar:
     st.header("Configurações")
-    
-    # Google Gemini como padrão (Gemini 2.5 Flash)
-    motor_escolhido = st.radio("IA Padrão:", ["Google Gemini", "OpenAI GPT"], index=0)
-    
-    if motor_escolhido == "Google Gemini":
-        sk_google = st.text_input("Gemini API Key", value=st.session_state.pacer_google_key, type="password")
-        if sk_google: st.session_state.pacer_google_key = sk_google
-        
-        if st.button("🔄 Atualizar Modelos"):
-            validos = verificar_modelos_ativos(sk_google)
-            if validos:
-                st.session_state.lista_modelos_validos = validos
-                st.success(f"✅ {len(validos)} modelos encontrados!")
-        
-        modelo_escolhido = st.selectbox("Modelo:", st.session_state.lista_modelos_validos)
-        
-        # Info sobre o modelo selecionado
-        if "2.5-flash" in modelo_escolhido and "thinking" not in modelo_escolhido:
-            st.success("⚡ Gemini 2.5 Flash: Mais rápido e recente (RECOMENDADO)")
-        elif "2.5-pro" in modelo_escolhido:
-            st.info("🤖 Gemini 2.5 Pro: Máxima inteligência")
-        elif "1.5-pro" in modelo_escolhido:
-            st.info("📚 Gemini 1.5 Pro: Maior contexto (2M tokens)")
-        elif "thinking" in modelo_escolhido:
-            st.info("🤔 Gemini Thinking: Raciocínio avançado")
-        elif "1.5-flash-8b" in modelo_escolhido:
-            st.info("💡 Gemini 1.5 Flash 8B: Mais leve e econômico")
-        elif "1.5-flash" in modelo_escolhido:
-            st.info("⚡ Gemini 1.5 Flash: Rápido e eficiente")
-        
-    else: # OpenAI (Agora é o Default)
-        modelo_escolhido = st.selectbox("Modelo:", ["gpt-4o", "gpt-4o-mini"])
-        sk_openai = st.text_input("OpenAI Key", value=st.session_state.pacer_openai_key, type="password")
-        if sk_openai: st.session_state.pacer_openai_key = sk_openai
-        
+    st.success("🤖 IA: GPT-4o (OpenAI)")
     st.divider()
 
 # Função de renderização principal
@@ -690,7 +1261,7 @@ def render_interface_colunas(titulo, key_input, key_output, prompt_atual, usar_m
             with st.spinner("Processando..."):
                 resultado = processar_texto(
                     motor_escolhido,
-                    st.session_state.pacer_google_key if motor_escolhido == "Google Gemini" else st.session_state.pacer_openai_key,
+                    OPENAI_API_KEY,
                     modelo_escolhido,
                     prompt_atual,
                     input_val
@@ -713,20 +1284,101 @@ def render_interface_colunas(titulo, key_input, key_output, prompt_atual, usar_m
              st.info("Aguardando entrada...")
 
 # Abas
-tab1, tab2, tab3 = st.tabs(["🧪 Exames", "💊 Prescrição", "⚙️ Prompts"])
+tab1, tab2 = st.tabs(["🧪 Exames", "💊 Prescrição"])
 
 with tab1:
-    # Exames agora usa st.code (usar_markdown=False)
-    render_interface_colunas("Extrator de Exames - Pacer Exames", "input_exames", "output_exames", PROMPT_EXAMES_PADRAO, usar_markdown=False)
+    st.subheader("🧪 Extrator de Exames - Multi-Agente")
+    
+    # TODOS OS AGENTES SEMPRE ATIVOS (SEM OPÇÃO DE SELEÇÃO)
+    agentes_ativos = list(AGENTES_EXAMES.keys())
+    
+    # COLUNAS DE INPUT/OUTPUT
+    col1, col2 = st.columns([1, 1], gap="large")
+    
+    with col1:
+        st.markdown("**Entrada**")
+        input_val = st.text_area("Cole aqui:", height=300, key="input_exames", label_visibility="collapsed")
+        
+        c_b1, c_b2 = st.columns([1, 3])
+        with c_b1:
+            st.button("Limpar", key="clr_input_exames", on_click=limpar_campos, args=(["input_exames", "output_exames", "output_analise"],))
+        with c_b2:
+            processar = st.button("✨ Processar", key="proc_input_exames", type="primary", use_container_width=True)
+    
+    with col2:
+        st.markdown("**Resultado dos Exames**")
+        if processar:
+            with st.spinner("Processando exames..."):
+                # USA A NOVA FUNÇÃO MULTI-AGENTE COM TODOS OS AGENTES
+                resultado_exames, analise_clinica = processar_multi_agente(
+                    motor_escolhido,
+                    OPENAI_API_KEY,
+                    modelo_escolhido,
+                    agentes_ativos,  # TODOS OS AGENTES SEMPRE
+                    input_val
+                )
+                st.session_state["output_exames"] = resultado_exames
+                st.session_state["output_analise"] = analise_clinica
+        
+        # EXIBIÇÃO DO RESULTADO DOS EXAMES
+        if "output_exames" in st.session_state and st.session_state["output_exames"]:
+            res = st.session_state["output_exames"]
+            if "❌" in res or "⚠️" in res:
+                st.error(res)
+            else:
+                st.code(res, language="text")
+        else:
+            st.info("Aguardando entrada...")
+        
+        # SEÇÃO DE ANÁLISE CLÍNICA (AGENTE 6) - LOGO ABAIXO DO RESULTADO, MESMA COLUNA
+        if "output_analise" in st.session_state and st.session_state["output_analise"]:
+            st.divider()
+            st.markdown("**🩺 Análise Clínica (Suporte à Decisão)**")
+            analise = st.session_state["output_analise"]
+            if "❌" in analise or "⚠️" in analise:
+                st.error(analise)
+            else:
+                # Mostra análise em markdown para formatação bonita
+                st.markdown(analise)
 
 with tab2:
-    # Prescrição usa st.code (usar_markdown=False)
-    render_interface_colunas("Processador de Prescrição - Pacer Prescrição", "input_presc", "output_presc", PROMPT_PRESCRICAO_PADRAO, usar_markdown=False)
-
-with tab3:
-    col_p1, col_p2 = st.columns(2)
-    with col_p1: st.text_area("Prompt Exames via API", value=PROMPT_EXAMES_PADRAO, height=300) 
-    with col_p2: st.text_area("Prompt Prescrição via API", value=PROMPT_PRESCRICAO_PADRAO, height=300)
+    st.subheader("💊 Processador de Prescrição - Multi-Agente")
+    
+    # COLUNAS DE INPUT/OUTPUT
+    col1, col2 = st.columns([1, 1], gap="large")
+    
+    with col1:
+        st.markdown("**Entrada**")
+        input_val = st.text_area("Cole aqui:", height=300, key="input_presc", label_visibility="collapsed")
+        
+        c_b1, c_b2 = st.columns([1, 3])
+        with c_b1:
+            st.button("Limpar", key="clr_input_presc", on_click=limpar_campos, args=(["input_presc", "output_presc"],))
+        with c_b2:
+            processar = st.button("✨ Processar", key="proc_input_presc", type="primary", use_container_width=True)
+    
+    with col2:
+        st.markdown("**Resultado da Prescrição**")
+        if processar:
+            with st.spinner("Processando prescrição..."):
+                # USA A NOVA FUNÇÃO MULTI-AGENTE COM 3 AGENTES
+                resultado_prescricao = processar_multi_agente_prescricao(
+                    motor_escolhido,
+                    OPENAI_API_KEY,
+                    modelo_escolhido,
+                    input_val
+                )
+                st.session_state["output_presc"] = resultado_prescricao
+        
+        # EXIBIÇÃO DO RESULTADO DA PRESCRIÇÃO
+        if "output_presc" in st.session_state and st.session_state["output_presc"]:
+            res = st.session_state["output_presc"]
+            if "❌" in res or "⚠️" in res:
+                st.error(res)
+            else:
+                st.code(res, language="text")
+        else:
+            st.info("Aguardando entrada...")
 
 # Rodapé com nota legal
 mostrar_rodape()

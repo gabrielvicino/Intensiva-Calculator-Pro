@@ -110,7 +110,6 @@ def render_formulario_completo():
     # 1. DADOS DO PACIENTE
     # ==========================================
     with st.expander("Dados do Paciente", expanded=False):
-        st.caption("Dados estáticos de entrada.")
         identificacao.render()      
         st.write("") 
         hd.render()                 
@@ -128,8 +127,6 @@ def render_formulario_completo():
     # 2. DADOS CLÍNICOS
     # ==========================================
     with st.expander("Evolução Horizontal", expanded=False):
-        st.caption("Visão longitudinal: Dispositivos, Infectologia e Exames Complementares.")
-        
         dispositivos.render()       
         st.write("")
         culturas.render()           
@@ -145,8 +142,6 @@ def render_formulario_completo():
     # 3. EVOLUÇÃO DIÁRIA
     # ==========================================
     with st.expander("Evolução Diária", expanded=True):
-        st.caption("Rotina de hoje.")
-        
         laboratoriais.render()      
         st.write("")
         evolucao_clinica.render()   

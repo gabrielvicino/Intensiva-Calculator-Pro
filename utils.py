@@ -65,11 +65,11 @@ def mostrar_rodape():
     st.markdown("---")
     st.markdown(
         """
-        <div style='text-align: center; padding: 20px 0; color: #666; font-size: 0.75em; line-height: 1.4;'>
-            <p style='margin: 0; color: #888; font-size: 0.85em;'>
+        <div style='text-align: center; padding: 20px 0; color: #666; font-size: 0.88em; line-height: 1.4;'>
+            <p style='margin: 0; color: #888; font-size: 0.98em;'>
                 <strong>Intensiva Calculator Pro</strong> | Dr. Gabriel Valladão Vicino - CRM-SP 223.216
             </p>
-            <p style='margin: 8px 0 0 0; font-size: 0.75em; font-style: italic;'>
+            <p style='margin: 8px 0 0 0; font-size: 0.88em; font-style: italic;'>
                 <strong>Nota Legal:</strong> Esta aplicação destina-se estritamente como ferramenta de auxílio à decisão clínica-assistencial. 
                 Não substitui o julgamento clínico individualizado. A responsabilidade final pela decisão terapêutica 
                 compete exclusivamente ao profissional habilitado.

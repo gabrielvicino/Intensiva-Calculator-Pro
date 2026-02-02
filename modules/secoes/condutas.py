@@ -10,7 +10,6 @@ def render():
     st.markdown("##### 13. Plano Terapêutico & Condutas")
     
     with st.container(border=True):
-        st.markdown("**✅ Lista de Problemas e Condutas**")
         st.text_area(
             "Listar condutas para hoje (uma por linha)", 
             key="conduta_final_lista", 
