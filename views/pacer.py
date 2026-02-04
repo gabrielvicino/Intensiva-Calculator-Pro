@@ -1065,7 +1065,7 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
         resultado_exames = f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
     
     # PASSO 4: Análise clínica (AGENTE 6)
-    # Só processa se houver dados de exames
+    # Sempre processa, mesmo se não houver dados
     analise_clinica = ""
     if exames_concatenados:
         try:
@@ -1075,11 +1075,23 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
                 resultado_exames  # INPUT: resultado dos agentes 0-5
             )
             
-            # Se houver erro, mantém vazio
+            # Debug: log do resultado
+            print(f"[DEBUG] Análise Clínica retornada (primeiros 200 chars): {analise_clinica[:200] if analise_clinica else 'VAZIO'}")
+            
+            # Se houver erro explícito, mantém vazio
             if "❌" in analise_clinica or "⚠️" in analise_clinica:
+                print(f"[DEBUG] Análise com erro, limpando: {analise_clinica}")
                 analise_clinica = ""
-        except Exception:
+            elif not analise_clinica or analise_clinica.strip() == "":
+                print("[DEBUG] Análise retornou vazia!")
+                analise_clinica = ""
+        except Exception as e:
+            print(f"[DEBUG] Exceção no Agente 6: {str(e)}")
             analise_clinica = ""
+    else:
+        print("[DEBUG] exames_concatenados está vazio, não processando Agente 6")
+    
+    print(f"[DEBUG] Análise final tem {len(analise_clinica)} caracteres")
     
     # Retorna tupla: (exames, análise)
     return resultado_exames, analise_clinica
@@ -1225,14 +1237,32 @@ if "lista_modelos_validos" not in st.session_state:
 st.header("📃 Pacer - Exames & Prescrição")
 
 # CONFIGURAÇÃO FIXA: OpenAI GPT-4o
-# API Key (configure abaixo ou use variável de ambiente)
-# IMPORTANTE: Insira sua chave OpenAI aqui ou crie arquivo .env
-OPENAI_API_KEY = "SUA_CHAVE_OPENAI_AQUI"  # Substitua pela sua chave
-
-# Tenta ler de variável de ambiente se não estiver configurada
+# Carrega chave do arquivo .env
 import os
-if OPENAI_API_KEY == "SUA_CHAVE_OPENAI_AQUI":
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+from pathlib import Path
+
+# Tenta carregar do .env usando python-dotenv
+try:
+    from dotenv import load_dotenv
+    # Busca arquivo .env no diretório raiz do projeto
+    env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path)
+except ImportError:
+    pass  # python-dotenv não instalado, continua sem ele
+
+# Lê a chave da variável de ambiente (.env)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# IMPORTANTE: Configure sua chave no arquivo .env
+# Crie um arquivo .env na raiz do projeto com:
+# OPENAI_API_KEY=sua-chave-aqui
+if not OPENAI_API_KEY:
+    raise ValueError(
+        "❌ API Key não configurada!\n\n"
+        "Por favor, crie um arquivo .env na raiz do projeto com:\n"
+        "OPENAI_API_KEY=sua-chave-openai-aqui\n\n"
+        "Veja .env.example para um modelo."
+    )
 
 motor_escolhido = "OpenAI GPT"
 modelo_escolhido = "gpt-4o"
@@ -1240,6 +1270,13 @@ modelo_escolhido = "gpt-4o"
 with st.sidebar:
     st.header("Configurações")
     st.success("🤖 IA: GPT-4o (OpenAI)")
+    
+    # Debug: mostra se API key foi carregada
+    if OPENAI_API_KEY and len(OPENAI_API_KEY) > 10:
+        st.success(f"✅ API Key: ...{OPENAI_API_KEY[-8:]}")
+    else:
+        st.error("❌ API Key não carregada!")
+    
     st.divider()
 
 # Função de renderização principal
@@ -1308,7 +1345,7 @@ with tab1:
     with col2:
         st.markdown("**Resultado dos Exames**")
         if processar:
-            with st.spinner("Processando exames..."):
+            with st.spinner("Processando exames com 6 agentes especializados..."):
                 # USA A NOVA FUNÇÃO MULTI-AGENTE COM TODOS OS AGENTES
                 resultado_exames, analise_clinica = processar_multi_agente(
                     motor_escolhido,
@@ -1319,6 +1356,12 @@ with tab1:
                 )
                 st.session_state["output_exames"] = resultado_exames
                 st.session_state["output_analise"] = analise_clinica
+                
+                # Debug: mostra informação no terminal
+                print(f"\n[INFO] Processamento concluído:")
+                print(f"  - Resultado exames: {len(resultado_exames)} chars")
+                print(f"  - Análise clínica: {len(analise_clinica)} chars")
+                print(f"  - Análise tem conteúdo: {bool(analise_clinica and len(analise_clinica.strip()) > 0)}\n")
         
         # EXIBIÇÃO DO RESULTADO DOS EXAMES
         if "output_exames" in st.session_state and st.session_state["output_exames"]:
@@ -1331,15 +1374,27 @@ with tab1:
             st.info("Aguardando entrada...")
         
         # SEÇÃO DE ANÁLISE CLÍNICA (AGENTE 6) - LOGO ABAIXO DO RESULTADO, MESMA COLUNA
-        if "output_analise" in st.session_state and st.session_state["output_analise"]:
+        if "output_analise" in st.session_state:
             st.divider()
             st.markdown("**🩺 Análise Clínica (Suporte à Decisão)**")
+            
             analise = st.session_state["output_analise"]
-            if "❌" in analise or "⚠️" in analise:
-                st.error(analise)
+            
+            if analise and len(analise.strip()) > 0:
+                # Tem conteúdo
+                if "❌" in analise or "⚠️" in analise:
+                    st.error(analise)
+                else:
+                    # Mostra análise em markdown para formatação bonita
+                    st.markdown(analise)
             else:
-                # Mostra análise em markdown para formatação bonita
-                st.markdown(analise)
+                # Vazio ou não processou
+                st.info("🤖 Aguardando processamento ou sem dados alterados para análise.")
+        elif "output_exames" in st.session_state and st.session_state["output_exames"]:
+            # Exames foram processados mas análise não apareceu em session_state
+            st.divider()
+            st.markdown("**🩺 Análise Clínica (Suporte à Decisão)**")
+            st.warning("⚠️ Análise clínica não foi gerada. Verifique o terminal para logs de debug.")
 
 with tab2:
     st.subheader("💊 Processador de Prescrição - Multi-Agente")
