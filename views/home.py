@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 import os
-from utils import mostrar_rodape
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 # [BLOQUEADO] Gerenciado pelo app.py para evitar conflito
@@ -35,18 +34,19 @@ Selecione uma das ferramentas no menu lateral para iniciar:
 
 * **🔄 Conversão Universal:** Ferramenta para **conversão instantânea** entre unidades farmacológicas (mcg, mg, g, UI) e taxas de infusão (ml/h ↔ dose/kg/min), facilitando a prática clínica diária.
 
-* **📃 Pacer - Exames & Prescrição:** Processador especializado para **organização de resultados laboratoriais** e prescrições médicas. Extrai e formata dados de exames em texto estruturado para registro rápido.
-
-* **🚧 [EM CONSTRUÇÃO] Evolução Diária:** Geração inteligente de evoluções médicas com auxílio de **Inteligência Artificial**. Extração automática de dados clínicos, exames e parâmetros vitais para otimização do registro em prontuário.
-
-* **🚧 [EM CONSTRUÇÃO] Calculadoras Médicas:** Conjunto de calculadoras especializadas incluindo **scores prognósticos**, índices de gravidade e cálculos de função orgânica para avaliação clínica completa.
-
 ---
 Ferramenta em desenvolvimento por *Dr. Gabriel Valladão Vicino – CRM-SP 223.216*
 
 <br>
 
-""", unsafe_allow_html=True)
 
-# Rodapé com nota legal
-mostrar_rodape()
+
+
+
+
+
+
+
+
+<small>*Nota Legal: Esta aplicação destina-se exclusivamente a atuar como **ferramenta de apoio à decisão clínica**. **Não substitui o julgamento médico individualizado**, a avaliação clínica direta ou a responsabilidade profissional. Todas as decisões terapêuticas e assistenciais permanecem sob responsabilidade exclusiva do profissional devidamente habilitado.*</small>
+""", unsafe_allow_html=True)
