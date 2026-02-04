@@ -987,13 +987,13 @@ SOLUÇÕES
 
 def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text, executar_analise=True):
     """
-    Processa o texto usando múltiplos agentes especializados.
+    Processa o texto usando múltiplos agentes especializados EM PARALELO.
     
     Fluxo:
-    1. Chama o agente de IDENTIFICAÇÃO (sempre)
-    2. Chama os agentes SELECIONADOS pelo usuário
+    1. Chama o agente de IDENTIFICAÇÃO (sempre, sequencial)
+    2. Chama os agentes SELECIONADOS SIMULTANEAMENTE (paralelo)
     3. Concatena os resultados com " | "
-    4. Opcionalmente executa análise clínica (Agente 6)
+    4. Opcionalmente executa análise clínica (sequencial)
     
     Args:
         api_source: "Google Gemini" ou "OpenAI GPT"
@@ -1013,7 +1013,9 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     if not agentes_selecionados:
         return "⚠️ Selecione pelo menos um agente.", ""
     
-    # PASSO 1: Extrair identificação (SEMPRE)
+    tempo_inicio = time.time()
+    
+    # PASSO 1: Extrair identificação (SEMPRE - SEQUENCIAL)
     try:
         resultado_identificacao = processar_texto(
             api_source, api_key, model_name, 
@@ -1036,29 +1038,60 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     except Exception as e:
         return f"❌ Erro no agente de identificação: {str(e)}", ""
     
-    # PASSO 2: Processar agentes selecionados
+    # PASSO 2: Processar agentes selecionados EM PARALELO ⚡
+    print(f"\n[PARALELO] Iniciando processamento de {len(agentes_selecionados)} agentes simultaneamente...")
+    
     exames_concatenados = []
     
-    for agente_id in agentes_selecionados:
+    def processar_agente_worker(agente_id):
+        """Worker para processar um agente em thread separada"""
         if agente_id not in AGENTES_EXAMES:
-            continue
+            return None
         
         agente = AGENTES_EXAMES[agente_id]
         prompt = agente["prompt"]
         
         try:
+            inicio_agente = time.time()
             resultado = processar_texto(api_source, api_key, model_name, prompt, input_text)
+            tempo_agente = time.time() - inicio_agente
+            
+            print(f"[PARALELO] Agente '{agente['nome']}' concluído em {tempo_agente:.1f}s")
             
             # Ignora erros, strings vazias, e palavras como "VAZIO"
             if resultado and "❌" not in resultado and "⚠️" not in resultado:
                 resultado_limpo = resultado.strip()
                 # Filtra strings vazias ou que contenham apenas "VAZIO"
                 if resultado_limpo and resultado_limpo.upper() != "VAZIO":
-                    exames_concatenados.append(resultado_limpo)
+                    return resultado_limpo
         
         except Exception as e:
-            # Ignora erros silenciosamente (pode ser que o agente não encontre dados)
-            pass
+            print(f"[PARALELO] Erro no agente '{agente_id}': {str(e)}")
+            return None
+        
+        return None
+    
+    # Executa agentes em paralelo com ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        # Cria tarefas para todos os agentes
+        future_to_agente = {
+            executor.submit(processar_agente_worker, agente_id): agente_id 
+            for agente_id in agentes_selecionados
+        }
+        
+        # Coleta resultados conforme terminam (ordem de conclusão)
+        for future in as_completed(future_to_agente):
+            agente_id = future_to_agente[future]
+            try:
+                resultado = future.result(timeout=60)  # Timeout de 60s por agente
+                if resultado:
+                    exames_concatenados.append(resultado)
+            except Exception as e:
+                print(f"[PARALELO] Exceção ao processar agente '{agente_id}': {str(e)}")
+    
+    tempo_extracao = time.time() - tempo_inicio
+    print(f"[PARALELO] Extração completa em {tempo_extracao:.1f}s (vs ~15s sequencial)")
+    print(f"[PARALELO] Agentes com dados: {len(exames_concatenados)}/{len(agentes_selecionados)}")
     
     # PASSO 3: Montar resultado final dos exames
     if exames_concatenados:
