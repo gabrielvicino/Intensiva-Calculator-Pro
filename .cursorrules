@@ -6,6 +6,26 @@
 - Durante o desenvolvimento: apenas edite arquivos, teste código, limpe cache.
 - No final da sessão: espere o usuário pedir para commitar.
 
+### ⚡ Quando Atualizar GitHub (PROCESSO OTIMIZADO):
+**Use o fluxo RÁPIDO de 3 comandos diretos:**
+```bash
+git add .
+git commit -m "feat: Descrição curta"
+git push origin main
+```
+
+**Se houver erro de SECRET no push:**
+```bash
+git reset --soft <ultimo-commit-sem-secret>
+git commit -m "feat: Mensagem"
+git push --force-with-lease origin main
+```
+
+**IMPORTANTE:**
+- ✅ Comandos DIRETOS em sequência
+- ✅ Sem verificações redundantes
+- ❌ NÃO crie múltiplos commits intermediários
+
 ## 🔒 REGRA 2: PROJETO ACRESCENTATIVO - NÃO ALTERE CÓDIGO EXISTENTE
 **Este projeto é ACRESCENTATIVO. NÃO modifique código que já está funcionando a menos que seja EXPLICITAMENTE solicitado.**
 - ✅ **PODE:** Adicionar novos campos, criar novas funções, expandir funcionalidades existentes.
