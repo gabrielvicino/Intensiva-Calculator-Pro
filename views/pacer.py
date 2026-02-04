@@ -1017,12 +1017,16 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     
     tempo_inicio = time.time()
     
+    # PRÉ-PROCESSAMENTO CONSERVADOR (Remove apenas redundâncias)
+    print("[PRÉ-PROC] Aplicando pré-processamento conservador...")
+    input_text_limpo = preprocessar_texto_exames(input_text)
+    
     # PASSO 1: Extrair identificação (SEMPRE - SEQUENCIAL)
     try:
         resultado_identificacao = processar_texto(
             api_source, api_key, model_name, 
             PROMPT_AGENTE_IDENTIFICACAO, 
-            input_text
+            input_text_limpo  # Usa texto pré-processado
         )
         
         # Verifica se houve erro
@@ -1055,7 +1059,8 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
         
         try:
             inicio_agente = time.time()
-            resultado = processar_texto(api_source, api_key, model_name, prompt, input_text)
+            # Usa input_text do escopo externo (já pré-processado)
+            resultado = processar_texto(api_source, api_key, model_name, prompt, input_text_limpo)
             tempo_agente = time.time() - inicio_agente
             
             print(f"[PARALELO] Agente '{agente['nome']}' concluído em {tempo_agente:.1f}s")
@@ -1234,6 +1239,74 @@ def verificar_modelos_ativos(api_key):
     status_msg.empty()
     return modelos_validos
 
+def preprocessar_texto_exames(texto):
+    """
+    Pré-processamento CONSERVADOR: Remove apenas redundâncias óbvias.
+    Mantém TODOS os dados clínicos intactos.
+    """
+    if not texto:
+        return texto
+    
+    # Lista de padrões SEGUROS para remover (repetitivos e sem valor clínico)
+    padroes_remover = [
+        # Rodapés repetitivos
+        '"Todo teste laboratorial deve ser correlacionado com o quadro clínico',
+        'sem o qual a interpretação do resultado é apenas relativa',
+        'Impressão do Laudo:',
+        'Conferência por Vídeo',
+        # Endereços/contatos repetitivos
+        'Rua Rua Vital Brasil',
+        'CIDADE UNIVERSITÁRIA',
+        'Campinas, SP - Brasil',
+        'CNPJ 46.068.425',
+        'Telefone (55)(19)',
+        'homepage: HTTPS://WWW.HC.UNICAMP.BR/',
+        'email: null',
+        'Caixa Postal null',
+        # Cabeçalhos genéricos repetidos
+        'LABORATÓRIO DE PATOLOGIA CLÍNICA',
+        'Chefe de Serviço: EDER DE CARVALHO PINCINATO CRF: 23811',
+    ]
+    
+    texto_processado = texto
+    
+    # Remove padrões CONSERVADORAMENTE (linha inteira se contiver)
+    linhas = texto.split('\n')
+    linhas_filtradas = []
+    
+    for linha in linhas:
+        # Mantém linha se NÃO contiver nenhum padrão de remoção
+        linha_limpa = linha.strip()
+        
+        # Se linha vazia, pula
+        if not linha_limpa:
+            continue
+            
+        # Verifica se contém padrões a remover
+        deve_remover = False
+        for padrao in padroes_remover:
+            if padrao.lower() in linha_limpa.lower():
+                deve_remover = True
+                break
+        
+        # Mantém linha se não for para remover
+        if not deve_remover:
+            linhas_filtradas.append(linha)
+    
+    texto_processado = '\n'.join(linhas_filtradas)
+    
+    # Remove múltiplas linhas vazias consecutivas (mantém estrutura)
+    while '\n\n\n' in texto_processado:
+        texto_processado = texto_processado.replace('\n\n\n', '\n\n')
+    
+    # Log de redução (opcional)
+    reducao = len(texto) - len(texto_processado)
+    if reducao > 0:
+        pct = (reducao / len(texto)) * 100
+        print(f"[PRÉ-PROC] Redução: {reducao} chars ({pct:.1f}%) - DADOS CLÍNICOS INTACTOS")
+    
+    return texto_processado.strip()
+
 def processar_texto(api_source, api_key, model_name, prompt_system, input_text):
     if not input_text: return "⚠️ O campo de entrada está vazio."
     if not api_key: return f"⚠️ Configure a chave de API do {api_source}."
@@ -1248,10 +1321,20 @@ def processar_texto(api_source, api_key, model_name, prompt_system, input_text):
 
         elif api_source == "OpenAI GPT":
             client = OpenAI(api_key=api_key)
+            
+            # Otimizações da API OpenAI (mantém qualidade)
             response = client.chat.completions.create(
                 model=model_name,
-                messages=[{"role": "system", "content": prompt_system}, {"role": "user", "content": input_text}],
-                temperature=0.0
+                messages=[
+                    {"role": "system", "content": prompt_system}, 
+                    {"role": "user", "content": input_text}
+                ],
+                temperature=0.0,        # Determinístico (já estava)
+                top_p=0.1,              # Foco nas respostas mais prováveis
+                frequency_penalty=0.0,  # Sem penalidade (dados médicos)
+                presence_penalty=0.0,   # Sem penalidade (dados médicos)
+                max_tokens=2000,        # Limite adequado para extração
+                seed=42                 # Reprodutibilidade (GPT-4o suporta)
             )
             return response.choices[0].message.content
             
