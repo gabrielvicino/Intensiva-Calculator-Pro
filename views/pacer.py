@@ -987,7 +987,7 @@ SOLUÇÕES
 # 3. FUNÇÕES DE PROCESSAMENTO
 # ==============================================================================
 
-def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text, executar_analise=True, modelo_analise=None):
+def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text, executar_analise=True):
     """
     Processa o texto usando múltiplos agentes especializados EM PARALELO.
     
@@ -1000,11 +1000,10 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     Args:
         api_source: "Google Gemini" ou "OpenAI GPT"
         api_key: Chave da API
-        model_name: Nome do modelo para EXTRAÇÃO (use gpt-4o-mini para velocidade)
+        model_name: Nome do modelo (use gpt-4o para máxima precisão)
         agentes_selecionados: Lista de IDs dos agentes (ex: ["hematologia_renal", "hepatico"])
         input_text: Texto de entrada
         executar_analise: Se True, executa Agente 6 (análise clínica). Default: True
-        modelo_analise: Modelo para análise clínica (use gpt-4o para precisão). Se None, usa model_name
     
     Returns:
         Tupla: (resultado_exames, analise_clinica)
@@ -1106,13 +1105,11 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     analise_clinica = ""
     if executar_analise and exames_concatenados:
         try:
-            # Usa modelo específico para análise (mais preciso) se fornecido
-            modelo_para_analise = modelo_analise if modelo_analise else model_name
-            print(f"[DEBUG] Executando Agente 6 (Análise Clínica) com {modelo_para_analise}...")
+            print(f"[DEBUG] Executando Agente 6 (Análise Clínica) com {model_name}...")
             
             inicio_analise = time.time()
             analise_clinica = processar_texto(
-                api_source, api_key, modelo_para_analise,
+                api_source, api_key, model_name,
                 PROMPT_AGENTE_ANALISE,
                 resultado_exames  # INPUT: resultado dos agentes 0-5
             )
@@ -1328,9 +1325,7 @@ if not OPENAI_API_KEY:
     st.stop()
 
 motor_escolhido = "OpenAI GPT"
-# Modelos para uso híbrido (mais rápido)
-modelo_extracao = "gpt-4o-mini"  # Rápido para extração simples
-modelo_analise = "gpt-4o"        # Preciso para análise complexa
+modelo_escolhido = "gpt-4o"  # GPT-4o para TUDO (máxima precisão)
 
 with st.sidebar:
     st.header("Configurações")
@@ -1420,15 +1415,14 @@ with tab1:
             
             with st.spinner(msg_spinner):
                 # USA A NOVA FUNÇÃO MULTI-AGENTE COM TODOS OS AGENTES
-                # Usa modelo híbrido: mini para extração, full para análise
+                # GPT-4o para TUDO (máxima precisão, paralelização mantém velocidade)
                 resultado_exames, analise_clinica = processar_multi_agente(
                     motor_escolhido,
                     OPENAI_API_KEY,
-                    modelo_extracao,  # GPT-4o-mini para extração (3x mais rápido)
+                    modelo_escolhido,  # GPT-4o para máxima precisão
                     agentes_ativos,  # TODOS OS AGENTES SEMPRE
                     input_val,
-                    executar_analise=st.session_state.usar_analise,  # Novo parâmetro
-                    modelo_analise=modelo_analise  # GPT-4o para análise (preciso)
+                    executar_analise=st.session_state.usar_analise
                 )
                 st.session_state["output_exames"] = resultado_exames
                 st.session_state["output_analise"] = analise_clinica if st.session_state.usar_analise else ""
