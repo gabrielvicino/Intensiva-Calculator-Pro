@@ -985,7 +985,7 @@ SOLUÇÕES
 # 3. FUNÇÕES DE PROCESSAMENTO
 # ==============================================================================
 
-def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text):
+def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados, input_text, executar_analise=True):
     """
     Processa o texto usando múltiplos agentes especializados.
     
@@ -993,6 +993,7 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     1. Chama o agente de IDENTIFICAÇÃO (sempre)
     2. Chama os agentes SELECIONADOS pelo usuário
     3. Concatena os resultados com " | "
+    4. Opcionalmente executa análise clínica (Agente 6)
     
     Args:
         api_source: "Google Gemini" ou "OpenAI GPT"
@@ -1000,9 +1001,10 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
         model_name: Nome do modelo
         agentes_selecionados: Lista de IDs dos agentes (ex: ["hematologia_renal", "hepatico"])
         input_text: Texto de entrada
+        executar_analise: Se True, executa Agente 6 (análise clínica). Default: True
     
     Returns:
-        String formatada com Nome, HC, Data e dados dos agentes
+        Tupla: (resultado_exames, analise_clinica)
     """
     if not input_text:
         return "⚠️ O campo de entrada está vazio.", ""
