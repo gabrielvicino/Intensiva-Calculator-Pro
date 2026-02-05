@@ -62,7 +62,7 @@ def verificar_autenticacao():
                     st.error("❌ PIN incorreto. Tente novamente.")
         
         st.markdown("---")
-        st.caption("Sistema em desenvolvimento para uso interno por *Dr. Gabriel Valladão Vicino - CRM-SP 223.216*")
+        st.caption("Sistema desenvolvido para uso interno por *Dr. Gabriel Valladão Vicino - CRM-SP 223.216*")
     
     return False
 
