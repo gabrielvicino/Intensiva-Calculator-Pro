@@ -1076,8 +1076,10 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
             # Ignora erros, strings vazias, e palavras como "VAZIO"
             if resultado and "❌" not in resultado and "⚠️" not in resultado:
                 resultado_limpo = resultado.strip()
-                # Filtra strings vazias ou que contenham apenas "VAZIO"
-                if resultado_limpo and resultado_limpo.upper() != "VAZIO":
+                # Remove pontuação do final para comparação
+                resultado_sem_pontuacao = resultado_limpo.rstrip('.,:;!? ')
+                # Filtra strings vazias ou que contenham apenas "VAZIO" (qualquer variação)
+                if resultado_limpo and resultado_sem_pontuacao.upper() != "VAZIO":
                     return resultado_limpo
         
         except Exception as e:
@@ -1117,7 +1119,15 @@ def processar_multi_agente(api_source, api_key, model_name, agentes_selecionados
     
     # PASSO 3: Montar resultado final dos exames
     if exames_concatenados:
-        resultado_exames = f"{nome_hc}\n{data_linha} " + " | ".join(exames_concatenados)
+        # Filtra novamente para garantir que não há "Vazio" na concatenação final
+        exames_filtrados = [
+            ex for ex in exames_concatenados 
+            if ex.strip().rstrip('.,:;!? ').upper() != "VAZIO"
+        ]
+        if exames_filtrados:
+            resultado_exames = f"{nome_hc}\n{data_linha} " + " | ".join(exames_filtrados)
+        else:
+            resultado_exames = f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
     else:
         resultado_exames = f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
     
@@ -1427,7 +1437,7 @@ modelo_escolhido = "gpt-4o"  # GPT-4o para TUDO (máxima precisão)
 
 with st.sidebar:
     st.header("Configurações")
-    st.success("🤖 IA: GPT-4o (OpenAI)")
+    st.success("IA: OpenAI - GPT-4o")
     
     # Debug: mostra se API key foi carregada
     if OPENAI_API_KEY and len(OPENAI_API_KEY) > 10:
@@ -1484,7 +1494,7 @@ if "usar_analise" not in st.session_state:
 tab1, tab2 = st.tabs(["🧪 Exames", "💊 Prescrição"])
 
 with tab1:
-    st.subheader("🧪 Extrator de Exames - Multi-Agente")
+    st.subheader("🧪 Pacer - Exames Laboratoriais")
     
     # TODOS OS AGENTES SEMPRE ATIVOS (SEM OPÇÃO DE SELEÇÃO)
     agentes_ativos = list(AGENTES_EXAMES.keys())
@@ -1507,9 +1517,9 @@ with tab1:
         if processar:
             # Define mensagem do spinner baseado em usar_analise
             if st.session_state.usar_analise:
-                msg_spinner = "Processando exames com 6 agentes especializados..."
+                msg_spinner = "Processando exames laboratoriais..."
             else:
-                msg_spinner = "Processando exames com 5 agentes de extração..."
+                msg_spinner = "Processando exames laboratoriais..."
             
             with st.spinner(msg_spinner):
                 # USA A NOVA FUNÇÃO MULTI-AGENTE COM TODOS OS AGENTES
@@ -1564,13 +1574,13 @@ with tab1:
                         st.markdown(analise)
                 else:
                     # Vazio ou não processou
-                    st.info("🤖 Aguardando processamento ou sem dados alterados para análise.")
+                    st.info("Aguardando processamento ou sem dados alterados para análise.")
             elif "output_exames" in st.session_state and st.session_state["output_exames"]:
                 # Exames foram processados mas análise não apareceu em session_state
                 st.warning("⚠️ Análise clínica não foi gerada. Verifique o terminal para logs de debug.")
 
 with tab2:
-    st.subheader("💊 Processador de Prescrição - Multi-Agente")
+    st.subheader("💊 Pacer - Prescrição Médica")
     
     # COLUNAS DE INPUT/OUTPUT
     col1, col2 = st.columns([1, 1], gap="large")
