@@ -47,7 +47,7 @@ col_p, col_idade, col_sexo = st.columns([1, 1, 1])
 with col_p:
     peso = st.number_input("Peso do Paciente (kg)", value=70.0, step=0.5, format="%.1f")
 with col_idade:
-    idade = st.number_input("Idade (anos)", min_value=0, max_value=120, value=30, step=1)
+    idade = st.number_input("Idade (anos)", min_value=0, max_value=120, value=50, step=1)
 with col_sexo:
     sexo = st.radio("Sexo", ["Masculino", "Feminino"], horizontal=True)
 
@@ -65,25 +65,26 @@ def calcular_tubo_sugerido(sexo, idade, peso):
         if sexo == "Feminino":
             # Mulheres: 7.0-7.5mm (6.5mm se muito pequena)
             if peso < 45:
-                return "6.5 mm", "Mulher"
+                return "6.5 mm", f"Mulher, {idade} anos"
             else:
-                return "7.0 - 7.5 mm", "Mulher"
+                return "7.0 - 7.5 mm", f"Mulher, {idade} anos"
         else:
             # Homens: 7.5-8.5mm (8.0mm padrão)
-            return "7.5 - 8.0 mm", "Homem"
+            return "7.5 - 8.0 mm", f"Homem, {idade} anos"
     
     # PEDIATRIA
     else:
         # NEONATOS E LACTENTES (< 1 ano ou < 10kg)
         if idade < 1 or peso < 10:
+            anos_texto = "ano" if idade == 1 else "anos"
             if peso < 1:
-                return "2.5 mm (sem cuff)", f"Criança - {idade} ano"
+                return "2.5 mm (sem cuff)", f"Criança, {idade} {anos_texto}"
             elif peso < 2:
-                return "3.0 mm (sem cuff)", f"Criança - {idade} ano"
+                return "3.0 mm (sem cuff)", f"Criança, {idade} {anos_texto}"
             elif idade < 0.5:  # < 6 meses
-                return "3.0 - 3.5 mm", f"Criança - {idade} ano"
+                return "3.0 - 3.5 mm", f"Criança, {idade} {anos_texto}"
             else:
-                return "3.5 - 4.0 mm", f"Criança - {idade} ano"
+                return "3.5 - 4.0 mm", f"Criança, {idade} {anos_texto}"
         
         # CRIANÇAS (>= 1 ano)
         else:
@@ -91,19 +92,18 @@ def calcular_tubo_sugerido(sexo, idade, peso):
             tubo_sem_cuff = round((idade / 4) + 4, 1)
             tubo_com_cuff = round((idade / 4) + 3.5, 1)
             anos_texto = "ano" if idade == 1 else "anos"
-            return f"{tubo_com_cuff} mm (c/ cuff) ou {tubo_sem_cuff} mm (s/ cuff)", f"Criança - {idade} {anos_texto}"
+            return f"{tubo_com_cuff} mm (c/ cuff) ou {tubo_sem_cuff} mm (s/ cuff)", f"Criança, {idade} {anos_texto}"
 
 tubo_sugerido, categoria = calcular_tubo_sugerido(sexo, idade, peso)
 
 # --- EXIBIÇÃO DO TUBO SUGERIDO (COMPACTA) ---
 st.markdown(
-    f"<p style='margin-top: 1rem; margin-bottom: 0.3rem; font-size: 0.95rem;'>"
-    f"<strong>Tubo Sugerido:</strong> {tubo_sugerido} | "
-    f"<em>Categoria: {categoria}</em> | Disponibilidade ±0.5 mm de variação"
+    f"<p style='margin-top: 1rem; margin-bottom: 0.2rem; font-size: 0.95rem;'>"
+    f"<strong>Tubo sugerido: {tubo_sugerido} ({categoria})</strong> - Variação padrão do tubo: ±0.5 mm"
     f"</p>",
     unsafe_allow_html=True
 )
-st.caption("A avaliação individual deve sempre considerar variabilidades anatômicas, preditores de dificuldade de via aérea e o quadro clínico específico do paciente.")
+st.caption("A avaliação individual é imprescindível e deve sempre considerar preditores de dificuldade de via aérea e o quadro clínico específico de cada paciente. A individualização é imprescindível para a melhor escolha do diâmetro do tubo orotraqueal.")
 st.markdown("---")
 
 # --- PROCESSAMENTO DA TABELA ---
