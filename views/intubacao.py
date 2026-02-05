@@ -103,8 +103,13 @@ st.markdown(
     f"</p>",
     unsafe_allow_html=True
 )
-st.caption("A avaliação individual é imprescindível e deve sempre contemplar os preditores de dificuldade de via aérea, bem como as variáveis anatômicas e clínicas específicas de cada paciente.")
-st.markdown("---")
+st.markdown(
+    "<p style='font-size: 0.8rem; color: #808495; margin-bottom: 0.5rem;'>"
+    "A avaliação individual é imprescindível e deve contemplar a estratificação dos preditores de via aérea difícil e a análise das variáveis clínicas e anatômicas específicas de cada paciente."
+    "</p>",
+    unsafe_allow_html=True
+)
+st.markdown("<hr style='margin-top: 0.5rem; margin-bottom: 0.5rem;'>", unsafe_allow_html=True)
 
 # --- PROCESSAMENTO DA TABELA ---
 dados_tabela = []
