@@ -43,9 +43,62 @@ if df_iot.empty:
     st.stop()
 
 # --- INPUT DE DADOS ---
-col_p, col_void = st.columns([1, 3])
+col_p, col_sexo, col_idade = st.columns([1, 1, 1])
 with col_p:
     peso = st.number_input("Peso do Paciente (kg)", value=70.0, step=0.5, format="%.1f")
+with col_sexo:
+    sexo = st.radio("Sexo", ["Masculino", "Feminino"], horizontal=True)
+with col_idade:
+    idade = st.number_input("Idade (anos)", min_value=0, max_value=120, value=30, step=1)
+
+# --- CÁLCULO DO TUBO SUGERIDO ---
+def calcular_tubo_sugerido(sexo, idade, peso):
+    """
+    Calcula o tamanho do tubo orotraqueal (DI em mm) baseado em sexo, idade e peso.
+    
+    Lógica:
+    - Adultos (idade >= 14): baseado em sexo
+    - Pediatria (idade < 14): baseado em idade e peso
+    """
+    # ADULTOS (crescimento ósseo finalizado)
+    if idade >= 14:
+        if sexo == "Feminino":
+            # Mulheres: 7.0-7.5mm (6.5mm se muito pequena)
+            if peso < 45:
+                return "6.5 mm", "Mulher pequena"
+            else:
+                return "7.0 - 7.5 mm", "Mulher (padrão)"
+        else:
+            # Homens: 7.5-8.5mm (8.0mm padrão)
+            return "7.5 - 8.0 mm", "Homem (padrão)"
+    
+    # PEDIATRIA
+    else:
+        # NEONATOS E LACTENTES (< 1 ano ou < 10kg)
+        if idade < 1 or peso < 10:
+            if peso < 1:
+                return "2.5 mm (sem cuff)", "Prematuro"
+            elif peso < 2:
+                return "3.0 mm (sem cuff)", "Neonato 1-2 kg"
+            elif idade < 0.5:  # < 6 meses
+                return "3.0 - 3.5 mm", "Lactente < 6m"
+            else:
+                return "3.5 - 4.0 mm", "Lactente 6-12m"
+        
+        # CRIANÇAS (>= 1 ano)
+        else:
+            # Fórmula de Cole
+            tubo_sem_cuff = round((idade / 4) + 4, 1)
+            tubo_com_cuff = round((idade / 4) + 3.5, 1)
+            return f"{tubo_com_cuff} mm (c/ cuff) ou {tubo_sem_cuff} mm (s/ cuff)", f"Criança {idade} anos"
+
+tubo_sugerido, categoria = calcular_tubo_sugerido(sexo, idade, peso)
+
+# --- EXIBIÇÃO DO TUBO SUGERIDO ---
+st.markdown("---")
+st.markdown(f"### 🔹 Tubo Sugerido: **{tubo_sugerido}**")
+st.caption(f"Categoria: {categoria} | Sempre ter disponível ±0.5 mm de variação")
+st.markdown("---")
 
 # --- PROCESSAMENTO DA TABELA ---
 dados_tabela = []
@@ -88,7 +141,6 @@ if col_nome:
 
     # --- EXIBIÇÃO ---
     if dados_tabela:
-        st.markdown("---")
         df_display = pd.DataFrame(dados_tabela)
         
         # --- ESTILIZAÇÃO DA TABELA (Pandas Styler) ---
