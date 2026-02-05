@@ -133,9 +133,8 @@ with c4:
 # Texto Informativo Discreto
 st.markdown("""
 <div class="discreet-note">
-    ℹ️ <b>Lembre-se:</b> Medicação 10% equivale a 10g da Medicação em 100ml de solução.<br>
-    <b>Exemplo:</b> Propofol 10% equivale a 10g de Propofol em 100ml de Solução.<br>
-    <b>Exemplo 1:</b> Ampola de Propofol 10% com 20ml, deve-se digitar <b>2g</b> em <b>20ml</b> de Propofol caso deseje o cálculo para bolus (dose única).
+    <b>Exemplo 1:</b> Propofol a 10% corresponde a 10 g de propofol diluídos para cada 100 mL de solução.<br>
+    <b>Exemplo 1.1:</b> Em uma ampola de propofol a 10% contendo 20 mL, há 2 g de propofol. Portanto, para o cálculo do bolus (dose única), deve-se inserir o valor de 2 g em 20 mL.
 </div>
 """, unsafe_allow_html=True)
 
