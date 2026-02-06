@@ -46,13 +46,22 @@ def _render_card_atual(i):
         
         # LINHA 3: Conduta (destacada em verde - discreto)
         st.markdown("**Digite a conduta:**")
-        # Usa st.container com CSS para destaque verde discreto
+        # CSS para adicionar borda verde no campo de input
         st.markdown(
-            '<div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 12px; border-radius: 4px; margin-bottom: 1rem;">',
+            f"""
+            <style>
+            input[aria-label="Conduta"]:not([value=""]) {{
+                border-left: 4px solid #28a745 !important;
+            }}
+            div[data-testid="stTextInput"] input[placeholder*="conduta"] {{
+                border-left: 4px solid #28a745 !important;
+                padding-left: 12px !important;
+            }}
+            </style>
+            """,
             unsafe_allow_html=True
         )
         st.text_input("Conduta", key=f"hd_atual_{i}_conduta", label_visibility="collapsed", placeholder="Digite a conduta aqui...")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # Função Card PRÉVIO
 def _render_card_previo(i):
