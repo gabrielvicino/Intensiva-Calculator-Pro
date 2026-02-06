@@ -46,9 +46,13 @@ def _render_card_atual(i):
         
         # LINHA 3: Conduta (destacada em verde - discreto)
         st.markdown("**Digite a conduta:**")
-        # Usa st.success para criar um container verde discreto
-        with st.success("", icon=""):
-            st.text_input("Conduta", key=f"hd_atual_{i}_conduta", label_visibility="collapsed", placeholder="Digite a conduta aqui...")
+        # Usa st.container com CSS para destaque verde discreto
+        st.markdown(
+            '<div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 12px; border-radius: 4px; margin-bottom: 1rem;">',
+            unsafe_allow_html=True
+        )
+        st.text_input("Conduta", key=f"hd_atual_{i}_conduta", label_visibility="collapsed", placeholder="Digite a conduta aqui...")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Função Card PRÉVIO
 def _render_card_previo(i):
