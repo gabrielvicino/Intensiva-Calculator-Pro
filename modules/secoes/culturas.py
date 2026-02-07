@@ -76,8 +76,6 @@ def _render_linha(idx_display, id_real):
             horizontal=True,
             label_visibility="collapsed"
         )
-        
-        st.write("") 
 
         # LINHA 3: Micro-organismo | Sensibilidade
         m1, m2 = st.columns([2, 2])
