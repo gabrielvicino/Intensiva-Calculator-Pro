@@ -103,23 +103,25 @@ def render_formulario_completo():
             box-shadow: 0 0 0 1px #4caf50 !important;
         }
         
-        /* ================= EFEITO ZEBRADO NAS SEÇÕES (ALTERNADO) ================= */
-        /* Seções ímpares: Branco puro */
-        .secao-impar {
-            background-color: #FFFFFF;
-            padding: 1.2rem 1.5rem;
-            border-radius: 6px;
-            margin-bottom: 0.8rem;
-            border: 1px solid #F0F0F0;
+        /* ================= EFEITO ZEBRADO NOS TÍTULOS DAS SEÇÕES ================= */
+        /* Títulos h5 das seções - efeito alternado com barra lateral */
+        
+        /* Seções ímpares (1, 3, 5, 7, 9, 11, 13): Azul discreto */
+        h5:nth-of-type(odd) {
+            background: linear-gradient(90deg, #E3F2FD 0%, #FFFFFF 100%) !important;
+            padding: 0.6rem 1rem !important;
+            border-left: 4px solid #2196F3 !important;
+            border-radius: 4px !important;
+            margin-bottom: 1rem !important;
         }
         
-        /* Seções pares: Cinza muito claro e discreto */
-        .secao-par {
-            background-color: #F8F9FA;
-            padding: 1.2rem 1.5rem;
-            border-radius: 6px;
-            margin-bottom: 0.8rem;
-            border: 1px solid #E9ECEF;
+        /* Seções pares (2, 4, 6, 8, 10, 12): Verde discreto */
+        h5:nth-of-type(even) {
+            background: linear-gradient(90deg, #E8F5E9 0%, #FFFFFF 100%) !important;
+            padding: 0.6rem 1rem !important;
+            border-left: 4px solid #4CAF50 !important;
+            border-radius: 4px !important;
+            margin-bottom: 1rem !important;
         }
 
     </style>
@@ -129,25 +131,16 @@ def render_formulario_completo():
     # 1. DADOS DO PACIENTE
     # ==========================================
     with st.expander("Dados do Paciente", expanded=False):
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        identificacao.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        hd.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        comorbidades.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        muc.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        hmpa.render()
-        st.markdown('</div>', unsafe_allow_html=True)
+        identificacao.render()      
+        st.write("") 
+        hd.render()                 
+        st.write("")
+        comorbidades.render()       
+        st.write("")
+        muc.render()                
+        st.write("")
+        hmpa.render()               
+        st.write("")
     
     st.write("") # Espaço visual
 
@@ -155,21 +148,14 @@ def render_formulario_completo():
     # 2. DADOS CLÍNICOS
     # ==========================================
     with st.expander("Evolução Horizontal", expanded=False):
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        dispositivos.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        culturas.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        antibioticos.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        complementares.render()
-        st.markdown('</div>', unsafe_allow_html=True)
+        dispositivos.render()       
+        st.write("")
+        culturas.render()           
+        st.write("")
+        antibioticos.render()       
+        st.write("")
+        complementares.render()     
+        st.write("")
 
     st.write("") # Espaço visual
 
@@ -177,18 +163,10 @@ def render_formulario_completo():
     # 3. EVOLUÇÃO DIÁRIA
     # ==========================================
     with st.expander("Evolução Diária", expanded=True):
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        laboratoriais.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
-        evolucao_clinica.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-par">', unsafe_allow_html=True)
-        sistemas.render()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="secao-impar">', unsafe_allow_html=True)
+        laboratoriais.render()      
+        st.write("")
+        evolucao_clinica.render()   
+        st.write("")
+        sistemas.render()           
+        st.write("")
         condutas.render()
-        st.markdown('</div>', unsafe_allow_html=True)
