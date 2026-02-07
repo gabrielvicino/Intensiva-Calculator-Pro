@@ -78,7 +78,6 @@ def _render_atual(idx_display, id_real):
                     _trocar_ordem_atual(idx_display-1, idx_display)
                     st.rerun()
         
-        # LINHA 1: Nome | Tipo (Bola)
         c1, c2 = st.columns([2, 1.5], vertical_alignment="center")
         with c1:
             st.text_input(f"Antibiótico {idx_display}", key=f"atb_curr_{id_real}_nome", placeholder="Exemplo: Meropenem")
@@ -132,7 +131,6 @@ def _render_previo(idx_display, id_real):
                     _trocar_ordem_previo(idx_display-1, idx_display)
                     st.rerun()
         
-        # LINHA 1: Nome | Tipo
         c1, c2 = st.columns([2, 1.5], vertical_alignment="center")
         with c1:
             st.text_input(f"Antibiótico Prévio {idx_display}", key=f"atb_prev_{id_real}_nome", placeholder="Exemplo: Ceftriaxone")

@@ -49,7 +49,6 @@ def _render_linha(idx_display, id_real):
                     _trocar_ordem(idx_display-1, idx_display)
                     st.rerun()
         
-        # Campo Laudo
         st.text_area(
             f"Laudos {idx_display}",
             key=f"comp_{id_real}_laudo",
