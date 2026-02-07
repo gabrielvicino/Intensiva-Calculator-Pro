@@ -39,7 +39,7 @@ def _render_linha(idx_display, id_real):
     """
     with st.container(border=True):
         # CSS compacto para borda verde
-        st.markdown(f"<style>input[type='text'][id*='muc_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>input[type='text'][id*='muc_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}div[data-testid='stTextInput'] input[placeholder*='Suspender']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         
         # Título com botões de reordenação
         col_titulo, col_up, col_down = st.columns([10, 1, 1])

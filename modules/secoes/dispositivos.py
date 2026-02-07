@@ -66,7 +66,7 @@ def _render_linha(idx_display, id_real):
 
         # LINHA 2: Status | Conduta (tudo alinhado)
         # CSS compacto para borda verde
-        st.markdown(f"<style>input[type='text'][id*='disp_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>input[type='text'][id*='disp_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}div[data-testid='stTextInput'] input[placeholder*='Trocar curativo']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         
         s1, s2 = st.columns([1.5, 4], vertical_alignment="bottom")
         

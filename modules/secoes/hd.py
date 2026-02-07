@@ -67,7 +67,7 @@ def _render_card_atual(idx_display, id_real):
     
     with st.container(border=True):
         # CSS compacto para borda verde
-        st.markdown(f"<style>input[type='text'][id*='hd_atual_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>input[type='text'][id*='hd_atual_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}div[data-testid='stTextInput'] input[placeholder*='Digite a conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns([3, 1.5, 1])
         with c1:
@@ -88,7 +88,7 @@ def _render_card_previo(i):
     st.markdown(f"**Hipótese Diagnóstica Resolvida {i}**")
     with st.container(border=True):
         # CSS compacto para borda verde
-        st.markdown(f"<style>input[type='text'][id*='hd_prev_{i}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
+        st.markdown(f"<style>input[type='text'][id*='hd_prev_{i}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}div[data-testid='stTextInput'] input[placeholder*='foi tomada']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns([3, 1.5, 1])
         c1.text_input(f"Hipótese Diagnóstica Prévia {i}", key=f"hd_prev_{i}_nome", placeholder="Ex: TEP")
