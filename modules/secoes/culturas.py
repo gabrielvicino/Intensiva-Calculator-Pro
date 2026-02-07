@@ -85,7 +85,6 @@ def _render_linha(idx_display, id_real):
             st.text_input(f"Perfil Sensibilidade {idx_display}", key=f"cult_{id_real}_sensib", placeholder="Exemplo: Sensível a Polimixina B")
 
         # LINHA 4: Conduta (com borda verde)
-        st.markdown(f"**Conduta {idx_display}:**")
         st.markdown(
             f"""
             <style>
@@ -102,9 +101,8 @@ def _render_linha(idx_display, id_real):
             unsafe_allow_html=True
         )
         st.text_input(
-            "Conduta", 
+            f"Conduta {idx_display}", 
             key=f"cult_{id_real}_conduta", 
-            label_visibility="collapsed", 
             placeholder="Exemplo: Escalonar antibiótico..."
         )
 
