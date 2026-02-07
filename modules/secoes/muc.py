@@ -68,7 +68,6 @@ def _render_linha(idx_display, id_real):
         with c3:
             st.text_input(f"Frequência {idx_display}", key=f"muc_{id_real}_freq", placeholder="Exemplo: 12/12h")
         
-        # LINHA 2: Conduta
         st.text_input(f"Conduta {idx_display}", key=f"muc_{id_real}_conduta", placeholder="Exemplo: Manter, Suspender ou Ajustar")
 
 # 2. Renderização Principal
