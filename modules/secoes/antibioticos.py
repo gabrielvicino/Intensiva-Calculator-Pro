@@ -28,15 +28,15 @@ def get_campos():
 
 # Função Card ATUAL
 def _render_atual(i):
-    st.markdown(f"**Antibiótico Atual #{i}**")
+    st.markdown(f"**Antibiótico {i}**")
     with st.container(border=True):
         # LINHA 1: Nome | Tipo (Bola)
         c1, c2 = st.columns([2, 1.5], vertical_alignment="center")
         with c1:
-            st.text_input(f"Nome do ATB #{i}", key=f"atb_curr_{i}_nome", placeholder="Ex: Meropenem")
+            st.text_input(f"Antibiótico {i}", key=f"atb_curr_{i}_nome", placeholder="Exemplo: Meropenem")
         with c2:
             st.radio(
-                f"Tipo #{i}", 
+                f"Tipo {i}", 
                 ["Empírico", "Guiado"], 
                 key=f"atb_curr_{i}_tipo", 
                 horizontal=True,
@@ -46,30 +46,41 @@ def _render_atual(i):
         # LINHA 2: Datas (Início | Término Previsto)
         d1, d2 = st.columns([1, 1])
         with d1:
-            st.text_input("Data Início", key=f"atb_curr_{i}_data_ini", placeholder="DD/MM (ou D3)")
+            st.text_input("Data de Início (dd/mm/aaaa)", key=f"atb_curr_{i}_data_ini", placeholder="dd/mm/aaaa")
         with d2:
-            st.text_input("Término Previsto", key=f"atb_curr_{i}_data_fim", placeholder="DD/MM (Planejado)")
+            st.text_input("Término Previsto (dd/mm/aaaa)", key=f"atb_curr_{i}_data_fim", placeholder="dd/mm/aaaa")
             
-        # LINHA 3: Conduta (Verde)
-        with st.success(f"Conduta #{i}"):
-            st.text_input(
-                "Conduta", 
-                key=f"atb_curr_{i}_conduta", 
-                label_visibility="collapsed", 
-                placeholder="Ex: Ajustar para dose renal, Descalonar..."
-            )
+        # LINHA 3: Conduta (com borda verde)
+        st.markdown(f"**Conduta {i}:**")
+        st.markdown(
+            f"""
+            <style>
+            input[type="text"][id*="atb_curr_{i}_conduta"] {{
+                border-left: 4px solid #28a745 !important;
+                padding-left: 12px !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.text_input(
+            "Conduta", 
+            key=f"atb_curr_{i}_conduta", 
+            label_visibility="collapsed", 
+            placeholder="Exemplo: Ajustar para dose renal, Descalonar..."
+        )
 
 # Função Card PRÉVIO
 def _render_previo(i):
-    st.markdown(f"**Antibiótico Prévio #{i}**")
+    st.markdown(f"**Antibiótico Prévio {i}**")
     with st.container(border=True):
         # LINHA 1: Nome | Tipo
         c1, c2 = st.columns([2, 1.5], vertical_alignment="center")
         with c1:
-            st.text_input(f"Nome do ATB #{i}", key=f"atb_prev_{i}_nome", placeholder="Ex: Ceftriaxone")
+            st.text_input(f"Antibiótico Prévio {i}", key=f"atb_prev_{i}_nome", placeholder="Exemplo: Ceftriaxone")
         with c2:
             st.radio(
-                f"Tipo #{i}", 
+                f"Tipo {i}", 
                 ["Empírico", "Guiado"], 
                 key=f"atb_prev_{i}_tipo", 
                 horizontal=True,
@@ -79,22 +90,33 @@ def _render_previo(i):
         # LINHA 2: Datas (Início | Fim Real)
         d1, d2 = st.columns([1, 1])
         with d1:
-            st.text_input("Data Início", key=f"atb_prev_{i}_data_ini", placeholder="DD/MM")
+            st.text_input("Data de Início (dd/mm/aaaa)", key=f"atb_prev_{i}_data_ini", placeholder="dd/mm/aaaa")
         with d2:
-            st.text_input("Data Término", key=f"atb_prev_{i}_data_fim", placeholder="DD/MM (Suspenso em)")
+            st.text_input("Data Término (dd/mm/aaaa)", key=f"atb_prev_{i}_data_fim", placeholder="dd/mm/aaaa")
 
-        # LINHA 3: Conduta
-        with st.success(f"✅ Motivo/Conduta #{i}"):
-            st.text_input(
-                "Conduta", 
-                key=f"atb_prev_{i}_conduta", 
-                label_visibility="collapsed", 
-                placeholder="Ex: Suspenso por escalonamento, Fim de tratamento..."
-            )
+        # LINHA 3: Conduta (com borda verde)
+        st.markdown(f"**Conduta {i}:**")
+        st.markdown(
+            f"""
+            <style>
+            input[type="text"][id*="atb_prev_{i}_conduta"] {{
+                border-left: 4px solid #28a745 !important;
+                padding-left: 12px !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.text_input(
+            "Conduta", 
+            key=f"atb_prev_{i}_conduta", 
+            label_visibility="collapsed", 
+            placeholder="Exemplo: Suspenso por escalonamento, Fim de tratamento..."
+        )
 
 # 2. Renderização Principal
 def render():
-    st.markdown("##### 8. Antibióticos (Prévios e Atuais)")
+    st.markdown("##### 8. Antibióticos")
     
     # --- SEÇÃO ATUAIS ---
     st.info("**Em Uso (Atuais)**")
