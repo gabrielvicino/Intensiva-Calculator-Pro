@@ -99,7 +99,6 @@ def _render_atual(idx_display, id_real):
             st.text_input("Término Previsto (dd/mm/aaaa)", key=f"atb_curr_{id_real}_data_fim", placeholder="dd/mm/aaaa")
             
         # LINHA 3: Conduta (com borda verde)
-        st.markdown(f"**Conduta {idx_display}:**")
         st.markdown(
             f"""
             <style>
@@ -112,9 +111,8 @@ def _render_atual(idx_display, id_real):
             unsafe_allow_html=True
         )
         st.text_input(
-            "Conduta", 
+            f"Conduta {idx_display}", 
             key=f"atb_curr_{id_real}_conduta", 
-            label_visibility="collapsed", 
             placeholder="Exemplo: Ajustar para dose renal, Descalonar..."
         )
 
@@ -173,7 +171,6 @@ def _render_previo(idx_display, id_real):
         )
 
         # LINHA 4: Conduta (com borda verde)
-        st.markdown(f"**Conduta {idx_display}:**")
         st.markdown(
             f"""
             <style>
@@ -186,9 +183,8 @@ def _render_previo(idx_display, id_real):
             unsafe_allow_html=True
         )
         st.text_input(
-            "Conduta", 
+            f"Conduta {idx_display}", 
             key=f"atb_prev_{id_real}_conduta", 
-            label_visibility="collapsed", 
             placeholder="Exemplo: Suspenso por escalonamento, Fim de tratamento..."
         )
 
