@@ -53,7 +53,6 @@ def _render_linha(idx_display, id_real):
                     _trocar_ordem(idx_display-1, idx_display)
                     st.rerun()
         
-        # LINHA 1: Dispositivo | Local | Data Inserção | Data Retirada
         c1, c2, c3, c4 = st.columns([2, 2, 1.2, 1.2], vertical_alignment="bottom")
         
         with c1:
