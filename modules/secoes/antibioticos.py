@@ -103,7 +103,16 @@ def render():
         _render_atual(i)
         st.write("")
         
-    with st.expander("Ver mais ATB Atuais (Slots 4 e 5)"):
+    # Verifica se há conteúdo nos ATB 4 e 5
+    tem_conteudo_extras = False
+    for i in [4, 5]:
+        if (st.session_state.get(f"atb_atual_{i}_nome", "") or 
+            st.session_state.get(f"atb_atual_{i}_data_ini", "") or 
+            st.session_state.get(f"atb_atual_{i}_posologia", "")):
+            tem_conteudo_extras = True
+            break
+    
+    with st.expander("Demais ATB Atuais", expanded=tem_conteudo_extras):
         _render_atual(4)
         st.write("")
         _render_atual(5)
