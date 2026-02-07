@@ -67,7 +67,6 @@ def _render_linha(idx_display, id_real):
             st.text_input(f"Frequência {idx_display}", key=f"muc_{id_real}_freq", placeholder="Exemplo: 12/12h")
             
         # LINHA 2: Conduta (com borda verde)
-        st.markdown(f"**Conduta {idx_display}:**")
         st.markdown(
             f"""
             <style>
@@ -83,7 +82,7 @@ def _render_linha(idx_display, id_real):
             """,
             unsafe_allow_html=True
         )
-        st.text_input(f"Conduta", key=f"muc_{id_real}_conduta", label_visibility="collapsed", placeholder="Exemplo: Manter, Suspender ou Ajustar")
+        st.text_input(f"Conduta {idx_display}", key=f"muc_{id_real}_conduta", placeholder="Exemplo: Manter, Suspender ou Ajustar")
 
 # 2. Renderização Principal
 def render():
