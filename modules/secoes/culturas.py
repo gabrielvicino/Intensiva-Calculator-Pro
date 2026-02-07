@@ -37,23 +37,7 @@ def _render_linha(idx_display, id_real):
     id_real: ID real da cultura nos dados (1-8)
     """
     with st.container(border=True):
-        # Título com botões de reordenação
-        col_titulo, col_up, col_down = st.columns([10, 1, 1])
-        
-        with col_titulo:
-            st.markdown(f"**Cultura {idx_display}**")
-        
-        with col_up:
-            if idx_display > 1:
-                if st.button("↑", key=f"cult_up_pos_{idx_display}", help="Mover para cima"):
-                    _trocar_ordem(idx_display-1, idx_display-2)
-                    st.rerun()
-        
-        with col_down:
-            if idx_display < 8:
-                if st.button("↓", key=f"cult_down_pos_{idx_display}", help="Mover para baixo"):
-                    _trocar_ordem(idx_display-1, idx_display)
-                    st.rerun()
+        st.markdown(f"**Cultura {idx_display}**")
         
         # LINHA 1: Sítio | Data Coleta | Data Resultado | Checkbox
         c1, c2, c3, c4 = st.columns([2.5, 1.2, 1.2, 1.2], vertical_alignment="bottom")
@@ -109,6 +93,22 @@ def _render_linha(idx_display, id_real):
             label_visibility="collapsed", 
             placeholder="Exemplo: Escalonar antibiótico..."
         )
+        
+        # Botões de reordenação no final
+        st.write("")
+        col_empty, col_up, col_down = st.columns([10, 1, 1])
+        
+        with col_up:
+            if idx_display > 1:
+                if st.button("↑", key=f"cult_up_pos_{idx_display}", help="Mover para cima"):
+                    _trocar_ordem(idx_display-1, idx_display-2)
+                    st.rerun()
+        
+        with col_down:
+            if idx_display < 8:
+                if st.button("↓", key=f"cult_down_pos_{idx_display}", help="Mover para baixo"):
+                    _trocar_ordem(idx_display-1, idx_display)
+                    st.rerun()
 
 # 2. Renderização Principal
 def render():
