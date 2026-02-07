@@ -99,17 +99,7 @@ def _render_atual(idx_display, id_real):
             st.text_input("Término Previsto (dd/mm/aaaa)", key=f"atb_curr_{id_real}_data_fim", placeholder="dd/mm/aaaa")
             
         # LINHA 3: Conduta (com borda verde)
-        st.markdown(
-            f"""
-            <style>
-            input[type="text"][id*="atb_curr_{id_real}_conduta"] {{
-                border-left: 4px solid #28a745 !important;
-                padding-left: 12px !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<style>input[type='text'][id*='atb_curr_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         st.text_input(
             f"Conduta {idx_display}", 
             key=f"atb_curr_{id_real}_conduta", 
@@ -171,17 +161,7 @@ def _render_previo(idx_display, id_real):
         )
 
         # LINHA 4: Conduta (com borda verde)
-        st.markdown(
-            f"""
-            <style>
-            input[type="text"][id*="atb_prev_{id_real}_conduta"] {{
-                border-left: 4px solid #28a745 !important;
-                padding-left: 12px !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<style>input[type='text'][id*='atb_prev_{id_real}_conduta']{{border-left:4px solid #28a745!important;padding-left:12px!important}}</style>", unsafe_allow_html=True)
         st.text_input(
             f"Conduta {idx_display}", 
             key=f"atb_prev_{id_real}_conduta", 
