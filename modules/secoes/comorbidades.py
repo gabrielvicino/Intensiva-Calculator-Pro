@@ -15,6 +15,19 @@ def get_campos():
 def _render_linha(i):
     # Container com borda fina para agrupar a linha
     with st.container(border=True):
+        # CSS para borda verde (fora das colunas)
+        st.markdown(
+            f"""
+            <style>
+            input[type="text"][id*="cmd_{i}_conduta"] {{
+                border-left: 4px solid #28a745 !important;
+                padding-left: 12px !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        
         # Layout: Nome (Maior), Classificação (Pequeno), Conduta (Médio)
         c1, c2, c3 = st.columns([2, 1, 2], vertical_alignment="bottom")
         
@@ -25,17 +38,6 @@ def _render_linha(i):
             st.text_input(f"Classificação {i}", key=f"cmd_{i}_class", placeholder="Ex: Estágio 2")
             
         with c3:
-            st.markdown(
-                f"""
-                <style>
-                input[type="text"][id*="cmd_{i}_conduta"] {{
-                    border-left: 4px solid #28a745 !important;
-                    padding-left: 12px !important;
-                }}
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
             st.text_input(f"Conduta {i}", key=f"cmd_{i}_conduta", placeholder="Ex: Manter Losartana")
 
 # 2. Renderização Principal

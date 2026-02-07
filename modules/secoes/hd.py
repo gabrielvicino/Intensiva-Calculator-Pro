@@ -66,19 +66,7 @@ def _render_card_atual(idx_display, id_real):
                 st.rerun()
     
     with st.container(border=True):
-        # LINHA 1: Hipótese Diagnóstica | Classificação | Data
-        c1, c2, c3 = st.columns([3, 1.5, 1])
-        with c1:
-            st.text_input(f"Hipótese Diagnóstica Atual {idx_display}", key=f"hd_atual_{id_real}_nome", placeholder="Ex: Lesão Renal Aguda")
-        with c2:
-            st.text_input(f"Classificação {idx_display}", key=f"hd_atual_{id_real}_class", placeholder="Ex: KDIGO 3")
-        with c3:
-            st.text_input(f"Data Início (dd/mm/aaaa)", key=f"hd_atual_{id_real}_data", placeholder="01/01/2025")
-            
-        # LINHA 2: Observação
-        st.text_area(f"Observação Hipótese Diagnóstica {idx_display}", key=f"hd_atual_{id_real}_obs", height=68, placeholder="Observações sobre a evolução da Hipótese Diagnóstica...")
-        
-        # LINHA 3: Conduta (destacada em verde - discreto)
+        # CSS para borda verde (fora do layout)
         st.markdown(
             f"""
             <style>
@@ -90,6 +78,20 @@ def _render_card_atual(idx_display, id_real):
             """,
             unsafe_allow_html=True
         )
+        
+        # LINHA 1: Hipótese Diagnóstica | Classificação | Data
+        c1, c2, c3 = st.columns([3, 1.5, 1])
+        with c1:
+            st.text_input(f"Hipótese Diagnóstica Atual {idx_display}", key=f"hd_atual_{id_real}_nome", placeholder="Ex: Lesão Renal Aguda")
+        with c2:
+            st.text_input(f"Classificação {idx_display}", key=f"hd_atual_{id_real}_class", placeholder="Ex: KDIGO 3")
+        with c3:
+            st.text_input(f"Data Início (dd/mm/aaaa)", key=f"hd_atual_{id_real}_data", placeholder="01/01/2025")
+        
+        # LINHA 2: Observação
+        st.text_area(f"Observação Hipótese Diagnóstica {idx_display}", key=f"hd_atual_{id_real}_obs", height=68, placeholder="Observações sobre a evolução da Hipótese Diagnóstica...")
+        
+        # LINHA 3: Conduta
         st.text_input(f"Conduta {idx_display}", key=f"hd_atual_{id_real}_conduta", placeholder="Digite a conduta aqui...")
 
 # Função Card PRÉVIO
