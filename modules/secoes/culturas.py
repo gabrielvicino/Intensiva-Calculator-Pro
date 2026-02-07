@@ -6,9 +6,9 @@ def get_campos():
     for i in range(1, 9):
         campos.update({
             f'cult_{i}_sitio': '',
-            f'cult_{i}_data': '',
-            # Padrão alterado para corresponder à primeira opção solicitada
-            f'cult_{i}_status': 'Parcial Negativo', 
+            f'cult_{i}_data_coleta': '',
+            f'cult_{i}_data_resultado': '',
+            f'cult_{i}_status': 'Pendente negativo', 
             f'cult_{i}_micro': '',
             f'cult_{i}_sensib': '',
             f'cult_{i}_check': False, 
@@ -19,22 +19,25 @@ def get_campos():
 # Função auxiliar para desenhar UM card de cultura
 def _render_linha(i):
     with st.container(border=True):
-        # LINHA 1: Sítio | Data | Checkbox
-        c1, c2, c3 = st.columns([3, 1.2, 1.5], vertical_alignment="center")
+        st.markdown(f"**Cultura {i}**")
+        
+        # LINHA 1: Sítio | Data Coleta | Data Resultado | Checkbox
+        c1, c2, c3, c4 = st.columns([2.5, 1.2, 1.2, 1.2], vertical_alignment="bottom")
         
         with c1:
-            st.text_input(f"Material / Sítio {i}", key=f"cult_{i}_sitio", placeholder="Exemplo: Hemocultura, Urocultura")
+            st.text_input(f"Sítio {i}", key=f"cult_{i}_sitio", placeholder="Exemplo: Hemocultura, Urocultura")
         with c2:
-            st.text_input(f"Data Coleta (dd/mm/aaaa)", key=f"cult_{i}_data", placeholder="01/01/2025")
+            st.text_input(f"Data da Coleta", key=f"cult_{i}_data_coleta", placeholder="dd/mm/aaaa")
         with c3:
+            st.text_input(f"Data do Resultado", key=f"cult_{i}_data_resultado", placeholder="dd/mm/aaaa")
+        with c4:
             st.checkbox(f"✅ Checado Hoje", key=f"cult_{i}_check")
 
-        # LINHA 2: Status (Ordem Reajustada)
-        st.markdown(f"<small style='color:#666'>Status da Cultura {i}</small>", unsafe_allow_html=True)
+        # LINHA 2: Status da Cultura
+        st.markdown(f"<small style='color:#666'>Status da Cultura:</small>", unsafe_allow_html=True)
         st.radio(
             f"Status {i}", 
-            # AQUI ESTÁ A MUDANÇA DA ORDEM:
-            ["Parcial Negativo", "Pendente", "Negativa", "Positiva"], 
+            ["Pendente negativo", "Negativo", "Positivo Aguarda Antibiograma", "Positivo com Antibiograma"], 
             key=f"cult_{i}_status", 
             horizontal=True,
             label_visibility="collapsed"
@@ -75,7 +78,7 @@ def _render_linha(i):
 
 # 2. Renderização Principal
 def render():
-    st.markdown("##### 7. Culturas e Resultados")
+    st.markdown("##### 7. Culturas")
     
     # --- 4 Itens VISÍVEIS ---
     for i in range(1, 5):
