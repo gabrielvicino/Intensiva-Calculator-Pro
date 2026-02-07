@@ -139,7 +139,19 @@ def render():
     
     # --- B: HIPÓTESES DIAGNÓSTICAS ATUAIS EXTRAS (3 e 4) - ESCONDIDOS ---
     st.write("")
-    with st.expander("Outras Hipóteses Diagnósticas Atuais"):
+    
+    # Verifica se há conteúdo nas hipóteses 3 e 4
+    tem_conteudo_extras = False
+    for id_hd in [ordem[2], ordem[3]]:
+        if (st.session_state.get(f"hd_atual_{id_hd}_nome", "") or 
+            st.session_state.get(f"hd_atual_{id_hd}_class", "") or 
+            st.session_state.get(f"hd_atual_{id_hd}_conduta", "") or 
+            st.session_state.get(f"hd_atual_{id_hd}_data", "") or 
+            st.session_state.get(f"hd_atual_{id_hd}_obs", "")):
+            tem_conteudo_extras = True
+            break
+    
+    with st.expander("Outras Hipóteses Diagnósticas Atuais", expanded=tem_conteudo_extras):
         _render_card_atual(3, ordem[2])
         st.write("")
         _render_card_atual(4, ordem[3])
@@ -148,7 +160,18 @@ def render():
     st.write("")
 
     # --- C: HIPÓTESES DIAGNÓSTICAS RESOLVIDAS - ESCONDIDOS ---
-    with st.expander("**Hipóteses Diagnósticas Resolvidas**", expanded=False):
+    # Verifica se há conteúdo nas hipóteses resolvidas
+    tem_conteudo_resolvidas = False
+    for i in range(1, 5):
+        if (st.session_state.get(f"hd_prev_{i}_nome", "") or 
+            st.session_state.get(f"hd_prev_{i}_class", "") or 
+            st.session_state.get(f"hd_prev_{i}_conduta", "") or 
+            st.session_state.get(f"hd_prev_{i}_data_fim", "") or 
+            st.session_state.get(f"hd_prev_{i}_obs", "")):
+            tem_conteudo_resolvidas = True
+            break
+    
+    with st.expander("**Hipóteses Diagnósticas Resolvidas**", expanded=tem_conteudo_resolvidas):
         for i in range(1, 5):
             _render_card_previo(i)
             st.write("")
