@@ -127,6 +127,16 @@ def render():
         _render_previo(i)
         st.write("")
         
-    with st.expander("Ver mais ATB Prévios (Slots 3 a 5)"):
+    # Verifica se há conteúdo nos ATB prévios 3 a 5
+    tem_conteudo_previos = False
+    for i in range(3, 6):
+        if (st.session_state.get(f"atb_prev_{i}_nome", "") or 
+            st.session_state.get(f"atb_prev_{i}_data_ini", "") or 
+            st.session_state.get(f"atb_prev_{i}_data_fim", "")):
+            tem_conteudo_previos = True
+            break
+    
+    with st.expander("Demais ATB Prévios", expanded=tem_conteudo_previos):
         for i in range(3, 6):
             _render_previo(i)
+            st.write("")
