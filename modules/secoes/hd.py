@@ -108,9 +108,21 @@ def _render_card_previo(i):
 
         st.text_area(f"Observação {i}", key=f"hd_prev_{i}_obs", height=68)
 
-        # LINHA 3: Conduta Realizada
-        with st.success(f"✅ Conduta Realizada {i}"):
-            st.text_input("Conduta", key=f"hd_prev_{i}_conduta", label_visibility="collapsed", placeholder="Conduta que foi tomada...")
+        # LINHA 3: Conduta Realizada (com mesmo design de borda verde)
+        st.markdown("**✅ Conduta Realizada:**")
+        # CSS para adicionar borda verde no campo de input (mesmo estilo das condutas atuais)
+        st.markdown(
+            f"""
+            <style>
+            div[data-testid="stTextInput"] input[placeholder*="tomada"] {{
+                border-left: 4px solid #28a745 !important;
+                padding-left: 12px !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.text_input("Conduta", key=f"hd_prev_{i}_conduta", label_visibility="collapsed", placeholder="Conduta que foi tomada...")
 
 # 2. Renderização Principal
 def render():
