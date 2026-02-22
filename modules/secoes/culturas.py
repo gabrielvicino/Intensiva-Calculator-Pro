@@ -57,10 +57,15 @@ def _render_linha(idx_display, id_real):
 
         # LINHA 2: Status da Cultura
         st.markdown(f"<small style='color:#666'>Status da Cultura:</small>", unsafe_allow_html=True)
+        opcoes_status = ["Pendente negativo", "Negativo", "Positivo aguarda isolamento", "Positivo com Antibiograma"]
+        key_status = f"cult_{id_real}_status"
+        # Garante que o valor em session_state seja válido (evita erro quando dados vêm de IA ou sessão antiga)
+        if key_status in st.session_state and st.session_state[key_status] not in opcoes_status:
+            st.session_state[key_status] = None
         st.pills(
             f"Status {idx_display}", 
-            ["Pendente negativo", "Negativo", "Positivo aguarda isolamento", "Positivo com Antibiograma"], 
-            key=f"cult_{id_real}_status",
+            opcoes_status, 
+            key=key_status,
             label_visibility="collapsed"
         )
 
