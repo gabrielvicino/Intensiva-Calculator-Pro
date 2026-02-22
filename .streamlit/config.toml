@@ -1,0 +1,35 @@
+# ===================================
+# CONFIGURAÇÕES DE SERVIDOR
+# ===================================
+[server]
+# Previne timeout de sessão
+enableXsrfProtection = false
+enableCORS = false
+# Mantém a conexão WebSocket ativa
+enableWebsocketCompression = false
+# Aumenta timeout da sessão (em segundos)
+maxUploadSize = 200
+# Porta padrão
+port = 8501
+
+# ===================================
+# CONFIGURAÇÕES DE CLIENTE/BROWSER
+# ===================================
+[browser]
+# Não coleta estatísticas (mais leve)
+gatherUsageStats = false
+# Toolbar minimalista
+[client]
+toolbarMode = "minimal"
+# Desabilita checagem de saúde que pode causar reconexões
+showErrorDetails = true
+
+# ===================================
+# TEMA VISUAL
+# ===================================
+[theme]
+base = "light"
+primaryColor = "#1E88E5"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#31333F"

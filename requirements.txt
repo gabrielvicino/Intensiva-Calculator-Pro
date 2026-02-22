@@ -1,0 +1,8 @@
+streamlit
+pandas
+st-gsheets-connection
+gspread
+google-generativeai
+openai
+Pillow
+python-dotenv

@@ -1,0 +1,43 @@
+---
+description: Workflow obrigatório ao criar novos campos no prontuário
+globs: modules/secoes/*.py, modules/gerador.py, modules/agentes_secoes.py
+alwaysApply: true
+---
+
+# Novos Campos — Workflow Obrigatório
+
+> **LEMBRE-SE SEMPRE:** ao criar um campo novo, atualize o **agente** (agentes_secoes.py) e a **saída determinística** (gerador.py). Nunca omitir.
+
+Ao criar ou alterar um campo em qualquer seção do prontuário, você **DEVE** atualizar **os 3 locais** abaixo. A saída JSON do agente precisa ser **compatível** com os campos do formulário.
+
+## 1. Formulário (módulo da seção)
+
+- `modules/secoes/<secao>.py` → `get_campos()`: incluir o novo campo com valor padrão.
+- UI: adicionar o widget correspondente (text_input, pills, etc.).
+
+## 2. Gerador (saída determinística)
+
+- `modules/gerador.py` → função `_secao_*` correspondente: incluir o novo campo na geração do texto do prontuário.
+- Campos vazios não devem gerar linha (regra geral).
+- Condutas: vão para `_secao_condutas()` via `coletar_condutas_agregadas()` (chaves terminando em `_conduta`).
+
+## 3. Agente de extração (saída JSON compatível)
+
+- `modules/agentes_secoes.py`:
+  - **Prompt**: instruir a IA sobre o novo campo (nome, formato, regras).
+  - **Schema/estrutura de saída**: incluir o novo campo no JSON esperado.
+  - **Função `preencher_<secao>`**: mapear o retorno da IA para as chaves do `session_state` (ex: `resultado[f"campo_{i}_novo"] = item.get("novo", "")`).
+
+## Regras de compatibilidade
+
+- As chaves retornadas por `preencher_*` devem corresponder **exatamente** às chaves em `get_campos()`.
+- Campos de conduta (`*_conduta`): por padrão, o agente **não preenche** (sempre `""`). O usuário preenche manualmente.
+- Se o agente não retornar uma chave, o `session_state` não é sobrescrito para ela (comportamento desejado para condutas).
+
+## Exemplo rápido
+
+Novo campo `comp_{i}_exame` em Complementares:
+
+1. **Formulário** (`complementares.py`): `f'comp_{i}_exame': ''` em `get_campos()` + widget.
+2. **Gerador** (`gerador.py`): incluir `comp_{i}_exame` na linha gerada (ex: `"{exame} ({data})"`).
+3. **Agente** (`agentes_secoes.py`): schema com `comp_{i}_exame`, instruções no prompt, e `resultado[f"comp_{i}_exame"] = _v("exame")` em `preencher_complementares`.
