@@ -27,6 +27,16 @@ echo === Git Push ===
 if errorlevel 1 goto erro
 
 echo.
+echo === Sincronizando com Área de Trabalho ===
+set "DESTINO=%USERPROFILE%\OneDrive\Área de Trabalho\Intensiva Calculator\Intensiva Calculator"
+if exist "%DESTINO%" (
+    robocopy "%~dp0" "%DESTINO%" /E /XD .git .venv venv __pycache__ .streamlit /XF .env /NFL /NDL /NJH /NJS /NC /NS >nul 2>&1
+    echo Pasta da Área de Trabalho atualizada.
+) else (
+    echo Pasta da Área de Trabalho não encontrada. Execute sincronizar_pastas.bat manualmente.
+)
+
+echo.
 echo Concluido com sucesso!
 goto fim
 
