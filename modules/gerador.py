@@ -81,7 +81,7 @@ def _secao_identificacao() -> list[str]:
     # 5. Equipe
     equipe = _get("equipe")
     if equipe:
-        corpo.append(f"Equipe responsável: {equipe}")
+        corpo.append(f"Equipe Titular: {equipe}")
 
     # 6. Data internação hospitalar
     di_hosp = _get("di_hosp")
@@ -280,7 +280,7 @@ def _secao_culturas() -> list[str]:
             andamento.append(("; ".join(partes_and), ""))
 
         elif status == "Negativo":
-            negativas.append((linha_principal, "> Negativa"))
+            negativas.append((linha_principal, ""))
 
     if not positivas and not andamento and not negativas:
         return []
@@ -439,7 +439,7 @@ def _calcular_dias(data_ini: str, data_fim: str) -> str:
         d2 = datetime.strptime(data_fim.strip(), "%d/%m/%Y")
         dias = (d2 - d1).days
         if dias > 0:
-            return f"Programação de {dias} dias"
+            return f"{dias} dias"
     except Exception:
         pass
     return ""
@@ -595,8 +595,8 @@ def _secao_laboratoriais() -> list[str]:
         ("Na",    "na"),    ("K",     "k"),      ("Mg",   "mg"),
         ("Pi",    "pi"),    ("CaT",   "cat"),    ("CaI",  "cai"),
         ("TGO",   "tgo"),   ("TGP",   "tgp"),   ("FAL",  "fal"),
-        ("GGT",   "ggt"),   ("BT",    "bt"),     ("Amil", "amil"),
-        ("Lipas", "lipas"),         ("Alb",    "alb"),    ("CPK",    "cpk"),    ("CPK-MB", "cpk_mb"),
+        ("GGT",   "ggt"),   ("BT",    "__bt_bd__"), ("Prot Tot", "prot_tot"), ("Amil", "amil"),
+        ("Lipas", "lipas"), ("Alb",  "alb"),    ("CPK",    "cpk"),    ("CPK-MB", "cpk_mb"),
         ("BNP",    "bnp"),   ("Trop",   "trop"),   ("PCR",    "pcr"),
         ("VHS",    "vhs"),   ("Lac",    "gas_lac"), ("TP",     "tp"),
         ("TTPa",   "ttpa"),
@@ -619,9 +619,18 @@ def _secao_laboratoriais() -> list[str]:
         outros  = _v(i, "outros")
         gas_tipo = _v(i, "gas_tipo")
 
-        linha_main = " | ".join(
-            f"{lbl} {_v(i, k)}" for lbl, k in _MAIN if _v(i, k)
-        )
+        _main_parts = []
+        for _lbl, _k in _MAIN:
+            if _k == "__bt_bd__":
+                bt_v = _v(i, "bt")
+                bd_v = _v(i, "bd")
+                if bt_v:
+                    _main_parts.append(f"BT {bt_v} (BD {bd_v})" if bd_v else f"BT {bt_v}")
+            else:
+                _val = _v(i, _k)
+                if _val:
+                    _main_parts.append(f"{_lbl} {_val}")
+        linha_main = " | ".join(_main_parts)
         partes_gas = [
             f"{lbl} {_v(i, k)}" for lbl, k in _GAS if _v(i, k)
         ]
@@ -638,7 +647,7 @@ def _secao_laboratoriais() -> list[str]:
 
         linhas = []
         if data:
-            linhas.append(f"> {data}")
+            linhas.append(f">>> {data}")
         if linha_main:
             linhas.append(linha_main)
         if outros:
@@ -696,7 +705,7 @@ def _secao_controles() -> list[str]:
 
         linhas = []
         if data:
-            linhas.append(f"> {data}")
+            linhas.append(f">>> {data}")
         if vitais:
             linhas.append(" | ".join(vitais))
         bh_parts = []
@@ -767,7 +776,7 @@ def _secao_prescricao() -> list[str]:
     texto = _get("prescricao_formatada").strip()
     if not texto:
         return []
-    return ["# Prescrição", "", texto]
+    return ["===", "# Prescrição", "", texto]
 
 
 def _secao_sistemas() -> list[str]:
@@ -914,6 +923,8 @@ def _secao_sistemas() -> list[str]:
     elif df_ausente:
         neuro.append("Sem déficit focal")
 
+    pocus = _s("sis_neuro_pocus")
+    if pocus: neuro.append(f"Pocus Neurológico: {pocus}")
     obs = _s("sis_neuro_obs")
     if obs: neuro.append(f"Obs: {obs}")
 
@@ -1018,6 +1029,8 @@ def _secao_sistemas() -> list[str]:
                 drenos.append(f"{prefixo}{nome}")
     if drenos: resp.append(" | ".join(drenos))
 
+    pocus = _s("sis_resp_pocus")
+    if pocus: resp.append(f"Pocus Respiratório: {pocus}")
     obs = _s("sis_resp_obs")
     if obs: resp.append(f"Obs: {obs}")
 
@@ -1066,19 +1079,30 @@ def _secao_sistemas() -> list[str]:
         if med: dvas.append(f"{med} {dose}" if dose else med)
     if dvas: cardio.append("DVA: " + " | ".join(dvas))
 
+    pocus = _s("sis_cardio_pocus")
+    if pocus: cardio.append(f"Pocus Cardiovascular: {pocus}")
     obs = _s("sis_cardio_obs")
     if obs: cardio.append(f"Obs: {obs}")
 
     if cardio:
         corpo.append("")
-        corpo.append("- Cardiovascular")
+        corpo.append("- CARDIOVASCULAR")
         corpo.extend(cardio)
 
     # ── GASTROINTESTINAL / NUTRICIONAL ───────────────────────────────────────
     gastro = []
 
     ef = _s("sis_gastro_exame_fisico")
-    if ef: gastro.append(f"EF: {ef}")
+    icter_presente = _s("sis_gastro_ictericia_presente") == "Presente"
+    icter_cruzes = _s("sis_gastro_ictericia_cruzes")
+    if ef:
+        if icter_presente:
+            cruzes_str = str(icter_cruzes).strip() if icter_cruzes else ""
+            cruzes_valido = cruzes_str in ("1", "2", "3", "4")
+            suf = f", icteríco {cruzes_str}+" if cruzes_valido else ", icteríco"
+        else:
+            suf = ", sem icterícia"
+        gastro.append(f"EF: {ef}{suf}")
 
     oral     = _s("sis_gastro_dieta_oral")
     enteral  = _s("sis_gastro_dieta_enteral"); e_vol = _s("sis_gastro_dieta_enteral_vol")
@@ -1142,6 +1166,8 @@ def _secao_sistemas() -> list[str]:
         if laxativo:  linha_ev += f", em uso de {laxativo}"
         gastro.append(linha_ev)
 
+    pocus = _s("sis_gastro_pocus")
+    if pocus: gastro.append(f"Pocus Trato Gastrointestinal: {pocus}")
     obs = _s("sis_gastro_obs")
     if obs: gastro.append(f"Obs: {obs}")
     nutri_obs = _s("sis_nutri_obs")
@@ -1199,6 +1225,8 @@ def _secao_sistemas() -> list[str]:
     elif trs == "Não":
         renal.append("Sem TRS")
 
+    pocus = _s("sis_renal_pocus")
+    if pocus: renal.append(f"Pocus Renal: {pocus}")
     obs = _s("sis_renal_obs")
     if obs: renal.append(f"Obs: {obs}")
     metab_obs = _s("sis_metab_obs")
@@ -1264,6 +1292,8 @@ def _secao_sistemas() -> list[str]:
     pat = _s("sis_infec_patogenos")
     if pat: infec.append(f"Patógenos isolados: {pat}")
 
+    pocus = _s("sis_infec_pocus")
+    if pocus: infec.append(f"Pocus Infeccioso: {pocus}")
     obs = _s("sis_infec_obs")
     if obs: infec.append(f"Obs: {obs}")
 
@@ -1319,6 +1349,8 @@ def _secao_sistemas() -> list[str]:
         partes = [str(_limpar_barra(p) or p) for p in [inr_a, inr_u, inr_h] if p]
         hemato.append("INR: " + " → ".join(partes))
 
+    pocus = _s("sis_hemato_pocus")
+    if pocus: hemato.append(f"Pocus Hematológico: {pocus}")
     obs = _s("sis_hemato_obs")
     if obs: hemato.append(f"Obs: {obs}")
 
@@ -1352,12 +1384,14 @@ def _secao_sistemas() -> list[str]:
     if polineu == "Sim":   pele.append("Polineuropatia do doente crítico")
     elif polineu == "Não": pele.append("Sem polineuropatia")
 
+    pocus = _s("sis_pele_pocus")
+    if pocus: pele.append(f"Pocus Pele e musculoesquelético: {pocus}")
     obs = _s("sis_pele_obs")
     if obs: pele.append(f"Obs: {obs}")
 
     if pele:
         corpo.append("")
-        corpo.append("- Pele e musculoesquelético")
+        corpo.append("- Pele e Musculoesquelético")
         corpo.extend(pele)
 
     if not corpo:

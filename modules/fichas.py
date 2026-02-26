@@ -115,14 +115,24 @@ def inicializar_estado():
             st.session_state[k] = v
 
 
+# Cache dos campos padrão — rebuilt apenas uma vez por sessão (não a cada render)
+_CAMPOS_BASE_CACHE: dict | None = None
+
+def _get_campos_base_cached() -> dict:
+    global _CAMPOS_BASE_CACHE
+    if _CAMPOS_BASE_CACHE is None:
+        _CAMPOS_BASE_CACHE = _campos_base()
+    return _CAMPOS_BASE_CACHE
+
+
 def _sanitizar_radios():
     """
     Corrige campos de radio com index=None que receberam '' (string vazia) vinda de
     agentes de IA ou do carregamento do Google Sheets.
     Regra: se o valor padrão do campo é None e o atual é '', reseta para None.
-    Isso abrange todos os st.radio(..., index=None) sem precisar listá-los manualmente.
+    Usa cache dos defaults — não reconstrói _campos_base() a cada render.
     """
-    defaults = _campos_base()
+    defaults = _get_campos_base_cached()
     for k, v_default in defaults.items():
         if v_default is None and st.session_state.get(k) == "":
             st.session_state[k] = None

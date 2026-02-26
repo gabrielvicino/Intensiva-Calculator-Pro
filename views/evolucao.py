@@ -224,9 +224,12 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
             progresso.progress(concluidos / len(tarefas))
 
     # Acumula resultados no staging para serem aplicados ANTES dos widgets no próximo ciclo
+    # Nunca sobrescreve com string vazia — preserva dados manuais já preenchidos
     staging = st.session_state.get("_agent_staging", {})
     for dados in resultados.values():
-        staging.update(dados)
+        for k, v in dados.items():
+            if not (isinstance(v, str) and v.strip() == ""):
+                staging[k] = v
     st.session_state["_agent_staging"] = staging
 
     progresso.progress(1.0, text="✅ Concluído!")
@@ -386,6 +389,71 @@ if _lab_extrair and api_key:
                 st.session_state["_agent_staging"] = staging
                 # Força rerender para os campos aparecerem preenchidos imediatamente
                 st.rerun()
+
+# ── Completar Seção 13 a partir de Blocos Anteriores ─────────────────────────
+if st.session_state.pop("_completar_blocos_sistemas", False):
+
+    def _limpar(v):
+        """Remove barra e tudo após (ex: '1.2/72s' → '1.2')."""
+        return str(v or "").split("/")[0].strip()
+
+    def _limpar_leuco(v):
+        """Remove diferencial entre parênteses (ex: '12.500 (Seg 70%)' → '12.500')."""
+        return _limpar(v).split("(")[0].strip()
+
+    def _extrair_inr(v):
+        """Extrai valor entre parênteses do TP (ex: '14.2s (1.10)' → '1.10'). Retorna o valor original se não houver parênteses."""
+        s = str(v or "").strip()
+        if "(" in s and ")" in s:
+            return s.split("(")[1].split(")")[0].strip()
+        return _limpar(s)
+
+    staging = st.session_state.get("_agent_staging", {})
+    _cnt = [0]
+
+    def _set(sis_key, val):
+        # Só preenche se a origem tem valor E o destino está vazio (preserva dados manuais)
+        if val and not str(st.session_state.get(sis_key, "") or "").strip():
+            staging[sis_key] = val
+            _cnt[0] += 1
+
+    # 1. Controles → Renal (diurese e balanço de hoje)
+    _set("sis_renal_diurese", _limpar(st.session_state.get("ctrl_hoje_diurese", "")))
+    _set("sis_renal_balanco",  _limpar(st.session_state.get("ctrl_hoje_balanco", "")))
+
+    # 2. Laboratoriais → Renal (Cr e Ur, 3 datas)
+    for sis_suf, lab_idx in [("hoje", 1), ("ult", 2), ("antepen", 3)]:
+        _set(f"sis_renal_cr_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_cr", "")))
+        _set(f"sis_renal_ur_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_ur", "")))
+
+    # 3. Antibióticos atuais → Infeccioso (nomes 1, 2, 3)
+    for i in range(1, 4):
+        _set(f"sis_infec_atb_{i}", _limpar(st.session_state.get(f"atb_curr_{i}_nome", "")))
+
+    # 4. Culturas → Infeccioso (sítio e data de coleta, slots 1–4)
+    for i in range(1, 5):
+        sitio = _limpar(st.session_state.get(f"cult_{i}_sitio", ""))
+        data  = _limpar(st.session_state.get(f"cult_{i}_data_coleta", ""))
+        _set(f"sis_infec_cult_{i}_sitio", sitio)
+        _set(f"sis_infec_cult_{i}_data",  data)
+
+    # 5. Laboratoriais → Infeccioso (PCR e Leucócitos, 3 datas)
+    for sis_suf, lab_idx in [("hoje", 1), ("ult", 2), ("antepen", 3)]:
+        _set(f"sis_infec_pcr_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_pcr", "")))
+        _set(f"sis_infec_leuc_{sis_suf}", _limpar_leuco(st.session_state.get(f"lab_{lab_idx}_leuco", "")))
+
+    # 6. Laboratoriais → Hematológico (Hb, Plaq, INR, 3 datas)
+    for sis_suf, lab_idx in [("hoje", 1), ("ult", 2), ("antepen", 3)]:
+        _set(f"sis_hemato_hb_{sis_suf}",   _limpar(st.session_state.get(f"lab_{lab_idx}_hb", "")))
+        _set(f"sis_hemato_plaq_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_plaq", "")))
+        _set(f"sis_hemato_inr_{sis_suf}",  _extrair_inr(st.session_state.get(f"lab_{lab_idx}_tp", "")))
+
+    st.session_state["_agent_staging"] = staging
+    if _cnt[0]:
+        st.toast(f"✅ {_cnt[0]} campos preenchidos a partir dos Blocos Anteriores!", icon="📋")
+    else:
+        st.warning("⚠️ Nenhum valor encontrado nos blocos de origem. Preencha Controles, Lab, Antibióticos e Culturas primeiro.")
+    st.rerun()
 
 # ── Extrair Prescrição (PACER Prescrição) ────────────────────────────────────
 _prescricao_extrair = st.session_state.pop("_prescricao_extrair_pendente", False)

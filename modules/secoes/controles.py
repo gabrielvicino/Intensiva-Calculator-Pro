@@ -97,7 +97,6 @@ def render(_agent_btn_callback=None):
             ):
                 _deslocar_dias()
                 st.toast("Evolução Hoje: hoje está em branco para novos dados.", icon="📅")
-                st.rerun()
         with _col_periodo:
             st.pills(
                 "Período",

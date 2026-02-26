@@ -41,8 +41,9 @@ def get_campos():
     # Campo livre abaixo do título
     campos['sistemas_notas'] = ''
     
-    # Cria campos genéricos para Obs e Conduta de cada sistema
+    # Cria campos genéricos para Pocus, Obs e Conduta de cada sistema
     for s in sistemas:
+        campos[f'sis_{s}_pocus'] = ''
         campos[f'sis_{s}_obs'] = ''
         campos[f'sis_{s}_conduta'] = ''
 
@@ -192,6 +193,8 @@ def get_campos():
     # 7. Gastro
     campos.update({
         'sis_gastro_exame_fisico': '',
+        'sis_gastro_ictericia_presente': None,
+        'sis_gastro_ictericia_cruzes': '',
         'sis_gastro_dieta_oral': '',
         'sis_gastro_dieta_enteral': '',
         'sis_gastro_dieta_enteral_vol': '',
@@ -263,17 +266,25 @@ def render(_agent_btn_callback=None):
     
     st.text_area("Notas", key="sistemas_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")
-    col_evo, col_ag, _ = st.columns([1, 1, 4])
+    col_evo, col_puxar, col_ag, _ = st.columns([1, 1.7, 1, 6])
     with col_evo:
         evo_clicked = st.form_submit_button(
             "Evolução Hoje",
             key="btn_evolucao_hoje_sistemas",
+            use_container_width=True,
             help="Anteontem some; ontem vira anteontem; hoje vira ontem; hoje fica vazio. Para preencher os dados de hoje.",
         )
         if evo_clicked:
             _deslocar_sistemas()
             st.toast("✅ Dados deslocados. Ontem → anteontem, hoje → ontem. Campos de hoje prontos para preenchimento.", icon="✅")
-            st.rerun()
+    with col_puxar:
+        if st.form_submit_button(
+            "Completar Blocos Anteriores",
+            key="btn_completar_blocos_sistemas",
+            help="Preenche campos da Seção 13 com dados já preenchidos: Controles (diurese, balanço), Lab (Cr, Ur, PCR, Leuco, Hb, Plaq, INR), Antibióticos e Culturas",
+            use_container_width=True,
+        ):
+            st.session_state["_completar_blocos_sistemas"] = True
     with col_ag:
         if _agent_btn_callback:
             _agent_btn_callback()
@@ -374,6 +385,10 @@ def render(_agent_btn_callback=None):
         with bnm_col2:
             st.text_input("Dose", key="sis_neuro_bloqueador_dose", placeholder="Ex: 15 ml/h", label_visibility="collapsed")
         
+        # Pocus Neurológico
+        st.markdown("**Pocus Neurológico**")
+        st.text_input("Pocus Neurológico", key="sis_neuro_pocus", placeholder="Ex: Padrão de linhas A...", label_visibility="collapsed")
+
         # Demais neurologia
         st.markdown("**Demais neurologia**")
         st.text_input("Demais neurologia", key="sis_neuro_obs", placeholder="Outros achados...", label_visibility="collapsed")
@@ -460,6 +475,10 @@ def render(_agent_btn_callback=None):
             with d2:
                 st.text_input(f"Débito {i}", key=f"sis_resp_dreno_{i}_debito", placeholder="mL/dia", label_visibility="collapsed")
         
+        # Pocus Respiratório
+        st.markdown("**Pocus Respiratório**")
+        st.text_input("Pocus Respiratório", key="sis_resp_pocus", placeholder="Ex: Padrão de linhas B...", label_visibility="collapsed")
+
         # Demais respiratório
         st.markdown("**Demais respiratório**")
         st.text_input("Demais respiratório", key="sis_resp_obs", placeholder="Outros achados...", label_visibility="collapsed")
@@ -513,6 +532,10 @@ def render(_agent_btn_callback=None):
             with d2:
                 st.text_input(f"Dose {i}", key=f"sis_cardio_dva_{i}_dose", placeholder="Dose", label_visibility="collapsed")
 
+        # Pocus Cardiovascular
+        st.markdown("**Pocus Cardiovascular**")
+        st.text_input("Pocus Cardiovascular", key="sis_cardio_pocus", placeholder="Ex: Função ventricular preservada...", label_visibility="collapsed")
+
         # Demais cardio e Conduta
         st.markdown("**Demais cardiovascular**")
         st.text_input("Demais cardiovascular", key="sis_cardio_obs", placeholder="Outros achados...", label_visibility="collapsed")
@@ -522,9 +545,18 @@ def render(_agent_btn_callback=None):
     with st.container(border=True):
         st.markdown("**Trato Gastrointestinal**")
 
-        # Exame Físico
-        st.markdown("**Exame Físico**")
-        st.text_input("Exame Físico", key="sis_gastro_exame_fisico", placeholder="Ruído Hidroaéreo, palpação...", label_visibility="collapsed")
+        # Exame Físico (coluna 1) | Icterícia Presente + Cruzes (coluna 2)
+        ef_col, icter_col = st.columns([3, 1])
+        with ef_col:
+            st.markdown("**Exame Físico**")
+            st.text_input("Exame Físico", key="sis_gastro_exame_fisico", placeholder="Abdome distendido, timpânico, DB negativo...", label_visibility="collapsed")
+        with icter_col:
+            st.markdown("**Icterícia**")
+            pills_col, cruzes_col = st.columns([1, 1])
+            with pills_col:
+                st.pills("Icterícia", ["Presente", "Ausente"], key="sis_gastro_ictericia_presente", label_visibility="collapsed")
+            with cruzes_col:
+                st.text_input("Quantas cruzes", key="sis_gastro_ictericia_cruzes", placeholder="1 a 4", label_visibility="collapsed")
 
         # Dieta
         d1, d2, d3, d4, d5, d6 = st.columns(6)
@@ -547,48 +579,51 @@ def render(_agent_btn_callback=None):
             st.markdown("**Meta Calórica**")
             st.text_input("Meta Calórica", key="sis_gastro_meta_calorica", placeholder="Meta Calórica", label_visibility="collapsed")
 
-        m1, m2 = st.columns([1, 2])
-        with m1:
+        # Todas as linhas usam total=7, pills sempre=1 (1/7 da largura) → alinhamento vertical
+        _ing1, _ing2 = st.columns([1, 6])
+        with _ing1:
             st.markdown("**Ingestão na Meta**")
             st.pills("Na meta", ["Sim", "Não"], key="sis_gastro_na_meta", label_visibility="collapsed")
-        with m2:
+        with _ing2:
             st.markdown("**Quanto**")
             st.text_input("Quanto", key="sis_gastro_ingestao_quanto", placeholder="Ex: 1200 kcal", label_visibility="collapsed")
 
-        # Glicemia: Linha 1 - Escape glicêmico | Linha 2 - Insulinoterapia
         st.markdown("**Escape glicêmico**")
-        g1, g2, g3, g4, g5 = st.columns(5)
-        with g1:
+        _esc1, _esc2, _esc3, _esc4, _esc5 = st.columns([1, 3, 1, 1, 1])
+        with _esc1:
             st.pills("Escape", ["Sim", "Não"], key="sis_gastro_escape_glicemico", label_visibility="collapsed")
-        with g2:
+        with _esc2:
             st.text_input("Nº vezes", key="sis_gastro_escape_vezes", placeholder="Nº vezes", label_visibility="collapsed")
-        with g3:
+        with _esc3:
             st.checkbox("Manhã", key="sis_gastro_escape_manha")
-        with g4:
+        with _esc4:
             st.checkbox("Tarde", key="sis_gastro_escape_tarde")
-        with g5:
+        with _esc5:
             st.checkbox("Noite", key="sis_gastro_escape_noite")
 
         st.markdown("**Insulinoterapia**")
-        i1, i2, i3, i4 = st.columns(4)
-        with i1:
+        _ins1, _ins2, _ins3, _ins4 = st.columns([1, 2, 2, 2])
+        with _ins1:
             st.pills("Insulino", ["Sim", "Não"], key="sis_gastro_insulino", label_visibility="collapsed")
-        with i2:
+        with _ins2:
             st.text_input("Dose manhã", key="sis_gastro_insulino_dose_manha", placeholder="Dose manhã", label_visibility="collapsed")
-        with i3:
+        with _ins3:
             st.text_input("Dose tarde", key="sis_gastro_insulino_dose_tarde", placeholder="Dose tarde", label_visibility="collapsed")
-        with i4:
+        with _ins4:
             st.text_input("Dose noite", key="sis_gastro_insulino_dose_noite", placeholder="Dose noite", label_visibility="collapsed")
 
-        # Evacuação
         st.markdown("**Evacuação**")
-        e1, e2, e3 = st.columns(3)
-        with e1:
+        _ev1, _ev2, _ev3 = st.columns([1, 3, 3])
+        with _ev1:
             st.pills("Evacuação", ["Sim", "Não"], key="sis_gastro_evacuacao", label_visibility="collapsed")
-        with e2:
+        with _ev2:
             st.text_input("Última evacuação", key="sis_gastro_evacuacao_data", placeholder="Data da última", label_visibility="collapsed")
-        with e3:
+        with _ev3:
             st.text_input("Laxativo", key="sis_gastro_laxativo", placeholder="Laxativo", label_visibility="collapsed")
+
+        # Pocus Trato Gastrointestinal
+        st.markdown("**Pocus Trato Gastrointestinal**")
+        st.text_input("Pocus Trato Gastrointestinal", key="sis_gastro_pocus", placeholder="Ex: Ascite leve...", label_visibility="collapsed")
 
         # Demais gastro e Conduta
         st.markdown("**Demais gastrointestinal**")
@@ -665,6 +700,10 @@ def render(_agent_btn_callback=None):
             st.text_input("Última diálise", key="sis_renal_trs_ultima", placeholder="Data última diálise", label_visibility="collapsed")
         with t4:
             st.text_input("Próxima TRS", key="sis_renal_trs_proxima", placeholder="Programação próxima TRS", label_visibility="collapsed")
+
+        # Pocus Renal
+        st.markdown("**Pocus Renal**")
+        st.text_input("Pocus Renal", key="sis_renal_pocus", placeholder="Ex: Rins com dimensões preservadas...", label_visibility="collapsed")
 
         # Demais renal e Conduta
         st.markdown("**Demais renal**")
@@ -746,6 +785,10 @@ def render(_agent_btn_callback=None):
         st.markdown("**Patógenos isolados**")
         st.text_input("Patógenos", key="sis_infec_patogenos", placeholder="Ex: K. pneumoniae KPC+, MRSA...", label_visibility="collapsed")
 
+        # Pocus Infeccioso
+        st.markdown("**Pocus Infeccioso**")
+        st.text_input("Pocus Infeccioso", key="sis_infec_pocus", placeholder="Ex: Coleção...", label_visibility="collapsed")
+
         # Demais infeccioso e Conduta
         st.markdown("**Demais infeccioso**")
         st.text_input("Demais infeccioso", key="sis_infec_obs", placeholder="Outros achados...", label_visibility="collapsed")
@@ -815,6 +858,10 @@ def render(_agent_btn_callback=None):
         with inr3:
             st.text_input("INR anteontem", key="sis_hemato_inr_antepen", placeholder="INR anteontem", label_visibility="collapsed")
 
+        # Pocus Hematológico
+        st.markdown("**Pocus Hematológico**")
+        st.text_input("Pocus Hematológico", key="sis_hemato_pocus", placeholder="Ex: Derrame pleural...", label_visibility="collapsed")
+
         # Demais hemato e Conduta
         st.markdown("**Demais hematológico**")
         st.text_input("Demais hemato", key="sis_hemato_obs", placeholder="Outros achados...", label_visibility="collapsed")
@@ -848,6 +895,10 @@ def render(_agent_btn_callback=None):
         # Polineuropatia
         st.markdown("**Polineuropatia**")
         st.pills("Polineuropatia", ["Sim", "Não"], key="sis_pele_polineuropatia", label_visibility="collapsed")
+
+        # Pocus Pele e musculoesquelético
+        st.markdown("**Pocus Pele e musculoesquelético**")
+        st.text_input("Pocus Pele", key="sis_pele_pocus", placeholder="Ex: Edema em membros inferiores...", label_visibility="collapsed")
 
         # Demais e Conduta
         st.markdown("**Demais pele e musculoesquelético**")

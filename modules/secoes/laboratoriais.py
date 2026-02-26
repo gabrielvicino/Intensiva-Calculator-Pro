@@ -4,7 +4,7 @@ import streamlit as st
 _LAB_SUFIXOS = [
     "data", "hb", "ht", "vcm", "hcm", "rdw", "leuco", "plaq",
     "cr", "ur", "na", "k", "mg", "pi", "cat", "cai",
-    "tgp", "tgo", "fal", "ggt", "bt", "alb", "amil", "lipas",
+    "tgp", "tgo", "fal", "ggt", "bt", "bd", "prot_tot", "alb", "amil", "lipas",
     "cpk", "cpk_mb", "bnp", "trop", "pcr", "vhs", "tp", "ttpa",
     "ur_dens", "ur_le", "ur_nit", "ur_leu", "ur_hm", "ur_prot", "ur_cet", "ur_glic",
     "gas_tipo", "gas_ph", "gas_pco2", "gas_po2", "gas_hco3", "gas_be", "gas_sat",
@@ -52,8 +52,9 @@ def get_campos():
             f'lab_{i}_mg': '', f'lab_{i}_pi': '', f'lab_{i}_cat': '', f'lab_{i}_cai': '',
             
             # Linha 3: Hepático/Panc
-            f'lab_{i}_tgp': '', f'lab_{i}_tgo': '', f'lab_{i}_fal': '', f'lab_{i}_ggt': '', 
-            f'lab_{i}_bt': '', f'lab_{i}_alb': '', f'lab_{i}_amil': '', f'lab_{i}_lipas': '',
+            f'lab_{i}_tgp': '', f'lab_{i}_tgo': '', f'lab_{i}_fal': '', f'lab_{i}_ggt': '',
+            f'lab_{i}_bt': '', f'lab_{i}_bd': '', f'lab_{i}_prot_tot': '',
+            f'lab_{i}_alb': '', f'lab_{i}_amil': '', f'lab_{i}_lipas': '',
             
             # Linha 4: Cardio/Coag/Inflam
             f'lab_{i}_cpk': '', f'lab_{i}_cpk_mb': '', f'lab_{i}_bnp': '',
@@ -113,15 +114,17 @@ def _render_slot(i):
         with cols2[7]: st.text_input("CaI", key=f'lab_{i}_cai')
 
         # LINHA 3: Hepático
-        cols3 = st.columns(8)
+        cols3 = st.columns(10)
         with cols3[0]: st.text_input("TGP", key=f'lab_{i}_tgp')
         with cols3[1]: st.text_input("TGO", key=f'lab_{i}_tgo')
         with cols3[2]: st.text_input("FAL", key=f'lab_{i}_fal')
         with cols3[3]: st.text_input("GGT", key=f'lab_{i}_ggt')
         with cols3[4]: st.text_input("BT", key=f'lab_{i}_bt')
-        with cols3[5]: st.text_input("Alb", key=f'lab_{i}_alb')
-        with cols3[6]: st.text_input("Amil", key=f'lab_{i}_amil')
-        with cols3[7]: st.text_input("Lipas", key=f'lab_{i}_lipas')
+        with cols3[5]: st.text_input("BD", key=f'lab_{i}_bd')
+        with cols3[6]: st.text_input("Prot Tot", key=f'lab_{i}_prot_tot')
+        with cols3[7]: st.text_input("Alb", key=f'lab_{i}_alb')
+        with cols3[8]: st.text_input("Amil", key=f'lab_{i}_amil')
+        with cols3[9]: st.text_input("Lipas", key=f'lab_{i}_lipas')
 
         # LINHA 4: Cardio/Coag
         cols4 = st.columns(8)
@@ -201,7 +204,7 @@ def render(_agent_btn_callback=None):
     st.write("")
 
     # Botões: Evolução Hoje | Completar Campos | Extrair Exames
-    _bcol1, _bcol2, _bcol3 = st.columns(3)
+    _bcol1, _bcol2, _bcol3, _ = st.columns([1, 1, 1, 3])
     with _bcol1:
         evo_clicked = st.form_submit_button(
             "Evolução Hoje",
@@ -212,7 +215,6 @@ def render(_agent_btn_callback=None):
         if evo_clicked:
             _deslocar_laboratoriais()
             st.toast("✅ Resultados deslocados. Último → Anterior #2, etc. Slot 1 pronto para preenchimento.", icon="✅")
-            st.rerun()
     with _bcol2:
         if _agent_btn_callback:
             _agent_btn_callback()
