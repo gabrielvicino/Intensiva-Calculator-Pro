@@ -193,7 +193,7 @@ def get_campos():
 
     # 7. Gastro
     campos.update({
-        'sis_gastro_exame_fisico': 'Abdomen típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente',
+        'sis_gastro_exame_fisico': 'Típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente',
         'sis_gastro_ictericia_presente': None,
         'sis_gastro_ictericia_cruzes': '',
         'sis_gastro_dieta_oral': '',
@@ -562,7 +562,7 @@ def render(_agent_btn_callback=None):
         ef_col, icter_col = st.columns([3, 1])
         with ef_col:
             st.markdown("**Exame Abdominal**")
-            st.text_input("Exame Abdominal", key="sis_gastro_exame_fisico", placeholder="Abdomen típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente", label_visibility="collapsed")
+            st.text_input("Exame Abdominal", key="sis_gastro_exame_fisico", placeholder="Típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente", label_visibility="collapsed")
         with icter_col:
             st.markdown("**Icterícia**")
             pills_col, cruzes_col = st.columns([1, 1])

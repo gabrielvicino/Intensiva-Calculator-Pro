@@ -1433,7 +1433,7 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - sis_infec_conduta (string): "".
 
 # --- 6. EXAME ABDOMINAL ---
-- sis_gastro_exame_fisico (string): Exame Abdominal — descrição literal (ex: Abdomen típico, RHA presente, indolor a palpação, sem sinais de peritonite).
+- sis_gastro_exame_fisico (string): Exame Abdominal — descrição literal (ex: Típico, RHA presente, indolor a palpação, sem sinais de peritonite).
 - sis_gastro_ictericia_presente (string): Icterícia (Presente/Ausente/"").
 - sis_gastro_ictericia_cruzes (string): Intensidade da icterícia (ex: "1", "2", "3", "4"). "" se ausente.
 - sis_gastro_dieta_oral (string): Tipo de dieta oral (ex: "Pastosa", "Completa"). "" se ausente.
