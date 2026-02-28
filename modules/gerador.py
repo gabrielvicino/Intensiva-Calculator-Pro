@@ -119,23 +119,20 @@ def _secao_identificacao() -> list[str]:
             partes.append(f"Prontuário: {prontuario}")
         if leito:
             partes.append(f"Leito: {leito}")
-        corpo.append(" / ".join(partes))
+        corpo.append(" | ".join(partes))
 
     # 4. Origem
     origem = _get("origem")
     if origem:
         corpo.append(f"Origem: {origem}")
 
-    # 5. Equipe Titular / Interconsultora
+    # 5. Equipe Titular e Interconsultora (linhas separadas)
     equipe = _get("equipe")
     interconsultora = _get("interconsultora")
-    if equipe or interconsultora:
-        partes_eq = []
-        if equipe:
-            partes_eq.append(equipe)
-        if interconsultora:
-            partes_eq.append(interconsultora)
-        corpo.append(f"Equipe Titular / Interconsultora: {'; '.join(partes_eq)}")
+    if equipe:
+        corpo.append(f"Equipe Titular: {equipe}")
+    if interconsultora:
+        corpo.append(f"Interconsultora: {interconsultora}")
 
     # 6. Data Internação Hospitalar
     di_hosp = _get("di_hosp")
@@ -459,17 +456,21 @@ def _secao_muc() -> list[str]:
     corpo = ["# Medicações de Uso Contínuo"]
 
     adesao = _get("muc_adesao_global")
-    if adesao:
-        corpo.append(adesao)  # Uso Regular / Uso Irregular / Desconhecido
-
     alergia = st.session_state.get("muc_alergia")
     alergia_obs = _get("muc_alergia_obs")
+
+    # Adesão e alergia na mesma linha quando ambos existem
+    partes_muc = []
+    if adesao:
+        partes_muc.append(adesao)  # Uso Regular / Uso Irregular / Desconhecido
     if alergia == "Presente":
-        corpo.append(f"Alergias: {alergia_obs}" if alergia_obs else "Alergias: presente")
+        partes_muc.append(f"Alergias: {alergia_obs}" if alergia_obs else "Alergias: presente")
     elif alergia == "Nega":
-        corpo.append("Nega alergias")
+        partes_muc.append("Nega alergias")
     elif alergia == "Desconhecido":
-        corpo.append("Desconhece alergias")
+        partes_muc.append("Desconhece alergias")
+    if partes_muc:
+        corpo.append(" | ".join(partes_muc))
 
     corpo += linhas
     return corpo
@@ -786,7 +787,7 @@ def _secao_controles() -> list[str]:
     _PARAMS_MM = [
         ("PAS",   "pas"),   ("PAD",   "pad"),   ("PAM",   "pam"),
         ("FC",    "fc"),    ("FR",    "fr"),     ("SatO2", "sato2"),
-        ("Temp",  "temp"),  ("Glic",  "glic"),
+        ("Temp",  "temp"),  ("Dextro", "glic"),
     ]
 
     def _linha_dia(dia):
@@ -1424,7 +1425,8 @@ def _secao_sistemas() -> list[str]:
         ac_t = _s("sis_hemato_anticoag_tipo")
         ac_m = _s("sis_hemato_anticoag_motivo")
         if ac_t == "Plena" and ac_m:
-            hemato.append(f"Anticoagulação: Plena, por {ac_m}")
+            ac_m_display = _sigla_upper(ac_m) if ac_m else ac_m  # TEP, TVP, FA em maiúsculas
+            hemato.append(f"Anticoagulação: Plena, por {ac_m_display}")
         elif ac_t:
             hemato.append(f"Anticoagulação: {ac_t}")
         else:
@@ -1436,7 +1438,7 @@ def _secao_sistemas() -> list[str]:
     if sangr == "Sim":
         s_v = _s("sis_hemato_sangramento_via"); s_d = _s("sis_hemato_sangramento_data")
         linha_s = "Sangramento presente"
-        if s_v: linha_s += f", {s_v}"
+        if s_v: linha_s += f"; {s_v}"
         if s_d: linha_s += f", último apresentado em {s_d}"
         hemato.append(linha_s)
     elif sangr == "Não":

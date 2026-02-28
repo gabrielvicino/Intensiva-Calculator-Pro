@@ -31,17 +31,27 @@ Esta pasta contém **14 documentos de documentação** criados durante o desenvo
 
 ### 🎯 **COMECE AQUI (Mais Importantes):**
 
-#### 1. **RESUMO_COMPLETO_ATUALIZACOES.md** ⭐
+#### 0. **ONBOARDING.md** (na raiz) ⭐⭐⭐
+- **O que é:** Guia rápido para dev/TI entender o projeto do zero
+- **Quando ler:** Primeiro, se você é novo no projeto
+- **Tempo:** 5 minutos
+
+#### 1. **RESUMO_SITE.md** ⭐⭐
+- **O que é:** Resumo completo de como o site funciona (arquitetura, páginas, fluxo de dados)
+- **Quando ler:** Para entender o projeto inteiro
+- **Tempo:** 10-15 minutos
+
+#### 2. **RESUMO_COMPLETO_ATUALIZACOES.md** ⭐
 - **O que é:** Visão geral de todas as atualizações
 - **Quando ler:** Primeiro documento a ler
 - **Tempo:** 5-10 minutos
 
-#### 2. **TODOS_MODELOS_GEMINI.md** ⭐
+#### 3. **TODOS_MODELOS_GEMINI.md** ⭐
 - **O que é:** Lista completa dos 40 modelos Gemini
 - **Quando ler:** Quer referência de todos os modelos
 - **Tempo:** 10-15 minutos
 
-#### 3. **O_QUE_SAO_ARQUIVOS_MD.md** ⭐
+#### 4. **O_QUE_SAO_ARQUIVOS_MD.md** ⭐
 - **O que é:** Explicação sobre arquivos Markdown e este projeto
 - **Quando ler:** Não sabe o que são arquivos .md
 - **Tempo:** 10 minutos

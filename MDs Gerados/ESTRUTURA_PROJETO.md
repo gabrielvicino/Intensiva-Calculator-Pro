@@ -15,14 +15,14 @@ Intensiva Calculator/
 ├── 📄 LICENSE                      ← Licença do projeto
 ├── 📄 .gitignore                   ← Arquivos ignorados pelo Git
 ├── 📄 .cursorrules                 ← Regras do Cursor IDE
-├── 📄 .ORGANIZACAO_MDS.txt         ← Lembrete sobre organização de .md
+├── 📄 REGRA_ORGANIZACAO_MDS.txt   ← Regra de organização (nesta pasta)
 │
 ├── 📁 scripts/                     ← SCRIPTS (executáveis e automação)
 │   └── iniciar.bat
 │
 ├── 📁 modules/                     ← MÓDULOS PYTHON (lógica do negócio)
 │   ├── __init__.py
-│   ├── agentes.py                  ← Integração com IA (Gemini/OpenAI)
+│   ├── agentes_secoes.py           ← Integração com IA (Gemini/OpenAI) por seção
 │   ├── fichas.py                   ← Gerenciamento de fichas
 │   ├── fluxo.py                    ← Fluxo de dados
 │   └── gerador.py                  ← Geração de conteúdo
@@ -79,7 +79,7 @@ Intensiva Calculator/
 **Propósito:** Lógica de negócio reutilizável
 
 **Conteúdo:**
-- `agentes.py` - Integração com IA (Google Gemini, OpenAI GPT)
+- `agentes_secoes.py` - Integração com IA (Google Gemini, OpenAI GPT) por seção
 - `fichas.py` - Gerenciamento de fichas médicas
 - `fluxo.py` - Fluxo de dados entre componentes
 - `gerador.py` - Geração de textos e conteúdo
@@ -229,7 +229,7 @@ Scripts: 1 bat
 | `evolucao.py` | Página Evolução | views/ |
 | `pacer.py` | Página Pacer | views/ |
 | `infusao.py` | Calculadora Infusão | views/ |
-| `agentes.py` | Integração IA | modules/ |
+| `agentes_secoes.py` | Integração IA | modules/ |
 
 ---
 

@@ -1,9 +1,11 @@
 """
 Script para gerar a saída determinística completa do Bloco 3 (Prontuário Completo)
-com TODOS os campos preenchidos. Execute com: streamlit run gerar_exemplo_completo.py
+com TODOS os campos preenchidos.
+Execute da raiz: streamlit run scripts/gerar_exemplo_completo.py
 
-O resultado é exibido na tela e salvo em PRONTUARIO_EXEMPLO_COMPLETO.txt
+O resultado é exibido na tela e salvo em PRONTUARIO_EXEMPLO_COMPLETO.txt (na raiz)
 """
+import os
 import streamlit as st
 from modules.fichas import _campos_base
 
@@ -244,11 +246,13 @@ for k, v in EXEMPLO.items():
 from modules import gerador
 texto = gerador.gerar_texto_final()
 
-# Salvar em arquivo
-with open("PRONTUARIO_EXEMPLO_COMPLETO.txt", "w", encoding="utf-8") as f:
+# Salvar em arquivo (raiz do projeto)
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+out_path = os.path.join(_root, "PRONTUARIO_EXEMPLO_COMPLETO.txt")
+with open(out_path, "w", encoding="utf-8") as f:
     f.write(texto)
 
-st.success("✅ Prontuário gerado e salvo em **PRONTUARIO_EXEMPLO_COMPLETO.txt**")
+st.success(f"✅ Prontuário gerado e salvo em **{out_path}**")
 
 st.text_area(
     "Prontuário Completo (Bloco 3 - Saída Determinística)",

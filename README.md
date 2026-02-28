@@ -2,6 +2,8 @@
 
 O **Intensiva Calculator Pro** é uma solução modular desenvolvida para **auxiliar na tomada de decisões críticas** em Terapia Intensiva e Medicina de Emergência.
 
+> **Para desenvolvedores/TI:** Leia `ONBOARDING.md` para entender o projeto rapidamente.
+
 Com foco em **segurança e praticidade**, a ferramenta automatiza cálculos complexos de farmacologia e padroniza protocolos de atendimento. O sistema opera com redundância de dados (Nuvem/Local) para garantir disponibilidade total e foi projetado em linguagem **Python**, utilizando a estrutura **Streamlit** para alta performance e integração de dados.
 
 ---
@@ -54,6 +56,8 @@ pip install -r requirements.txt
 
 # Execute o aplicativo
 streamlit run app.py
+
+# Windows: duplo clique em executar.bat ou scripts\iniciar.bat
 ```
 
 ### Configuração
@@ -66,7 +70,22 @@ streamlit run app.py
 
 ## 📁 Estrutura do Projeto
 
-Veja `MDs Gerados/ESTRUTURA_PROJETO.md` para detalhes completos da organização do código.
+```
+Intensiva Calculator/
+├── ONBOARDING.md       ← Leia primeiro (dev/TI)
+├── app.py              ← Ponto de entrada
+├── utils.py            ← Google Sheets, load/save
+├── executar.bat        ← Inicia o app (Windows)
+├── fazer_commit.bat    ← Commit e push
+├── modules/            ← Lógica (fichas, gerador, agentes, parsers)
+├── views/              ← Páginas (home, evolucao, infusao, pacer...)
+├── calculos/           ← Cálculos especializados (renal)
+├── scripts/            ← Scripts auxiliares (gerar_exemplo, testar_gemini)
+└── MDs Gerados/        ← Documentação detalhada
+```
+
+- **Entender o projeto:** `ONBOARDING.md` (roteiro completo)
+- **Arquitetura detalhada:** `MDs Gerados/RESUMO_SITE.md`
 
 ---
 

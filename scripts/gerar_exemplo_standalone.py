@@ -1,9 +1,16 @@
 """
 Gera a saída determinística completa sem precisar do Streamlit.
-Execute: python gerar_exemplo_standalone.py
-Salva em PRONTUARIO_EXEMPLO_COMPLETO.txt
+Execute da raiz: python scripts/gerar_exemplo_standalone.py
+Salva em PRONTUARIO_EXEMPLO_COMPLETO.txt (na raiz do projeto)
 """
+import os
 import sys
+
+# Garante que a raiz do projeto está no path
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.dirname(_script_dir)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # Mock session_state antes de importar módulos que usam st
 class MockSessionState(dict):
@@ -150,8 +157,9 @@ for k, v in EXEMPLO.items():
 from modules import gerador
 texto = gerador.gerar_texto_final()
 
-# Salvar
-with open("PRONTUARIO_EXEMPLO_COMPLETO.txt", "w", encoding="utf-8") as f:
+# Salvar na raiz do projeto
+out_path = os.path.join(_project_root, "PRONTUARIO_EXEMPLO_COMPLETO.txt")
+with open(out_path, "w", encoding="utf-8") as f:
     f.write(texto)
 
-print("OK - Salvo em PRONTUARIO_EXEMPLO_COMPLETO.txt")
+print(f"OK - Salvo em {out_path}")

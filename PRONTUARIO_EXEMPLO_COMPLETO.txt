@@ -2,11 +2,11 @@
 
 # Identificação & Scores
 Nome: Maria Silva Santos, 62 anos, Feminino
-HC: 12345678 / Leito: UTI 3 - Leito 12
+Prontuário: 12345678 | Leito: UTI 3 - Leito 12
 Origem: Enfermaria 2
-Equipe Titular / Interconsultora: Dr. João Costa
-Data de internação hospitalar: 15/01/2026
-Data de entrada na UTI: 18/01/2026
+Equipe Titular: Dr. João Costa
+Data Internação Hospitalar: 15/01/2026
+Data Internação UTI: 18/01/2026
 SAPS 3: 58
 SOFA admissão: 8
 PPS: 60%
@@ -34,8 +34,7 @@ Etilismo: Nega | Tabagismo: Ativo; 20 anos-maço | SPA: Nega
 3- Doença Renal Crônica; Estádio 3b
 
 # Medicações de Uso Contínuo
-Uso Regular
-Alergias: Penicilina - rash
+Uso Regular | Alergias: Penicilina - rash
 1- Losartana; 50 mg; 12/12h
 2- Metformina; 850 mg; 12/12h
 
@@ -60,12 +59,12 @@ Alergias: Penicilina - rash
 Paciente hipertensa e diabética. Internada 15/01, transferida UTI 18/01.
 
 # Antibiótico Atual
-1- Meropenem; Foco Pav; Guiado por Cultura; 20/01/2026 → 30/01/2026 (Programado 10 dias)
+1- Meropenem; Foco PAV; Guiado por Cultura; 20/01/2026 → 30/01/2026 (Programado 10 dias)
 2- Vancomicina; Foco Cobertura; Empírico; 18/01/2026 → 25/01/2026 (Programado 7 dias)
 
 # Antibiótico Prévio
-1- Ceftriaxone; Foco Itu; 15/01/2026 - 20/01/2026 (Uso por 5 dias)
-2- Piperacilina-Tazobactam; Foco Sepse; 18/01/2026 - 20/01/2026 (Uso por 2 dias)
+1- Ceftriaxone; Foco ITU; 15/01/2026 - 20/01/2026 (Uso por 5 dias)
+2- Piperacilina-Tazobactam; Foco SEPSE; 18/01/2026 - 20/01/2026 (Uso por 2 dias)
 
 # Exames Complementares
 1- TC de Tórax (19/01/2026)
@@ -83,13 +82,13 @@ Hb 8.8 | Cr 2.5 | Ur 95 | PCR 78
 Hb 8.5 | Cr 2.8 | Ur 110 | PCR 120
 
 # Controles & Balanço Hídrico
-> 22/01/2026
+>22/01/2026
 PAS 110-130 | PAD 65-80 | FC 78-92 | Temp 36.5-37.2
 Diurese 1800 | BH +350
-> 21/01/2026
+>21/01/2026
 PAS 100-125
 Diurese 1650 | BH +200
-> 20/01/2026
+>20/01/2026
 Diurese 1400 | BH -100
 
 # Evolução Clínica
@@ -105,18 +104,18 @@ Sedação: Dexmedetomidina 0.5 mcg/kg/h; Meta Rass -2
 Sem déficit focal
 
 - Respiratório
-EF: MV+ bilateral
+Respiratório: MV+ bilateral
 Ventilação Mecânica; PSV, Pressão 8 cmH₂O, Volume 450 mL, FiO2 35%, PEEP 5 cmH₂O e FR 18 ipm
 Em ventilação protetora, sincrônico
 
 - Cardiovascular
 FC 85 bpm, Ritmo sinusal, PAM 75 mmHg
+Cardiológico: 2BNRF, não ausculto sopros significativos
 Perfusão: Normal, TEC: 2 seg
-Não fluidoresponsivo;
-fluidotolerante
+Não fluidoresponsivo; fluidotolerante
 
-- Gastrointestinal
-EF: Abdome flácido, timpânico, sem icterícia
+- Exame Abdominal
+Abdomen: Abdome flácido, timpânico, sem icterícia
 Dieta: Enteral Sonda 1200 kcal; Meta calórica de 1500 kcal
 Na meta calórica
 Sem escape glicêmico, sem insulinoterapia

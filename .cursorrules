@@ -47,7 +47,7 @@ Seu foco é criar código limpo, seguro, performático e visualmente profissiona
 - **`views/`**: Telas visuais (ex: `evolucao.py`, `infusao.py`). Contêm a estrutura da página, mas puxam a lógica dos módulos.
 - **`modules/`**: O "cérebro" do sistema.
   - **`ui.py`**: **DESIGN SYSTEM CENTRAL**. Todas as cores, CSS injetado, cards e headers estão aqui.
-  - **`agentes.py`**: Lógica de IA (LLMs) para extração de dados do prontuário.
+  - **`agentes_secoes.py`**: Lógica de IA (LLMs) para extração de dados do prontuário por seção.
   - **`fichas.py`**: Orquestrador dos formulários clínicos.
   - **`fluxo.py`**: Gerenciamento de estado (limpar campos, atualizar JSON).
   - **`secoes/`**: Módulos granulares de formulário (ex: `neurologia.py`, `cardio.py`, `sistemas.py`).
@@ -85,7 +85,7 @@ Seu foco é criar código limpo, seguro, performático e visualmente profissiona
 - **Configuração de Página:** `st.set_page_config` deve aparecer APENAS no `app.py`.
 
 ## 3. Inteligência Artificial (Agentes)
-- Ao editar `agentes.py`, lembre-se que usamos **Structured Outputs (JSON)**.
+- Ao editar `agentes_secoes.py`, lembre-se que usamos **Structured Outputs (JSON)**.
 - O prompt deve ser rigoroso para evitar alucinações médicas.
 - Se o usuário pedir para extrair um novo dado, adicione-o ao Schema JSON no prompt do agente e no `fluxo.py` para salvar no estado.
 

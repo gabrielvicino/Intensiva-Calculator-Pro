@@ -1463,9 +1463,9 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 # --- 7. HEMATOLÓGICO ---
 - sis_hemato_anticoag (string): Em anticoagulação (Sim/Não/"").
 - sis_hemato_anticoag_tipo (string): Profilática ou Plena. "" se ausente.
-- sis_hemato_anticoag_motivo (string): Indicação (ex: "TVP", "FA", "TEP"). "" se ausente.
+- sis_hemato_anticoag_motivo (string): Indicação em siglas maiúsculas (ex: "TEP", "TVP", "FA"). "" se ausente.
 - sis_hemato_sangramento (string): Sangramento ativo (Sim/Não/"").
-- sis_hemato_sangramento_via (string): Sítio do sangramento (ex: "Digestiva alta"). "" se ausente.
+- sis_hemato_sangramento_via (string): Sítio do sangramento (ex: "Hematêmese", "Digestiva alta"). "" se ausente.
 - sis_hemato_sangramento_data (string): Data/hora do episódio. "" se ausente.
 - sis_hemato_transf_data (string): Data da última transfusão.
 - sis_hemato_transf_1_comp (string): Componente transfundido 1 (ex: "Concentrado de hemácias").
@@ -1712,8 +1712,8 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - ctrl_hoje_sato2_max (string): Saturação de O2 máxima.
 - ctrl_hoje_temp_min (string): Temperatura mínima.
 - ctrl_hoje_temp_max (string): Temperatura máxima.
-- ctrl_hoje_glic_min (string): Glicemia capilar mínima.
-- ctrl_hoje_glic_max (string): Glicemia capilar máxima.
+- ctrl_hoje_glic_min (string): Dextro/Glicemia capilar mínima (mg/dL).
+- ctrl_hoje_glic_max (string): Dextro/Glicemia capilar máxima (mg/dL).
 - ctrl_hoje_diurese (string): Volume ou aspecto da diurese.
 - ctrl_hoje_balanco (string): Valor do balanço hídrico.
 
@@ -1733,8 +1733,8 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - ctrl_ontem_sato2_max (string): Saturação de O2 máxima.
 - ctrl_ontem_temp_min (string): Temperatura mínima.
 - ctrl_ontem_temp_max (string): Temperatura máxima.
-- ctrl_ontem_glic_min (string): Glicemia capilar mínima.
-- ctrl_ontem_glic_max (string): Glicemia capilar máxima.
+- ctrl_ontem_glic_min (string): Dextro/Glicemia capilar mínima (mg/dL).
+- ctrl_ontem_glic_max (string): Dextro/Glicemia capilar máxima (mg/dL).
 - ctrl_ontem_diurese (string): Volume ou aspecto da diurese.
 - ctrl_ontem_balanco (string): Valor do balanço hídrico.
 
@@ -1754,8 +1754,8 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - ctrl_anteontem_sato2_max (string): Saturação de O2 máxima.
 - ctrl_anteontem_temp_min (string): Temperatura mínima.
 - ctrl_anteontem_temp_max (string): Temperatura máxima.
-- ctrl_anteontem_glic_min (string): Glicemia capilar mínima.
-- ctrl_anteontem_glic_max (string): Glicemia capilar máxima.
+- ctrl_anteontem_glic_min (string): Dextro/Glicemia capilar mínima (mg/dL).
+- ctrl_anteontem_glic_max (string): Dextro/Glicemia capilar máxima (mg/dL).
 - ctrl_anteontem_diurese (string): Volume ou aspecto da diurese.
 - ctrl_anteontem_balanco (string): Valor do balanço hídrico.
 </VARIAVEIS>"""

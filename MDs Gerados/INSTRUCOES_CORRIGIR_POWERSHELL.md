@@ -13,30 +13,7 @@ The predictive suggestion feature cannot be enabled because the console output d
 
 ## ✅ Solução Automática (Recomendada)
 
-### Opção 1: Executar o script de correção
-
-1. **Clique com botão direito** no arquivo `fix_powershell_profile.ps1`
-2. Selecione **"Executar com PowerShell"**
-3. Se pedir permissão, clique em **"Sim"**
-4. **Reinicie o PowerShell**
-
----
-
-### Opção 2: Executar manualmente no PowerShell
-
-Abra o PowerShell e execute:
-
-```powershell
-# Navegar para a pasta do projeto
-cd "C:\Users\gabri\OneDrive\Área de Trabalho\Intensiva Calculator\Intensiva Calculator"
-
-# Executar o script
-.\fix_powershell_profile.ps1
-```
-
----
-
-## 🔧 Solução Manual (Se preferir)
+## 🔧 Solução Manual
 
 Se preferir editar manualmente, abra o arquivo:
 

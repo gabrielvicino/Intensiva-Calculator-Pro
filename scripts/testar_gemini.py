@@ -20,8 +20,9 @@ def _carregar_chave():
             return st.secrets["GOOGLE_API_KEY"]
     except Exception:
         pass
-    # 3. Arquivo .streamlit/secrets.toml (local)
-    path = os.path.join(os.path.dirname(__file__), ".streamlit", "secrets.toml")
+    # 3. Arquivo .streamlit/secrets.toml (na raiz do projeto)
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(_root, ".streamlit", "secrets.toml")
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             for linha in f:

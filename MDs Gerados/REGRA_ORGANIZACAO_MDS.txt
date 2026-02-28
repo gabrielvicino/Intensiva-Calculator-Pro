@@ -45,7 +45,7 @@ Intensiva Calculator/
 ═════════════════════════════════════════════════════════════════
 
 PARA MAIS DETALHES:
-  Veja: MDs Gerados/.INSTRUCOES.md
+  Veja: .INSTRUCOES.md (nesta pasta)
 
 ═════════════════════════════════════════════════════════════════
 

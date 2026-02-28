@@ -103,19 +103,6 @@ with st.container():
         if btn_criar:
             if not busca:
                 st.warning("Digite o número do prontuário.")
-            elif busca.upper() == "TESTE":
-                st.session_state.update({
-                    'nome': 'João da Silva (Paciente Teste)',
-                    'idade': 68,
-                    'prontuario': 'TESTE-001',
-                    'leito': 'UTI-05',
-                    'origem': 'PS / Emergência',
-                    'di_hosp': '12 dias',
-                    'di_uti': '4 dias',
-                    'saps3': '55',
-                    'sofa_adm': 8,
-                })
-                st.toast("Modo Treinamento Ativado! 🧪", icon="✅")
             else:
                 with st.spinner("Verificando prontuário..."):
                     ja_existe = check_evolucao_exists(busca)

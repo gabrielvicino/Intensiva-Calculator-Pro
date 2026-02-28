@@ -8,15 +8,24 @@
 
 ### **iniciar.bat** (Windows)
 - **Descrição:** Inicia o aplicativo Streamlit no Windows
+- **Uso:** Duplo clique ou `scripts\iniciar.bat`
+- **O que faz:** `streamlit run app.py`
 
 ### **sync_infusao_sheet.py**
 - **Descrição:** Sincroniza os dados padrão de infusão para a aba DB_INFUSAO no Google Sheets
 - **Uso:** `streamlit run scripts/sync_infusao_sheet.py`
-- **Uso:** Clique duas vezes ou execute: `scripts\iniciar.bat`
-- **O que faz:**
-  ```batch
-  streamlit run app.py
-  ```
+
+### **testar_gemini.py**
+- **Descrição:** Verifica se a API do Google Gemini está configurada corretamente
+- **Uso:** `python scripts/testar_gemini.py` (execute da raiz do projeto)
+
+### **gerar_exemplo_completo.py**
+- **Descrição:** Gera o prontuário de exemplo completo (interface Streamlit)
+- **Uso:** `streamlit run scripts/gerar_exemplo_completo.py`
+
+### **gerar_exemplo_standalone.py**
+- **Descrição:** Gera PRONTUARIO_EXEMPLO_COMPLETO.txt via linha de comando (sem UI)
+- **Uso:** `python scripts/gerar_exemplo_standalone.py` (da raiz do projeto)
 
 ---
 
@@ -107,5 +116,5 @@ Se criar scripts .py auxiliares, considere:
 
 ---
 
-**Última atualização:** Janeiro 2026
-**Scripts disponíveis:** 1 (iniciar.bat)
+**Última atualização:** Fevereiro 2026
+**Scripts disponíveis:** iniciar.bat, sync_infusao_sheet.py, testar_gemini.py, gerar_exemplo_completo.py, gerar_exemplo_standalone.py

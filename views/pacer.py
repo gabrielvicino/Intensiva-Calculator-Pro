@@ -8,7 +8,7 @@ import time
 # ==============================================================================
 # 1. CONFIGURAÇÕES VISUAIS
 # ==============================================================================
-st.set_page_config(page_title="Pacer - Exames & Prescrição", page_icon="📃", layout="wide")
+# st.set_page_config já é definido em app.py (router). Evita erro "can only be called once".
 
 # CSS para ajustar botões e fonte
 st.markdown("""

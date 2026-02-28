@@ -1,6 +1,7 @@
 """
 Módulo de componentes de UI reutilizáveis para o Intensiva Calculator.
 """
+from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -63,26 +64,92 @@ def carregar_css():
     """, height=0)
 
 
+def _dias_internados_valor(di_hosp: str) -> str:
+    """Retorna 'X dias' a partir de di_hosp (data DD/MM/AAAA ou já 'X dias')."""
+    if not di_hosp or not isinstance(di_hosp, str):
+        return ""
+    s = di_hosp.strip()
+    if "dias" in s.lower():
+        return s  # já está no formato "12 dias"
+    try:
+        d1 = datetime.strptime(s, "%d/%m/%Y")
+        d2 = datetime.now()
+        dias = (d2 - d1).days
+        if dias >= 0:
+            return f"{dias} dias"
+    except ValueError:
+        pass
+    return ""
+
+
 def render_barra_paciente():
-    """Renderiza a barra com dados do paciente (nome, prontuário, leito)."""
+    """Renderiza o card com dados do paciente (nome, prontuário, leito, dias internados)."""
     nome = st.session_state.get("nome", "") or ""
     pront = st.session_state.get("prontuario", "") or ""
     leito = st.session_state.get("leito", "") or ""
-    origem = st.session_state.get("origem", "") or ""
+    di_hosp = st.session_state.get("di_hosp", "") or ""
+    dias_val = _dias_internados_valor(di_hosp)
 
-    if nome or pront or leito:
-        partes = []
+    if nome or pront or leito or dias_val:
+        itens = []
         if nome:
-            partes.append(f"**{nome}**")
+            itens.append(('Paciente', nome, '👤'))
         if pront:
-            partes.append(f"Pront. {pront}")
+            itens.append(('Prontuário', pront, '📋'))
         if leito:
-            partes.append(f"Leito {leito}")
-        if origem:
-            partes.append(f"Origem: {origem}")
+            leito_val = leito.replace("Leito ", "", 1) if leito.lower().startswith("leito ") else leito
+            itens.append(('Leito', leito_val, '🛏️'))
+        if dias_val:
+            itens.append(('Dias internados', dias_val, '📅'))
 
-        st.markdown(" | ".join(partes))
-        st.markdown("---")
+        badges = "".join(
+            f'<span class="paciente-badge"><span class="paciente-icone">{icon}</span>'
+            f'<span class="paciente-label">{label}:</span> <span class="paciente-valor">{valor}</span></span>'
+            for label, valor, icon in itens
+        )
+        st.markdown(
+            f"""
+            <div class="paciente-card">
+                {badges}
+            </div>
+            <style>
+                .paciente-card {{
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 0.75rem 1.25rem;
+                    margin-bottom: 1rem;
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: 1rem 1.5rem;
+                }}
+                .paciente-badge {{
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    font-size: 0.95rem;
+                    color: #334155;
+                }}
+                .paciente-icone {{
+                    font-size: 1rem;
+                    opacity: 0.9;
+                }}
+                .paciente-label {{
+                    color: #64748b;
+                    font-weight: 500;
+                }}
+                .paciente-valor {{
+                    color: #1e293b;
+                    font-weight: 600;
+                }}
+                .paciente-badge:first-child .paciente-valor {{
+                    font-size: 1.05rem;
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_header_secao(titulo: str, emoji: str, cor: str):
