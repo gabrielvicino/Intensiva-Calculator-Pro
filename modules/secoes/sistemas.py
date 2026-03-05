@@ -364,7 +364,8 @@ def render(_agent_btn_callback=None):
             _agent_btn_callback()
     
     # NEUROLÓGICO
-    with st.expander("Neurológico", expanded=False):
+    with st.container(border=True):
+        st.markdown("**Neurológico**")
         # Linha 1: ECG total + componentes AO / RV / RM (text_input como FC, PAM, laboratoriais)
         ecg_col, ao_col, rv_col, rm_col = st.columns([1, 1, 1, 1])
         with ecg_col:
@@ -469,7 +470,8 @@ def render(_agent_btn_callback=None):
         st.text_input("Conduta", key="sis_neuro_conduta", placeholder="Escreva a conduta aqui...", label_visibility="collapsed")
 
     # RESPIRATÓRIO
-    with st.expander("Respiratório", expanded=False):
+    with st.container(border=True):
+        st.markdown("**Respiratório**")
         # Exame Respiratório
         st.markdown("**Exame Respiratório**")
         st.text_input("Exame Respiratório", key="sis_resp_ausculta", placeholder="MV+, sem ruído adventício, expansão bilateral, sem sinais de desconforto", label_visibility="collapsed")
@@ -557,7 +559,8 @@ def render(_agent_btn_callback=None):
         st.text_input("Conduta", key="sis_resp_conduta", placeholder="Escreva a conduta aqui...", label_visibility="collapsed")
 
     # CARDIOVASCULAR
-    with st.expander("Cardiovascular", expanded=False):
+    with st.container(border=True):
+        st.markdown("**Cardiovascular**")
         # Frequência, Cardioscopia, PAM
         r1, r2, r3 = st.columns(3)
         with r1:
@@ -620,7 +623,8 @@ def render(_agent_btn_callback=None):
         st.text_input("Conduta", key="sis_cardio_conduta", placeholder="Escreva a conduta aqui...", label_visibility="collapsed")
 
     # EXAME ABDOMINAL (antes Trato Gastrointestinal)
-    with st.expander("Abdominal / TGI / Nutri", expanded=False):
+    with st.container(border=True):
+        st.markdown("**Exame Abdominal**")
         # Exame Abdominal (coluna 1) | Icterícia Presente + Cruzes (coluna 2)
         ef_col, icter_col = st.columns([3, 1])
         with ef_col:
