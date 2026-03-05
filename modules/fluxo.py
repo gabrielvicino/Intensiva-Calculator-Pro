@@ -54,6 +54,7 @@ def limpar_tudo():
     st.session_state["texto_bruto_original"] = ""
     st.session_state.pop("_agent_staging", None)
     st.session_state.pop("_secoes_recortadas", None)
+    st.session_state.pop("_data_hora_carregado", None)
     st.session_state["hd_ordem"] = list(range(1, 9))
     st.session_state["cult_ordem"] = list(range(1, 9))
     st.session_state["disp_ordem"] = list(range(1, 9))

@@ -3,7 +3,8 @@ Extração de exames e prescrições usando a mesma lógica multi-agente do PACE
 - extrair_exames():      6 agentes paralelos (idêntico ao PACER — aba Exames)
 - extrair_prescricao():  3 agentes sequenciais (idêntico ao PACER — aba Prescrição)
 """
-import google.generativeai as genai
+from google import genai as _genai_new
+from google.genai import types as _genai_types
 from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -16,14 +17,16 @@ def _chamar_ia(provider: str, api_key: str, modelo: str,
                prompt_system: str, input_text: str) -> str:
     try:
         if "gemini" in provider.lower() or "google" in provider.lower():
-            genai.configure(api_key=api_key)
-            cfg = {"temperature": 0.0, "top_p": 1.0, "top_k": 1}
-            m = genai.GenerativeModel(
-                model_name=modelo,
-                generation_config=cfg,
-                system_instruction=prompt_system,
+            client = _genai_new.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=modelo,
+                contents=input_text,
+                config=_genai_types.GenerateContentConfig(
+                    system_instruction=prompt_system,
+                    temperature=0.0,
+                ),
             )
-            return m.generate_content(input_text).text
+            return response.text
         else:
             client = OpenAI(api_key=api_key)
             resp = client.chat.completions.create(
@@ -204,36 +207,86 @@ _PROMPT_GASOMETRIA = """# ATUE COMO
 Especialista em Gasometria.
 
 # TAREFA
-Identifique Gasometria (Arterial, Venosa ou Ambas).
-REGRA DE DATA: Se houver múltiplas coletas, extraia APENAS a que tiver horário mais recente.
+Identifique TODAS as gasometrias no texto. Extraia tipo (Arterial ou Venosa), hora e valores de cada uma.
+Agrupe em até 3 ENTRADAS e retorne da mais recente para a mais antiga.
 
-# REGRAS DE PRECISÃO NUMÉRICA (RIGOROSO)
-Aplique estas regras de arredondamento/formatação para cada item:
-1. INTEIROS (Sem vírgula): pCO2, pO2, HCO3, SatO2, SvO2, AG, Cl, Na.
+# PASSO 1 — EXTRAIR E ORDENAR
+Liste todas as gasometrias encontradas com seus horários.
+Se o horário não estiver disponível, trate essa gasometria como a mais antiga.
+
+# PASSO 2 — REGRA DE AGRUPAMENTO (PAREADA vs SEPARADA)
+Para cada par Arterial + Venosa no texto:
+  - Diferença de horário < 2 horas → PAREADA (formam UMA entrada com prefixo "Gas Par")
+  - Diferença de horário ≥ 2 horas → SEPARADAS (cada uma é uma entrada independente)
+
+Gasometrias do mesmo tipo (ex: duas arteriais) são SEMPRE entradas independentes.
+
+# PASSO 3 — SELECIONAR ATÉ 3 ENTRADAS
+- Ordene as entradas da mais recente para a mais antiga.
+- Selecione no máximo 3 entradas para a saída.
+- Entrada PAREADA: o horário de referência é o da arterial.
+
+# REGRA DE HORA
+- Extraia a hora do campo "Recebimento material:", "Data da coleta" ou similar.
+- Formate como "HHh" com dois dígitos: "04:18" → "04h" | "16:45" → "16h" | "4h" → "04h".
+- Se hora indisponível, omita o bloco de hora (ex: "Gas Art pH 7,35 / ...").
+
+# REGRAS DE PRECISÃO NUMÉRICA E DADOS FALTANTES (RIGOROSO)
+1. INTEIROS (sem vírgula): pCO2, pO2, HCO3, SatO2, SvO2, AG, Cl, Na.
 2. 1 CASA DECIMAL: BE (Ex: -2,3), Lac (Ex: 1,5), K (Ex: 4,0).
 3. 2 CASAS DECIMAIS: pH (Ex: 7,35), Cai (Ex: 1,15).
+4. DADOS FALTANTES: Se algum exame não constar no laudo, pule o item. Não deixe barras (/) sobrando.
 
-# ESTRUTURA
-- Use " / " entre valores.
-- Use " | " entre blocos (apenas se for mista).
+# CAMPOS POR TIPO DE ENTRADA
+- ARTERIAL isolada:              Gas Art (HHh) pH / pCO2 / pO2 / HCO3 / BE / SatO2 / Lac / AG / Cl / Na / K / Cai
+- VENOSA isolada (≥ 2h):        Gas Ven (HHh) pH / pCO2 / HCO3 / BE / SvO2 / Lac / AG / Cl / Na / K / Cai
+  → SatO2 vira SvO2. pO2 NÃO aparece.
+- PAREADA (< 2h): Gas Par (HHh) arterial COMPLETA | pCO2 X / SvO2 Y%
+  → Hora exibida = hora da arterial. Venosa: apenas pCO2 e SvO2, sem prefixo, separados por " | ".
 
-# CENÁRIOS
-A. ARTERIAL: pH / pCO2 / pO2 / HCO3 / BE / SatO2 / Lac / AG / Cl / Na / K / Cai
-B. VENOSA: pH / pCO2 / HCO3 / BE / SvO2 / Lac / AG / Cl / Na / K / Cai
+# ESTRUTURA DE SAÍDA
+- Cada entrada ocupa UMA linha.
+- Separe valores com " / ".
+- Retorne as entradas da mais recente para a mais antiga, uma por linha.
 
-# EXEMPLOS DE SAÍDA (TEMPLATES)
-Exemplo 1 (Só Arterial):
-Gas Art pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15
+# EXEMPLOS DE SAÍDA
 
-Exemplo 2 (Só Venosa):
-Gas Ven pH 7,31 / pCO2 48 / HCO3 24 / BE -1,5 / SvO2 70% / Lac 1,8 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,10
+Exemplo 1 — 1 arterial:
+Gas Art (04h) pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15
 
-Exemplo 3 (Mista - Arterial Completa + Venosa Resumida):
-Gas Art pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15 | Gas Ven pCO2 48 / SvO2 70%
+Exemplo 2 — 1 venosa isolada:
+Gas Ven (16h) pH 7,31 / pCO2 48 / HCO3 24 / BE -1,5 / SvO2 70% / Lac 1,8 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,10
+
+Exemplo 3 — PAREADA (Art 04h + Ven 05h → diff 1h < 2h):
+Gas Par (04h) pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15 | pCO2 48 / SvO2 70%
+
+Exemplo 4 — Art 04h + Ven 10h (diff 6h ≥ 2h → SEPARADAS, mais recente primeiro):
+Gas Ven (10h) pH 7,33 / pCO2 42 / HCO3 21 / BE -3,7 / SvO2 70% / Lac 1,5 / AG 12 / Cl 101 / Na 136 / K 4,2 / Cai 1,10
+Gas Art (04h) pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15
+
+Exemplo 5 — 3 arteriais em horários diferentes:
+Gas Art (16h) pH 7,38 / pCO2 36 / pO2 88 / HCO3 22 / BE -2,0 / SatO2 97% / Lac 1,2 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15
+Gas Art (10h) pH 7,32 / pCO2 38 / pO2 82 / HCO3 20 / BE -4,0 / SatO2 95% / Lac 2,1 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,12
+Gas Art (04h) pH 7,30 / pCO2 40 / pO2 80 / HCO3 19 / BE -5,0 / SatO2 94% / Lac 2,8 / AG 14 / Cl 104 / Na 136 / K 4,4 / Cai 1,10
+
+Exemplo 6 — 2 pareadas + 1 arterial isolada (Art 04h+Ven 05h | Art 10h | Art 16h+Ven 17h):
+Gas Par (16h) pH 7,38 / pCO2 36 / pO2 88 / HCO3 22 / BE -2,0 / SatO2 97% / Lac 1,2 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15 | pCO2 44 / SvO2 72%
+Gas Art (10h) pH 7,32 / pCO2 38 / pO2 82 / HCO3 20 / BE -4,0 / SatO2 95% / Lac 2,1 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,12
+Gas Par (04h) pH 7,30 / pCO2 40 / pO2 80 / HCO3 19 / BE -5,0 / SatO2 94% / Lac 2,8 / AG 14 / Cl 104 / Na 136 / K 4,4 / Cai 1,10 | pCO2 48 / SvO2 68%
+
+Exemplo 7 — 3 pareadas (Art 04h+Ven 04h | Art 10h+Ven 10h | Art 16h+Ven 17h):
+Gas Par (16h) pH 7,38 / pCO2 36 / pO2 88 / HCO3 22 / BE -2,0 / SatO2 97% / Lac 1,2 / AG 10 / Cl 100 / Na 138 / K 4,0 / Cai 1,15 | pCO2 44 / SvO2 72%
+Gas Par (10h) pH 7,32 / pCO2 38 / pO2 82 / HCO3 20 / BE -4,0 / SatO2 95% / Lac 2,1 / AG 12 / Cl 102 / Na 137 / K 4,2 / Cai 1,12 | pCO2 46 / SvO2 69%
+Gas Par (04h) pH 7,30 / pCO2 40 / pO2 80 / HCO3 19 / BE -5,0 / SatO2 94% / Lac 2,8 / AG 14 / Cl 104 / Na 136 / K 4,4 / Cai 1,10 | pCO2 50 / SvO2 65%
+
+Exemplo 8 — Sem hora no laudo:
+Gas Art pH 7,35 / pCO2 40 / pO2 85 / HCO3 22 / BE -2,3 / SatO2 96% / Lac 1,5 / AG 10 / Na 138 / K 4,0 / Cai 1,15
 
 # FORMATO DE RESPOSTA
-- Escolha UM cenário. Retorne APENAS a string formatada conforme as regras de precisão.
-- Se não houver dados, retorne VAZIO.
+- Retorne ABSOLUTAMENTE APENAS as linhas formatadas conforme os exemplos acima.
+- NUNCA use formatação markdown (como ```).
+- Cada entrada em sua própria linha, da mais recente para a mais antiga.
+- Se não houver dados de gasometria, retorne VAZIO.
 
 # INPUT PARA PROCESSAR:
 {{TEXTO_INPUT}}"""
@@ -387,6 +440,21 @@ SOLUÇÕES
 
 
 # ==============================================================================
+# EXPORTS PÚBLICOS — pacer.py importa daqui (fonte única de verdade)
+# Devem ficar APÓS todos os _PROMPT_* estarem definidos
+# ==============================================================================
+PROMPT_AGENTE_IDENTIFICACAO              = _PROMPT_ID_EXAMES
+PROMPT_AGENTE_HEMATOLOGIA_RENAL          = _PROMPT_HEMATOLOGIA_RENAL
+PROMPT_AGENTE_HEPATICO                   = _PROMPT_HEPATICO
+PROMPT_AGENTE_COAGULACAO                 = _PROMPT_COAGULACAO
+PROMPT_AGENTE_URINA                      = _PROMPT_URINA
+PROMPT_AGENTE_GASOMETRIA                 = _PROMPT_GASOMETRIA
+PROMPT_AGENTE_IDENTIFICACAO_PRESCRICAO   = _PROMPT_ID_PRESCRICAO
+PROMPT_AGENTE_DIETA                      = _PROMPT_DIETA
+PROMPT_AGENTE_MEDICACOES                 = _PROMPT_MEDICACOES
+
+
+# ==============================================================================
 # extrair_exames() — 6 agentes paralelos (idêntico ao PACER)
 # ==============================================================================
 
@@ -429,11 +497,35 @@ def extrair_exames(texto: str, api_key: str, provider: str, modelo: str) -> str:
                 resultados_dict[aid] = resultado
 
     # Passo 3: montar resultado na ordem fixa do PACER
-    partes = [r for aid in _AGENTES_EXAMES_ORDEM if (r := resultados_dict.get(aid))]
+    # Agrupamento igual ao pacer.py:
+    #   Linha data:      hematologia_renal
+    #   Linha bioquím:   hepatico + coagulacao (joinados com " | ")
+    #   Linha própria:   urina
+    #   Linha própria:   gasometria
+    _INLINE    = ["hematologia_renal"]
+    _BIOQUIM   = ["hepatico", "coagulacao"]
+    _SEPARADOS = ["urina", "gasometria"]
 
-    if partes:
-        return f"{nome_hc}\n{data_linha} " + " | ".join(partes)
-    return f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
+    def _ok(v):
+        return v and v.strip().rstrip('.,:;!? ').upper() != "VAZIO"
+
+    if not resultados_dict:
+        return f"{nome_hc}\n{data_linha} (Nenhum dado laboratorial encontrado)"
+
+    linhas_saida = [nome_hc]
+
+    inline_partes = [resultados_dict[aid] for aid in _INLINE if aid in resultados_dict and _ok(resultados_dict[aid])]
+    linhas_saida.append(f"{data_linha} " + " | ".join(inline_partes) if inline_partes else data_linha)
+
+    bioquim_partes = [resultados_dict[aid] for aid in _BIOQUIM if aid in resultados_dict and _ok(resultados_dict[aid])]
+    if bioquim_partes:
+        linhas_saida.append(" | ".join(bioquim_partes))
+
+    for aid in _SEPARADOS:
+        if aid in resultados_dict and _ok(resultados_dict[aid]):
+            linhas_saida.append(resultados_dict[aid])
+
+    return "\n".join(linhas_saida)
 
 
 # ==============================================================================

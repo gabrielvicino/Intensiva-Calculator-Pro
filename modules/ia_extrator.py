@@ -1,6 +1,7 @@
 import json
 from openai import OpenAI
-import google.generativeai as genai
+from google import genai as _genai_new
+from google.genai import types as _genai_types
 
 SYSTEM_PROMPT = """Você é um Auditor Médico de Terapia Intensiva focado em EXTRAÇÃO DE DADOS.
 Sua missão é receber um texto clínico despadronizado e "fatiá-lo" cirurgicamente em 14 campos JSON.
@@ -160,16 +161,17 @@ def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "Op
 
         else:
             # Google Gemini
-            genai.configure(api_key=api_key)
-            modelo_gemini = modelo if modelo.startswith("gemini") else "gemini-2.5-flash"
-            model = genai.GenerativeModel(
-                model_name=modelo_gemini,
-                system_instruction=SYSTEM_PROMPT
+            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro-preview-05-06"
+            client = _genai_new.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=_modelo,
+                contents=f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}",
+                config=_genai_types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.0,
+                ),
             )
-            response = model.generate_content(
-                f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}"
-            )
-            txt = response.text.replace("```json", "").replace("```", "").strip()
+            txt = (response.text or "").replace("```json", "").replace("```", "").strip()
             return json.loads(txt)
 
     except json.JSONDecodeError as e:

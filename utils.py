@@ -62,12 +62,12 @@ def sync_infusao_to_sheet() -> bool:
         return False
 
 
-def load_data(worksheet_name):
-    """Carrega dados do Google Sheets. Sempre usa Sheets (sem fallback CSV)."""
+@st.cache_data(ttl=600)
+def load_data(worksheet_name: str) -> pd.DataFrame:
+    """Carrega dados do Google Sheets com cache de 10 minutos."""
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
-        # ttl=0 obriga a ler os dados novos AGORA, ignorando o cache antigo
-        df = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
+        df = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=600)
         return df
     except Exception as e:
         st.error(f"❌ Erro ao conectar com Google Sheets: {e}")

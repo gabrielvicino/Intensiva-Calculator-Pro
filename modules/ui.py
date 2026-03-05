@@ -43,6 +43,36 @@ def carregar_css():
         input[type="number"] {
             -moz-appearance: textfield;
         }
+
+        /* ── Linha discreta clicável na sidebar (Parâmetros do Modelo) ─── */
+        [data-testid="stSidebar"] [data-testid="stPopover"] > button {
+            all: unset !important;
+            display: block !important;
+            width: 100% !important;
+            height: 3px !important;
+            background: #dee2e6 !important;
+            border-radius: 2px !important;
+            cursor: pointer !important;
+            transition: background 0.2s !important;
+            margin: 6px 0 !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stPopover"] > button:hover {
+            background: #adb5bd !important;
+        }
+        /* Oculta qualquer texto ou ícone interno */
+        [data-testid="stSidebar"] [data-testid="stPopover"] > button * {
+            display: none !important;
+        }
+
+
+        /* ── Indicador de carregamento discreto ──────────────────────────── */
+        [data-testid="stStatusWidget"] { display: none !important; }
+
+        div[data-testid="stDecoration"] {
+            background: linear-gradient(90deg, #2563eb 0%, #16a34a 100%) !important;
+            height: 2px !important;
+            opacity: 0.6;
+        }
     </style>
     """, unsafe_allow_html=True)
     # Script: remove botões (x) e (+/-) do tab order para Tab ir ao próximo campo

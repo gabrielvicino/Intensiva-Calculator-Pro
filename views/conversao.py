@@ -91,6 +91,7 @@ st.markdown(f"""
         margin-bottom: 15px;
         line-height: 1.4;
     }}
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
     </style>
 """, unsafe_allow_html=True)
 
