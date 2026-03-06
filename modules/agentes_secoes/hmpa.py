@@ -92,14 +92,15 @@ def preencher_hmpa(texto, api_key, provider, modelo):
             )
             reescrito = resp.choices[0].message.content.strip()
         else:
-            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro-preview-05-06"
+            # Reescrita narrativa exige máxima qualidade — sempre Pro
             client = _genai_new.Client(api_key=api_key)
             resp = client.models.generate_content(
-                model=_modelo,
+                model="gemini-2.5-pro",
                 contents=f"Texto Original:\n\n{texto}",
                 config=_genai_types.GenerateContentConfig(
                     system_instruction=_PROMPT_HMPA,
                     temperature=0.0,
+                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             reescrito = (resp.text or "").strip()

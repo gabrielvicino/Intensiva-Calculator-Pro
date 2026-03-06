@@ -8,7 +8,7 @@ from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes, ext
 from modules.parser_lab import parse_lab_deterministico
 from modules.parser_controles import parse_controles_deterministico
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
-from utils import load_data, save_evolucao, load_evolucao, check_evolucao_exists, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
+from utils import load_data, save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
 
 # ── Chaves de API (secrets.toml → .env → vazio) ───────────────────────────────
 try:
@@ -42,7 +42,7 @@ with st.sidebar:
         )
         if provider == "Google Gemini":
             api_key = GOOGLE_API_KEY
-            modelo_escolhido = st.selectbox("Modelo:", MODELOS_GEMINI, index=1, key="_ia_modelo_gemini")
+            modelo_escolhido = st.selectbox("Modelo:", MODELOS_GEMINI, index=0, key="_ia_modelo_gemini")
             st.success(f"IA: Google — {modelo_escolhido}")
         else:
             api_key = OPENAI_API_KEY
@@ -77,9 +77,8 @@ def _para_staging(dados: dict) -> None:
 
 # ── Busca / carregamento de prontuário ────────────────────────────────────────
 
-def _carregar_dados_prontuario(busca: str) -> bool:
-    """Carrega e aplica os dados de um prontuário existente no session_state."""
-    dados = load_evolucao(busca)
+def _aplicar_dados_prontuario(dados: dict) -> bool:
+    """Aplica os dados carregados ao session_state."""
     if not dados:
         return False
     data_hora = dados.pop("_data_hora", "")
@@ -87,58 +86,68 @@ def _carregar_dados_prontuario(busca: str) -> bool:
     campos_validos = fichas.get_todos_campos_keys()
     st.session_state.update({k: v for k, v in dados.items() if k in campos_validos})
     st.session_state["_data_hora_carregado"] = data_hora
-    st.toast(f"✅ Prontuário carregado! Última evolução: {data_hora}", icon="📂")
+    st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
     return True
 
 
 @st.fragment
 def _fragment_busca():
-    with st.container():
-        with st.form(key="form_busca_paciente"):
-            c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
-            with c_input:
-                st.markdown('<label style="font-size: 1.2rem; font-weight: 600; color: #444; margin-bottom: 5px; display: block;">Número de Prontuário:</label>', unsafe_allow_html=True)
-                busca_input = st.text_input(
-                    "Label Oculta",
-                    placeholder="Digite o número e pressione Enter...",
-                    key="busca_input_field",
-                    label_visibility="collapsed",
-                )
-            with c_btn:
-                btn_buscar = st.form_submit_button("🔍 Buscar", use_container_width=True, type="primary")
+    with st.form(key="form_busca_paciente"):
+        c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
+        with c_input:
+            busca_input = st.text_input(
+                "Número do Prontuário",
+                placeholder="Ex.: 1234567",
+                key="busca_input_field",
+            )
+        with c_btn:
+            btn_buscar = st.form_submit_button(
+                "Buscar", use_container_width=True, type="primary"
+            )
 
-            busca = busca_input.strip() if busca_input else ""
-            if btn_buscar:
-                if not busca:
-                    st.warning("Digite o número do prontuário.")
+        busca = busca_input.strip() if busca_input else ""
+        if btn_buscar:
+            if not busca:
+                st.warning("Informe o número do prontuário para continuar.")
+            else:
+                with st.spinner("Consultando banco de dados..."):
+                    dados = load_evolucao(busca)
+                if dados is not None:
+                    _aplicar_dados_prontuario(dados)
+                    st.rerun()
                 else:
-                    if check_evolucao_exists(busca):
-                        with st.spinner("Carregando..."):
-                            _carregar_dados_prontuario(busca)
-                        st.rerun()
-                    else:
-                        st.session_state["_busca_pendente_criar"] = busca
+                    st.session_state["_busca_pendente_criar"] = busca
+                    st.rerun()
 
 _fragment_busca()
 
 # ── Confirmação de criação de novo prontuário ──────────────────────────────────
 if "_busca_pendente_criar" in st.session_state:
     pend = st.session_state["_busca_pendente_criar"]
-    st.warning(f"Prontuário **{pend}** não encontrado no banco de dados.")
-    st.markdown("**Deseja criar um novo prontuário?**")
-    c_sim, c_nao, _c_esp = st.columns([1, 1, 4])
-    with c_sim:
-        if st.button("✅ Sim, criar", type="primary", use_container_width=True, key="_btn_criar_sim"):
-            st.session_state.pop("_busca_pendente_criar", None)
-            st.session_state["prontuario"] = pend
-            with st.spinner("Criando..."):
-                save_evolucao(pend, "", {"prontuario": pend})
-            st.toast(f"✅ Prontuário {pend} criado! Preencha os dados e salve.", icon="✨")
-            st.rerun()
-    with c_nao:
-        if st.button("✖ Não", use_container_width=True, key="_btn_criar_nao"):
-            st.session_state.pop("_busca_pendente_criar", None)
-            st.rerun()
+    with st.container(border=True):
+        st.markdown(
+            f"**Prontuário {pend} não localizado.**  \n"
+            "Nenhum registro encontrado para este número. "
+            "Deseja iniciar um novo prontuário?",
+        )
+        c_sim, c_nao, *_ = st.columns([2, 2, 8])
+        with c_sim:
+            if st.button(
+                "Criar prontuário", type="primary",
+                use_container_width=True, key="_btn_criar_sim",
+            ):
+                st.session_state.pop("_busca_pendente_criar", None)
+                st.session_state["prontuario"] = pend
+                with st.spinner("Registrando novo prontuário..."):
+                    save_evolucao(pend, "", {"prontuario": pend})
+                st.toast(f"Prontuário {pend} registrado com sucesso.", icon="✅")
+                st.rerun()
+        with c_nao:
+            if st.button(
+                "Cancelar", use_container_width=True, key="_btn_criar_nao",
+            ):
+                st.session_state.pop("_busca_pendente_criar", None)
+                st.rerun()
 
 # ── Barra de identificação do paciente ────────────────────────────────────────
 ui.render_barra_paciente()
@@ -156,40 +165,35 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
         st.warning("Nenhuma seção tem texto para processar.")
         return
 
-    st.toast(f"⏳ {n_tarefas} agente(s) iniciado(s) — a página ficará em execução...", icon="⏳")
-
     with st.status(
-        f"⏳ Agentes de IA em execução — {n_tarefas} seção(ões)...",
-        expanded=True,
+        f"Processando {n_tarefas} {'seção' if n_tarefas == 1 else 'seções'} com IA...",
+        expanded=False,
     ) as _status_agentes:
-        progresso  = st.progress(0)
-        status_txt = st.empty()
-        status_txt.caption("⏳ Aguardando resposta da IA...")
+        progresso  = st.progress(0, text="Aguardando resposta...")
 
         def _on_progress(concluidos, total, nome):
-            if nome:
-                status_txt.caption(f"✅ {nome}  ({concluidos}/{total} concluídos)")
-            progresso.progress(concluidos / total)
+            pct  = int(concluidos / total * 100)
+            txt  = f"{nome} — {concluidos}/{total}" if nome else f"{concluidos}/{total} concluídos"
+            progresso.progress(concluidos / total, text=txt)
 
         n_ok, erros = fluxo.rodar_agentes_paralelo(
             secoes, api_key, _provider_completo(), modelo_escolhido,
             on_progress=_on_progress,
         )
 
-        progresso.progress(1.0)
-        status_txt.empty()
+        progresso.empty()
 
         if erros:
             _status_agentes.update(
-                label=f"⚠️ Concluído com {len(erros)} erro(s) — {n_ok} seções preenchidas",
+                label=f"Concluído com {len(erros)} {'erro' if len(erros) == 1 else 'erros'} — {n_ok} {'seção preenchida' if n_ok == 1 else 'seções preenchidas'}",
                 state="error",
                 expanded=True,
             )
             for e in erros:
-                st.warning(f"⚠️ {e}")
+                st.warning(e)
         else:
             _status_agentes.update(
-                label=f"✅ {n_ok} seção(ões) preenchida(s) com sucesso!",
+                label=f"{n_ok} {'seção preenchida' if n_ok == 1 else 'seções preenchidas'} com IA",
                 state="complete",
                 expanded=False,
             )
@@ -207,14 +211,14 @@ with st.container(border=True):
     _tem_texto_ant = bool(st.session_state.get("texto_bruto_original", "").strip())
     if _data_carg and _tem_texto_ant:
         st.info(
-            f"📂 **Prontuário anterior carregado** (salvo em {_data_carg})  \n"
-            "O texto abaixo foi o último colado neste prontuário. "
-            "Substitua por uma nova evolução ou clique em **Extrair Seções** para reprocessar.",
+            f"Prontuário carregado — última evolução registrada em **{_data_carg}**.  \n"
+            "O texto abaixo corresponde ao último input processado. "
+            "Substitua pelo texto da nova evolução ou clique em **Extrair Seções** para reprocessar.",
         )
     elif _data_carg and not _tem_texto_ant:
         st.info(
-            f"📂 **Prontuário carregado** (salvo em {_data_carg})  \n"
-            "Cole uma nova evolução abaixo para extrair os dados.",
+            f"Prontuário carregado — última evolução registrada em **{_data_carg}**.  \n"
+            "Cole o texto da nova evolução abaixo para iniciar a extração.",
         )
 
     texto_input = st.text_area(
@@ -236,18 +240,15 @@ with st.container(border=True):
             if not _ok:
                 st.error(f"🚫 {_msg}")
             else:
-                st.toast("⏳ IA iniciada — aguarde alguns segundos...", icon="⏳")
-                with st.status("⏳ Extraindo seções com IA...", expanded=True) as _st_extr:
-                    _st_extr.write("📤 Enviando prontuário para análise...")
+                with st.spinner("Extraindo seções com IA..."):
                     dados_notas = ia_extrator.extrair_dados_prontuario(
                         texto_bruto=texto_input,
                         api_key=api_key,
                         provider=_provider_completo(),
                         modelo=modelo_escolhido,
                     )
-                    _st_extr.write("📥 Distribuindo dados para os campos...")
                     fluxo.atualizar_notas_ia(dados_notas)
-                    _st_extr.update(label="✅ Seções extraídas com sucesso!", state="complete", expanded=False)
+                st.toast("Seções extraídas com sucesso.", icon="✅")
                 st.session_state["_secoes_recortadas"] = {
                     sec: bool(st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
                     for sec in agentes_secoes._NOTAS_MAP
@@ -448,28 +449,24 @@ if st.session_state.pop("_lab_extrair_pendente", False) and api_key:
         if not _ok:
             st.error(f"🚫 {_msg}")
         else:
-            st.toast("🧪 Extraindo exames com IA — aguarde...", icon="⏳")
-            with st.status("🧪 Extraindo exames laboratoriais (PACER)...", expanded=True) as _st_lab:
-                _st_lab.write("📤 Enviando exames para formatação pelo PACER...")
+            with st.spinner("Extraindo exames laboratoriais com IA..."):
                 resultado_pacer = extrator_exames.extrair_exames(
                     texto_lab, api_key, _provider_completo(), modelo_escolhido
                 )
-                if resultado_pacer.startswith("❌"):
-                    _st_lab.update(label="❌ Falha na extração", state="error", expanded=True)
-                    st.error(resultado_pacer)
-                elif not resultado_pacer.strip():
-                    _st_lab.update(label="⚠️ Nenhum dado extraído", state="error", expanded=True)
-                    st.warning("⚠️ Nenhum dado laboratorial foi extraído do texto. Verifique o formato dos exames.")
-                else:
-                    _st_lab.write("⚙️ Aplicando agente de laboratoriais aos campos...")
+            if resultado_pacer.startswith("❌"):
+                st.error(resultado_pacer)
+            elif not resultado_pacer.strip():
+                st.warning("Nenhum dado laboratorial extraído. Verifique o formato dos exames.")
+            else:
+                with st.spinner("Aplicando dados aos campos..."):
                     dados_lab = agentes_secoes._AGENTES["laboratoriais"](
                         resultado_pacer, api_key, _provider_completo(), modelo_escolhido
                     )
-                    if "_erro" in dados_lab:
-                        _st_lab.update(label=f"⚠️ Erro no agente: {dados_lab['_erro']}", state="error", expanded=True)
-                    else:
-                        _st_lab.update(label="✅ Exames extraídos e aplicados!", state="complete", expanded=False)
-                        _para_staging(dados_lab)
+                if "_erro" in dados_lab:
+                    st.error(f"Erro no agente: {dados_lab['_erro']}")
+                else:
+                    st.toast("Exames extraídos e aplicados.", icon="🧪")
+                    _para_staging(dados_lab)
 
 # ── Parsing Sistemas (determinístico) ─────────────────────────────────────────
 if st.session_state.pop("_sistemas_deterministico_pendente", False):
@@ -493,18 +490,15 @@ if st.session_state.pop("_prescricao_extrair_pendente", False) and api_key:
         if not _ok:
             st.error(f"🚫 {_msg}")
         else:
-            st.toast("💊 Formatando prescrição com IA — aguarde...", icon="⏳")
-            with st.status("💊 Formatando prescrição (PACER)...", expanded=True) as _st_presc:
-                _st_presc.write("📤 Enviando prescrição para formatação...")
+            with st.spinner("Formatando prescrição com IA..."):
                 resultado_presc = extrator_exames.extrair_prescricao(
                     texto_presc, api_key, _provider_completo(), modelo_escolhido
                 )
-                if resultado_presc.startswith("❌"):
-                    _st_presc.update(label="❌ Falha na formatação", state="error", expanded=True)
-                    st.error(resultado_presc)
-                else:
-                    _st_presc.update(label="✅ Prescrição formatada!", state="complete", expanded=False)
-                    _para_staging({"prescricao_formatada": resultado_presc})
+            if resultado_presc.startswith("❌"):
+                st.error(resultado_presc)
+            else:
+                st.toast("Prescrição formatada.", icon="💊")
+                _para_staging({"prescricao_formatada": resultado_presc})
 
 # ==============================================================================
 # BLOCO 3: PRONTUÁRIO COMPLETO

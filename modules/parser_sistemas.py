@@ -313,7 +313,9 @@ def _parse_hemato(bloco: str) -> dict:
     m_ant = re.search(r"Anticoagula[çc][ãa]o\s*[:\s]+([^\n|]+)", bloco, re.IGNORECASE)
     if m_ant:
         r["sis_hemato_anticoag"] = "Sim"
-        r["sis_hemato_anticoag_tipo"] = m_ant.group(1).strip()
+        _tipo_raw = m_ant.group(1).strip()
+        _tipo_map = {"profilática": "Profilática", "profilatica": "Profilática", "plena": "Plena"}
+        r["sis_hemato_anticoag_tipo"] = _tipo_map.get(_tipo_raw.lower(), _tipo_raw)
     # Sem sangramentos
     if re.search(r"sem\s+sangramento", bloco, re.IGNORECASE):
         r["sis_hemato_sangramento"] = "Não"

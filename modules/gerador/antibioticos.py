@@ -7,7 +7,7 @@ def _secao_antibioticos() -> list[str]:
     Lista única com status Atual/Prévio. Saída:
     # Antibiótico Atual
     1- {nome}[; Foco {foco}][; {tipo}][; {data_ini} → {data_fim}[ (X dias)]]
-    # Antibiótico Prévio
+    # Antibióticos Prévios
     1- {nome}[; Foco {foco}][; {tipo}][; {data_ini} - {data_fim}]
     """
     _TIPO_EXPANDIDO = {"Empírico": "Empírico", "Guiado por Cultura": "Guiado por Cultura"}
@@ -88,7 +88,7 @@ def _secao_antibioticos() -> list[str]:
     if previos:
         if resultado:
             resultado.append("")
-        resultado.append("# Antibiótico Prévio")
+        resultado.append("# Antibióticos Prévios")
         resultado.extend(previos)
 
     return resultado

@@ -62,6 +62,7 @@ def _chamar_ia(prompt_system: str, texto: str, api_key: str, provider: str, mode
                 config=_genai_types.GenerateContentConfig(
                     system_instruction=prompt_system,
                     temperature=0.0,
+                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             txt = (resp.text or "").replace("```json", "").replace("```", "").strip()

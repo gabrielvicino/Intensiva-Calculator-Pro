@@ -169,6 +169,7 @@ def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "Op
                 config=_genai_types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.0,
+                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             txt = (response.text or "").replace("```json", "").replace("```", "").strip()

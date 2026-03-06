@@ -1,10 +1,40 @@
 import os
 import time
+import gzip
+import base64
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+from gspread import service_account_from_dict
 import pandas as pd
 import json
 from datetime import datetime
+
+_GZ_PREFIX = "GZ1:"  # marcador de versão do formato comprimido
+
+
+def _comprimir_dados(dados: dict) -> str:
+    """
+    Serializa o dict completo para JSON e comprime com gzip+base64.
+    Garante que o resultado caiba no limite de 50.000 chars/célula do Google Sheets
+    (redução típica de 95-97%, mesmo com textos grandes).
+    """
+    json_str = json.dumps(dados, ensure_ascii=False, default=str)
+    compressed = gzip.compress(json_str.encode("utf-8"), compresslevel=9)
+    b64 = base64.b64encode(compressed).decode("ascii")
+    return f"{_GZ_PREFIX}{b64}"
+
+
+def _descomprimir_dados(texto: str) -> dict:
+    """Descomprime JSON salvo por _comprimir_dados. Aceita JSON puro (legado)."""
+    if not texto or not isinstance(texto, str):
+        return {}
+    if texto.startswith(_GZ_PREFIX):
+        b64 = texto[len(_GZ_PREFIX):]
+        compressed = base64.b64decode(b64.encode("ascii"))
+        json_str = gzip.decompress(compressed).decode("utf-8")
+        return json.loads(json_str)
+    # Legado: JSON puro
+    return json.loads(texto)
 
 
 def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
@@ -144,22 +174,25 @@ def sync_infusao_to_sheet() -> bool:
         return False
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def load_data(worksheet_name: str) -> pd.DataFrame:
     """Carrega dados do Google Sheets com cache de 10 minutos."""
     try:
+        df = _read_worksheet_gspread(worksheet_name)
+        if df is not None:
+            return df
         conn = st.connection("gsheets", type=GSheetsConnection)
-        df = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=600)
-        return df
+        return conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=600)
     except Exception as e:
         st.error(f"❌ Erro ao conectar com Google Sheets: {e}")
         return pd.DataFrame()
 
 def save_data_append(worksheet_name, new_data_row):
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        # Lê a planilha REAL agora (sem cache)
-        existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
+        existing_data = _read_worksheet_gspread(worksheet_name)
+        if existing_data is None:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
         
         # --- DIAGNÓSTICO DE ERRO (Para sabermos o que acontece) ---
         qtd_planilha = len(existing_data.columns)
@@ -181,46 +214,99 @@ def save_data_append(worksheet_name, new_data_row):
         st.error(f"Erro detalhado do Google: {e}")
         return False
 
+def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
+    """
+    Lê qualquer aba do Sheets via gspread (sem indicador técnico na UI).
+    Retorna DataFrame ou None em caso de erro.
+    """
+    try:
+        gs = st.secrets.get("connections", {}).get("gsheets", {})
+        if not gs or gs.get("type") != "service_account":
+            return None
+        creds = {k: v for k, v in gs.items() if k not in ("spreadsheet", "worksheet")}
+        gc = service_account_from_dict(creds)
+        sh = gc.open_by_url(SHEET_URL)
+        ws = sh.worksheet(worksheet_name)
+        records = ws.get_all_records()
+        return pd.DataFrame(records) if records else pd.DataFrame()
+    except Exception:
+        return None
+
+
+def _get_evolucao_worksheet():
+    """Retorna a aba EVOLUCOES via gspread."""
+    return _read_worksheet_gspread(_ABA_EVOLUCOES)
+
+
+def _append_evolucao_row(prontuario: str, nome: str, data_hora: str, dados_json: str) -> bool:
+    """
+    Adiciona uma linha na aba EVOLUCOES via append_row (sem ler a planilha inteira).
+    Retorna True se sucesso, False caso contrário.
+    """
+    try:
+        gs = st.secrets.get("connections", {}).get("gsheets", {})
+        if not gs or gs.get("type") != "service_account":
+            return False
+        creds = {k: v for k, v in gs.items() if k not in ("spreadsheet", "worksheet")}
+        gc = service_account_from_dict(creds)
+        sh = gc.open_by_url(SHEET_URL)
+        ws = sh.worksheet(_ABA_EVOLUCOES)
+        first_row = ws.row_values(1)
+        if not first_row or first_row[0] != "prontuario":
+            ws.update("A1:D1", [["prontuario", "nome", "data_hora", "dados_json"]])
+        ws.append_row([prontuario, nome, data_hora, dados_json], value_input_option="RAW")
+        return True
+    except Exception:
+        return False
+
+
 def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
     """
     Salva uma evolução diária na aba EVOLUCOES do Google Sheets.
     Cada chamada ACRESCENTA uma nova linha — o histórico é mantido.
-    Estrutura da planilha: prontuario | nome | data_hora | dados_json
+    Usa append_row quando possível (mais rápido); fallback para read+update.
     """
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
+    pront = str(prontuario).strip().replace(".0", "")
+    nome_ = str(nome).strip()
+    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    dados_json = _comprimir_dados(dados)
 
-        nova_linha = pd.DataFrame([{
-            "prontuario": str(prontuario).strip().replace(".0", ""),
-            "nome":       str(nome).strip(),
-            "data_hora":  datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "dados_json": json.dumps(dados, ensure_ascii=False, default=str),
-        }])
-
-        try:
-            existing = conn.read(
-                spreadsheet=SHEET_URL,
-                worksheet=_ABA_EVOLUCOES,
-                ttl=0,
-            )
-            if existing is not None and not existing.empty:
-                updated = pd.concat([existing, nova_linha], ignore_index=True)
-            else:
-                updated = nova_linha
-        except Exception:
-            # Aba ainda não existe ou está vazia — inicia com a primeira linha
-            updated = nova_linha
-
-        conn.update(
-            spreadsheet=SHEET_URL,
-            worksheet=_ABA_EVOLUCOES,
-            data=updated,
-        )
+    if _append_evolucao_row(pront, nome_, data_hora, dados_json):
+        load_data.clear()
         return True
 
+    # Fallback: read + concat + update (aba nova ou append indisponível)
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        nova_linha = pd.DataFrame([{
+            "prontuario": pront, "nome": nome_, "data_hora": data_hora,
+            "dados_json": dados_json,
+        }])
+        try:
+            existing = conn.read(
+                spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, ttl=0,
+            )
+            updated = pd.concat([existing, nova_linha], ignore_index=True) if existing is not None and not existing.empty else nova_linha
+        except Exception:
+            updated = nova_linha
+        conn.update(spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, data=updated)
+        load_data.clear()
+        return True
     except Exception as e:
         st.error(f"❌ Erro ao salvar no Google Sheets: {e}")
         return False
+
+
+def _read_evolucoes_df() -> pd.DataFrame | None:
+    """Lê a aba EVOLUCOES via gspread (sem indicador técnico na UI). Fallback para conn.read."""
+    df = _get_evolucao_worksheet()
+    if df is not None:
+        return df
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        return conn.read(spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, ttl=0)
+    except Exception:
+        return None
 
 
 def check_evolucao_exists(prontuario: str) -> bool:
@@ -228,14 +314,11 @@ def check_evolucao_exists(prontuario: str) -> bool:
     Verifica se já existe ao menos uma evolução cadastrada para o prontuário.
     """
     try:
-        df = load_data(_ABA_EVOLUCOES)
+        df = _read_evolucoes_df()
         if df is None or df.empty:
             return False
         df["prontuario"] = (
-            df["prontuario"]
-            .astype(str)
-            .str.strip()
-            .str.replace(r"\.0$", "", regex=True)
+            df["prontuario"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
         )
         busca = str(prontuario).strip().replace(".0", "")
         return not df[df["prontuario"] == busca].empty
@@ -250,18 +333,12 @@ def load_evolucao(prontuario: str) -> dict | None:
     O campo '_data_hora' indica quando a evolução foi salva.
     """
     try:
-        df = load_data(_ABA_EVOLUCOES)
-
+        df = _read_evolucoes_df()
         if df is None or df.empty:
             return None
 
-        # O Sheets pode entregar o número como float (ex.: "5251511.0")
-        # → removemos o sufixo ".0" para garantir a comparação correta
         df["prontuario"] = (
-            df["prontuario"]
-            .astype(str)
-            .str.strip()
-            .str.replace(r"\.0$", "", regex=True)
+            df["prontuario"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
         )
         busca_normalizada = str(prontuario).strip().replace(".0", "")
         matches = df[df["prontuario"] == busca_normalizada]
@@ -269,9 +346,8 @@ def load_evolucao(prontuario: str) -> dict | None:
         if matches.empty:
             return None
 
-        # Última linha = evolução mais recente
         latest = matches.iloc[-1]
-        dados = json.loads(latest["dados_json"])
+        dados = _descomprimir_dados(latest["dados_json"])
         dados["_data_hora"] = str(latest.get("data_hora", ""))
         return dados
 

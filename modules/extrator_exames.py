@@ -2,11 +2,17 @@
 Extração de exames e prescrições usando a mesma lógica multi-agente do PACER.
 - extrair_exames():      6 agentes paralelos (idêntico ao PACER — aba Exames)
 - extrair_prescricao():  3 agentes sequenciais (idêntico ao PACER — aba Prescrição)
+
+Qualidade: sempre usa gemini-2.5-pro para Gemini (exames, gasometria e prescrição
+exigem máxima precisão). Para OpenAI, usa gpt-4o.
 """
 from google import genai as _genai_new
 from google.genai import types as _genai_types
 from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Modelo fixo de alta qualidade para exames e prescrição
+_MODELO_GEMINI_QUALIDADE = "gemini-2.5-pro"
 
 
 # ==============================================================================
@@ -19,11 +25,12 @@ def _chamar_ia(provider: str, api_key: str, modelo: str,
         if "gemini" in provider.lower() or "google" in provider.lower():
             client = _genai_new.Client(api_key=api_key)
             response = client.models.generate_content(
-                model=modelo,
+                model=_MODELO_GEMINI_QUALIDADE,  # sempre Pro para exames/prescrição
                 contents=input_text,
                 config=_genai_types.GenerateContentConfig(
                     system_instruction=prompt_system,
                     temperature=0.0,
+                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             return response.text

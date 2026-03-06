@@ -86,6 +86,88 @@ def _normalizar_datas():
             if novo != v:
                 ss[k] = novo
 
+# ---------------------------------------------------------------------------
+# Normalização de campos st.pills (matching case-insensitivo)
+# ---------------------------------------------------------------------------
+
+# Mapa completo: chave → opções válidas (exatamente como declaradas nos widgets)
+_PILLS_MAPA: dict[str, list] = {
+    # Hemato
+    "sis_hemato_anticoag":           ["Sim", "Não"],
+    "sis_hemato_anticoag_tipo":      ["Profilática", "Plena"],
+    "sis_hemato_sangramento":        ["Sim", "Não"],
+    # Pele
+    "sis_pele_edema":               ["Presente", "Ausente"],
+    "sis_pele_lpp":                 ["Sim", "Não"],
+    "sis_pele_polineuropatia":      ["Sim", "Não"],
+    # Renal
+    "sis_renal_volemia":            ["Hipovolêmico", "Euvolêmico", "Hipervolêmico"],
+    "sis_renal_trs":                ["Sim", "Não"],
+    # Infeccioso
+    "sis_infec_febre":              ["Sim", "Não"],
+    "sis_infec_atb":                ["Sim", "Não"],
+    "sis_infec_atb_guiado":         ["Sim", "Não"],
+    "sis_infec_culturas_and":       ["Sim", "Não"],
+    "sis_infec_isolamento":         ["Sim", "Não"],
+    # Gastrointestinal
+    "sis_gastro_ictericia_presente": ["Presente", "Ausente"],
+    "sis_gastro_na_meta":           ["Sim", "Não"],
+    "sis_gastro_escape_glicemico":  ["Sim", "Não"],
+    "sis_gastro_insulino":          ["Sim", "Não"],
+    "sis_gastro_evacuacao":         ["Sim", "Não"],
+    # Cardiovascular
+    "sis_cardio_perfusao":          ["Normal", "Lentificada", "Flush"],
+    "sis_cardio_fluido_responsivo": ["Sim", "Não"],
+    "sis_cardio_fluido_tolerante":  ["Sim", "Não"],
+    # Respiratório
+    "sis_resp_modo":                ["Ar Ambiente", "Oxigenoterapia", "VNI", "Cateter de Alto Fluxo", "Ventilação Mecânica"],
+    "sis_resp_modo_vent":           ["VCV", "PCV", "PSV"],
+    "sis_resp_vent_protetora":      ["Sim", "Não"],
+    "sis_resp_sincronico":          ["Sim", "Não"],
+    # Neurológico
+    "sis_neuro_delirium":            ["Sim", "Não"],
+    "sis_neuro_delirium_tipo":       ["Hiperativo", "Hipoativo"],
+    "sis_neuro_cam_icu":             ["Positivo", "Negativo"],
+    "sis_neuro_pupilas_tam":         ["Miótica", "Normal", "Midríase"],
+    "sis_neuro_pupilas_simetria":    ["Simétricas", "Anisocoria"],
+    "sis_neuro_pupilas_foto":        ["Fotoreagente", "Não fotoreagente"],
+    "sis_neuro_deficits_ausente":    ["Ausente"],
+    "sis_neuro_analgesico_adequado": ["Sim", "Não"],
+    **{f"sis_neuro_analgesia_{i}_tipo": ["Fixa", "Se necessário"] for i in range(1, 4)},
+}
+
+
+def _normalizar_pills_dict(dados: dict) -> dict:
+    """Normaliza valores de campos st.pills num dicionário para correspondência
+    exata com as opções (matching case-insensitivo).
+
+    'profilática' → 'Profilática' | valor inválido → None (evita crash).
+    """
+    for chave, opcoes in _PILLS_MAPA.items():
+        valor = dados.get(chave)
+        if not valor:
+            continue
+        if valor in opcoes:
+            continue
+        opcoes_lower = {o.lower(): o for o in opcoes}
+        match = opcoes_lower.get(str(valor).lower())
+        dados[chave] = match  # None se não reconhecido (widget aceita None)
+    return dados
+
+
+def _normalizar_pills_state() -> None:
+    """Normaliza os campos st.pills diretamente no session_state."""
+    ss = st.session_state
+    for chave, opcoes in _PILLS_MAPA.items():
+        valor = ss.get(chave)
+        if not valor:
+            continue
+        if valor in opcoes:
+            continue
+        opcoes_lower = {o.lower(): o for o in opcoes}
+        ss[chave] = opcoes_lower.get(str(valor).lower())  # None se inválido
+
+
 # --- IMPORTAÇÃO DAS SEÇÕES ---
 from modules.secoes import identificacao      # 1
 from modules.secoes import hd                 # 2
@@ -258,11 +340,14 @@ def render_formulario_completo():
     # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget
     if "_agent_staging" in st.session_state:
         staging = st.session_state.pop("_agent_staging")
+        _normalizar_pills_dict(staging)  # normaliza antes de aplicar ao state
         for k, v in staging.items():
             st.session_state[k] = v
 
     # Corrige campos de radio que receberam "" em vez de None
     _sanitizar_radios()
+    # Normaliza valores de st.pills carregados da planilha ou por agentes
+    _normalizar_pills_state()
     # Reformata campos de data digitados sem barras (ex.: 10022026 → 10/02/2026)
     _normalizar_datas()
 
@@ -348,27 +433,26 @@ def render_formulario_completo():
 
 def migrar_schema_legado(dados: dict) -> dict:
     """Migra prontuários com schema antigo (hd_atual_*/hd_prev_*) para o schema atual (hd_*).
-
+    Também normaliza valores de st.pills para garantir correspondência exata com as opções.
     Seguro chamar sempre: retorna o dict intacto se não há campos legados.
     """
-    if "hd_atual_1_nome" not in dados:
-        return dados
-    for i in range(1, 5):
-        dados[f"hd_{i}_nome"]           = dados.get(f"hd_atual_{i}_nome", "")
-        dados[f"hd_{i}_class"]          = dados.get(f"hd_atual_{i}_class", "")
-        dados[f"hd_{i}_data_inicio"]    = dados.get(f"hd_atual_{i}_data", "")
-        dados[f"hd_{i}_data_resolvido"] = ""
-        dados[f"hd_{i}_status"]         = "Atual"
-        dados[f"hd_{i}_obs"]            = dados.get(f"hd_atual_{i}_obs", "")
-        dados[f"hd_{i}_conduta"]        = dados.get(f"hd_atual_{i}_conduta", "")
-    for i in range(1, 5):
-        j = i + 4
-        dados[f"hd_{j}_nome"]           = dados.get(f"hd_prev_{i}_nome", "")
-        dados[f"hd_{j}_class"]          = dados.get(f"hd_prev_{i}_class", "")
-        dados[f"hd_{j}_data_inicio"]    = dados.get(f"hd_prev_{i}_data_ini", "")
-        dados[f"hd_{j}_data_resolvido"] = dados.get(f"hd_prev_{i}_data_fim", "")
-        dados[f"hd_{j}_status"]         = "Resolvida"
-        dados[f"hd_{j}_obs"]            = dados.get(f"hd_prev_{i}_obs", "")
-        dados[f"hd_{j}_conduta"]        = dados.get(f"hd_prev_{i}_conduta", "")
-    dados["hd_ordem"] = list(range(1, 9))
-    return dados
+    if "hd_atual_1_nome" in dados:
+        for i in range(1, 5):
+            dados[f"hd_{i}_nome"]           = dados.get(f"hd_atual_{i}_nome", "")
+            dados[f"hd_{i}_class"]          = dados.get(f"hd_atual_{i}_class", "")
+            dados[f"hd_{i}_data_inicio"]    = dados.get(f"hd_atual_{i}_data", "")
+            dados[f"hd_{i}_data_resolvido"] = ""
+            dados[f"hd_{i}_status"]         = "Atual"
+            dados[f"hd_{i}_obs"]            = dados.get(f"hd_atual_{i}_obs", "")
+            dados[f"hd_{i}_conduta"]        = dados.get(f"hd_atual_{i}_conduta", "")
+        for i in range(1, 5):
+            j = i + 4
+            dados[f"hd_{j}_nome"]           = dados.get(f"hd_prev_{i}_nome", "")
+            dados[f"hd_{j}_class"]          = dados.get(f"hd_prev_{i}_class", "")
+            dados[f"hd_{j}_data_inicio"]    = dados.get(f"hd_prev_{i}_data_ini", "")
+            dados[f"hd_{j}_data_resolvido"] = dados.get(f"hd_prev_{i}_data_fim", "")
+            dados[f"hd_{j}_status"]         = "Resolvida"
+            dados[f"hd_{j}_obs"]            = dados.get(f"hd_prev_{i}_obs", "")
+            dados[f"hd_{j}_conduta"]        = dados.get(f"hd_prev_{i}_conduta", "")
+        dados["hd_ordem"] = list(range(1, 9))
+    return _normalizar_pills_dict(dados)
