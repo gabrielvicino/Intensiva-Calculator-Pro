@@ -14,10 +14,10 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/laboratoriais.py` → `_render_labs_table()`
 - **Deslocamento** ("Evolução Hoje"): controlado por `_LAB_SUFIXOS` — lista única de sufixos
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_LABORATORIAIS` + `preencher_laboratoriais()`
-- **Determinístico**: `modules/gerador.py` → `_secao_laboratoriais()`
-- **Tabela Comparativa** ("Comparar"): `modules/gerador.py` → `gerar_html_labs()`
-- **Mapeamento para Bloco 13**: `views/evolucao.py` → bloco `_completar_blocos_sistemas`
+- **Agente IA**: `modules/agentes_secoes/laboratoriais.py` → `_PROMPT_LABORATORIAIS` + `preencher_laboratoriais()`
+- **Determinístico**: `modules/gerador/laboratoriais.py` → `_secao_laboratoriais()`
+- **Tabela Comparativa** ("Comparar"): `modules/gerador/html.py` → `gerar_html_labs()`
+- **Mapeamento para Bloco 13**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
 
 ---
 
@@ -28,14 +28,14 @@ alwaysApply: true
 - [ ] **`get_campos()`** (linha ~69): adicionar `f'lab_{i}_SUFIXO': ''` no loop `for i in range(1,11)`
 - [ ] **`_render_labs_table()`**: adicionar `_row("Label", "sufixo")` na seção visual correta
 
-### 2. `modules/gerador.py` — `_secao_laboratoriais()`
+### 2. `modules/gerador/laboratoriais.py` — `_secao_laboratoriais()`
 - [ ] **`_MAIN`** (linha ~690): adicionar `("Label", "sufixo")` na posição correta
   - Exceção: campos compostos como BT/BD usam chave especial `"__bt_bd__"` com lógica customizada
 
-### 3. `modules/gerador.py` — `gerar_html_labs()`
+### 3. `modules/gerador/html.py` — `gerar_html_labs()`
 - [ ] Adicionar `_add("Label", "sufixo")` na seção HTML correspondente (linha ~1684–1743)
 
-### 4. `modules/agentes_secoes.py` — `_PROMPT_LABORATORIAIS`
+### 4. `modules/agentes_secoes/laboratoriais.py` — `_PROMPT_LABORATORIAIS`
 - [ ] Adicionar em `<VARIAVEIS>` para **lab_1, lab_2 E lab_3** (3 vezes):
   ```
   - lab_1_sufixo (string): Descrição do que extrair.
@@ -43,13 +43,13 @@ alwaysApply: true
 - [ ] Se campo tem regra especial de extração: adicionar em "REGRAS DE MAPEAMENTO CLÍNICO" (linha ~1426)
 - [ ] **Condutas NUNCA são preenchidas pelo agente** — sempre `""`
 
-### 5. Se campo deve alimentar Bloco 13 — `views/evolucao.py`
-- [ ] Adicionar no bloco `_completar_blocos_sistemas`:
+### 5. Se campo deve alimentar Bloco 13 — `modules/fluxo.py`
+- [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:
       _set(f"sis_SISTEMA_CAMPO_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_sufixo","")))
   ```
-- [ ] Verificar se o campo correspondente existe em `modules/secoes/sistemas.py` e `modules/gerador.py → _secao_sistemas()`
+- [ ] Verificar se o campo correspondente existe em `modules/secoes/sistemas.py` e `modules/gerador/sistemas.py → _secao_sistemas()`
 
 ---
 

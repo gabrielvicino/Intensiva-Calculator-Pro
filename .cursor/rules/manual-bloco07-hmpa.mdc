@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/hmpa.py` → `render()`
 - **Campos**: `get_campos()` → 2 campos únicos
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
-- **Determinístico**: `modules/gerador.py` → `_secao_hmpa()`
+- **Agente IA**: `modules/agentes_secoes/hmpa.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
+- **Determinístico**: `modules/gerador/hmpa.py` → `_secao_hmpa()`
 
 ---
 
@@ -36,14 +36,14 @@ Raramente necessário. Se precisar:
 - [ ] **`get_campos()`**: adicionar campo com valor padrão `''`
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_hmpa()`
+### 2. `modules/gerador/hmpa.py` → `_secao_hmpa()`
 - [ ] Incluir na geração:
   ```python
   texto = _get("hmpa_reescrito") or _get("hmpa_texto")
   # Adicionar novo campo à string se relevante
   ```
 
-### 3. `modules/agentes_secoes.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
+### 3. `modules/agentes_secoes/hmpa.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
 - [ ] **ATENÇÃO**: este bloco NÃO usa `_chamar_ia` para JSON — usa chamada direta à API
 - [ ] A saída é texto corrido (prose), não JSON
 - [ ] `preencher_hmpa()` retorna `{"hmpa_reescrito": texto_reescrito}`

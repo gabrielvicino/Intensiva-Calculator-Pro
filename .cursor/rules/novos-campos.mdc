@@ -1,12 +1,14 @@
 ---
 description: Workflow obrigatório ao criar novos campos no prontuário
-globs: modules/secoes/*.py, modules/gerador.py, modules/agentes_secoes.py
+globs: modules/secoes/*.py, modules/gerador/*.py, modules/agentes_secoes/*.py
 alwaysApply: true
 ---
 
 # Novos Campos — Workflow Obrigatório
 
-> **LEMBRE-SE SEMPRE:** ao criar um campo novo, atualize o **agente** (agentes_secoes.py) e a **saída determinística** (gerador.py). Nunca omitir.
+> **LEMBRE-SE SEMPRE:** ao criar um campo novo, atualize o **agente** (`modules/agentes_secoes/<secao>.py`) e a **saída determinística** (`modules/gerador/<secao>.py`). Nunca omitir.
+
+> **ARQUITETURA ATUAL:** `agentes_secoes` e `gerador` são **pacotes** (pastas), não arquivos únicos. Cada seção tem seu próprio arquivo dentro do pacote.
 
 Ao criar ou alterar um campo em qualquer seção do prontuário, você **DEVE** atualizar **os 3 locais** abaixo. A saída JSON do agente precisa ser **compatível** com os campos do formulário.
 
@@ -17,16 +19,23 @@ Ao criar ou alterar um campo em qualquer seção do prontuário, você **DEVE** 
 
 ## 2. Gerador (saída determinística)
 
-- `modules/gerador.py` → função `_secao_*` correspondente: incluir o novo campo na geração do texto do prontuário.
+- `modules/gerador/<secao>.py` → função `_secao_*` correspondente: incluir o novo campo na geração do texto do prontuário.
 - Campos vazios não devem gerar linha (regra geral).
 - Condutas: vão para `_secao_condutas()` via `coletar_condutas_agregadas()` (chaves terminando em `_conduta`).
+- **Nota:** o arquivo correto é `modules/gerador/<nome_secao>.py` (ex: `laboratoriais.py`, `diagnosticos.py`).
 
 ## 3. Agente de extração (saída JSON compatível)
 
-- `modules/agentes_secoes.py`:
+- `modules/agentes_secoes/<secao>.py`:
   - **Prompt**: instruir a IA sobre o novo campo (nome, formato, regras).
   - **Schema/estrutura de saída**: incluir o novo campo no JSON esperado.
   - **Função `preencher_<secao>`**: mapear o retorno da IA para as chaves do `session_state` (ex: `resultado[f"campo_{i}_novo"] = item.get("novo", "")`).
+- **Nota:** cada agente fica em `modules/agentes_secoes/<nome>.py`. Infraestrutura compartilhada (`_chamar_ia`, `_REGRA_DATA`) em `modules/agentes_secoes/_base.py`.
+
+## 4. Se o campo tem correspondente no Bloco 13 (Sistemas)
+
+- Adicionar o mapeamento em `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`.
+- Esta função é chamada por `evolucao.py` quando a flag `_completar_blocos_sistemas` é ativada.
 
 ## Regras de compatibilidade
 
@@ -38,6 +47,26 @@ Ao criar ou alterar um campo em qualquer seção do prontuário, você **DEVE** 
 
 Novo campo `comp_{i}_exame` em Complementares:
 
-1. **Formulário** (`complementares.py`): `f'comp_{i}_exame': ''` em `get_campos()` + widget.
-2. **Gerador** (`gerador.py`): incluir `comp_{i}_exame` na linha gerada (ex: `"{exame} ({data})"`).
-3. **Agente** (`agentes_secoes.py`): schema com `comp_{i}_exame`, instruções no prompt, e `resultado[f"comp_{i}_exame"] = _v("exame")` em `preencher_complementares`.
+1. **Formulário** (`modules/secoes/complementares.py`): `f'comp_{i}_exame': ''` em `get_campos()` + widget.
+2. **Gerador** (`modules/gerador/complementares.py`): incluir `comp_{i}_exame` na linha gerada (ex: `"{exame} ({data})"`).
+3. **Agente** (`modules/agentes_secoes/complementares.py`): schema com `comp_{i}_exame`, instruções no prompt, e `resultado[f"comp_{i}_exame"] = _v("exame")` em `preencher_complementares`.
+
+## Localização dos arquivos de cada pacote
+
+| Seção | Agente | Gerador |
+|---|---|---|
+| Identificação | `agentes_secoes/identificacao.py` | `gerador/identificacao.py` |
+| HD | `agentes_secoes/hd.py` | `gerador/diagnosticos.py` |
+| Comorbidades | `agentes_secoes/comorbidades.py` | `gerador/comorbidades.py` |
+| MUC | `agentes_secoes/muc.py` | `gerador/muc.py` |
+| HMPA | `agentes_secoes/hmpa.py` | `gerador/hmpa.py` |
+| Dispositivos | `agentes_secoes/dispositivos.py` | `gerador/dispositivos.py` |
+| Culturas | `agentes_secoes/culturas.py` | `gerador/culturas.py` |
+| Antibióticos | `agentes_secoes/antibioticos.py` | `gerador/antibioticos.py` |
+| Complementares | `agentes_secoes/complementares.py` | `gerador/complementares.py` |
+| Laboratoriais | `agentes_secoes/laboratoriais.py` | `gerador/laboratoriais.py` + `html.py` |
+| Controles | `agentes_secoes/controles.py` | `gerador/controles.py` + `html.py` |
+| Evolução Clínica | *(sem agente)* | `gerador/evolucao_clinica.py` |
+| Sistemas | `agentes_secoes/sistemas.py` | `gerador/sistemas.py` |
+| Condutas | *(sem agente)* | `gerador/condutas.py` |
+| Prescrição | `extrator_exames.py` (PACER) | `gerador/prescricao.py` |

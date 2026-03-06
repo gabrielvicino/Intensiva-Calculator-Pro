@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/comorbidades.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `cmd_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_COMORBIDADES` + `preencher_comorbidades()`
-- **Determinístico**: `modules/gerador.py` → `_secao_comorbidades()`
+- **Agente IA**: `modules/agentes_secoes/comorbidades.py` → `_PROMPT_COMORBIDADES` + `preencher_comorbidades()`
+- **Determinístico**: `modules/gerador/comorbidades.py` → `_secao_comorbidades()`
 
 ---
 
@@ -49,11 +49,11 @@ Campos globais:
   ```
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_comorbidades()`
+### 2. `modules/gerador/comorbidades.py` → `_secao_comorbidades()`
 - [ ] Incluir o campo na linha gerada (linha ~479)
 - [ ] Formato atual: `{n}- {nome}[; {class}]` — sem obs, sem datas
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/comorbidades.py`
 - [ ] **`_PROMPT_COMORBIDADES`**: adicionar em `<VARIAVEIS>`
 - [ ] **`preencher_comorbidades()`**: mapear o campo; validar pills se for valor controlado
 

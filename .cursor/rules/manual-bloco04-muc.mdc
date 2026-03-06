@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/muc.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `muc_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_MUC` + `preencher_muc()`
-- **Determinístico**: `modules/gerador.py` → `_secao_muc()`
+- **Agente IA**: `modules/agentes_secoes/muc.py` → `_PROMPT_MUC` + `preencher_muc()`
+- **Determinístico**: `modules/gerador/muc.py` → `_secao_muc()`
 
 ---
 
@@ -52,11 +52,11 @@ Campos globais:
   ```
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_muc()`
+### 2. `modules/gerador/muc.py` → `_secao_muc()`
 - [ ] Incluir o campo na linha gerada (linha ~431)
 - [ ] Formato: `{n}- {nome}[; {dose}][; {freq}]`
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/muc.py`
 - [ ] **`_PROMPT_MUC`**: adicionar em `<VARIAVEIS>`
   - **Atenção**: agente usa prefixo `med_dom_{i}_*` (diferente de `muc_{i}_*`!)
 - [ ] **`preencher_muc()`**: mapear — o agente retorna `med_dom_{i}_nome` e o código mapeia para `muc_{i}_nome`

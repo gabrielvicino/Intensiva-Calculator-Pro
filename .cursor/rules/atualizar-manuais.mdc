@@ -14,12 +14,12 @@ alwaysApply: true
 Verificar e atualizar os **3 locais obrigatórios** (regra `novos-campos.mdc`):
 
 - [ ] **Formulário** (`modules/secoes/<secao>.py`): `get_campos()` + widget na UI
-- [ ] **Gerador** (`modules/gerador.py`): função `_secao_*` correspondente
-- [ ] **Agente** (`modules/agentes_secoes.py`): prompt + schema JSON + `preencher_*`
+- [ ] **Gerador** (`modules/gerador/<secao>.py`): função `_secao_*` correspondente
+- [ ] **Agente** (`modules/agentes_secoes/<secao>.py`): prompt + schema JSON + `preencher_*`
 
 E adicionalmente verificar:
 
-- [ ] Se o campo novo tem correspondente no **Bloco 13 (Sistemas)** → atualizar mapeamento em `views/evolucao.py` → `_completar_blocos_sistemas`
+- [ ] Se o campo novo tem correspondente no **Bloco 13 (Sistemas)** → atualizar mapeamento em `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
 - [ ] Se é campo de **evolução 5 slots** → atualizar `_CAMPOS_ANTE_ONTEM_HOJE` em `sistemas.py`
 - [ ] Se é **conduta** (`*_conduta`) → aparece automaticamente no Bloco 14, não precisa alterar `condutas.py`
 
@@ -69,11 +69,13 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 ---
 
-## 5. Alteração em `modules/gerador.py`
+## 5. Alteração em `modules/gerador/` (pacote)
 
-- [ ] Se alterar `gerar_texto_final()` (ordem das seções): atualizar manual da página
-- [ ] Se alterar `_secao_laboratoriais()`, `_secao_controles()` ou `_secao_sistemas()`: atualizar manual do bloco correspondente
-- [ ] Se adicionar nova função utilitária (`_caps_*`, `_sigla_*`, etc.): documentar no manual da página
+> **Arquitetura:** `gerador` é uma pasta. Cada seção tem seu arquivo: `gerador/laboratoriais.py`, `gerador/sistemas.py`, etc. Utilitários em `gerador/_base.py`. Tabelas HTML em `gerador/html.py`. Orquestração em `gerador/__init__.py`.
+
+- [ ] Se alterar `gerar_texto_final()` (ordem das seções): editar `gerador/__init__.py` → atualizar manual da página
+- [ ] Se alterar `_secao_laboratoriais()`, `_secao_controles()` ou `_secao_sistemas()`: editar o arquivo correspondente dentro de `gerador/`
+- [ ] Se adicionar nova função utilitária (`_caps_*`, `_sigla_*`, etc.): editar `gerador/_base.py` e documentar no manual da página
 
 ---
 
@@ -85,10 +87,12 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 ---
 
-## 7. Alteração em `modules/agentes_secoes.py`
+## 7. Alteração em `modules/agentes_secoes/` (pacote)
 
-- [ ] Se alterar `_AGENTES`, `_NOTAS_MAP` ou `NOMES_SECOES` → atualizar manual da página (seção "Dicionários de Roteamento")
-- [ ] Se alterar `_chamar_ia` ou `_REGRA_DATA` → atualizar manual da página (seção "Configuração de IA")
+> **Arquitetura:** `agentes_secoes` é uma pasta. Cada agente tem seu arquivo: `agentes_secoes/laboratoriais.py`, etc. Infraestrutura compartilhada em `agentes_secoes/_base.py` (`_chamar_ia`, `_REGRA_DATA`). Dicionários de roteamento e `preencher_todas_secoes` em `agentes_secoes/__init__.py`.
+
+- [ ] Se alterar `_AGENTES`, `_NOTAS_MAP` ou `NOMES_SECOES` → editar `agentes_secoes/__init__.py` → atualizar manual da página
+- [ ] Se alterar `_chamar_ia` ou `_REGRA_DATA` → editar `agentes_secoes/_base.py` → atualizar manual da página
 
 ---
 
@@ -96,6 +100,7 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 - [ ] Se alterar `limpar_tudo()` (adicionar/remover campos que precisam de reset especial) → atualizar manual da página
 - [ ] Se alterar `atualizar_notas_ia()` ou `_MAPA_NOTAS` → atualizar manual da página
+- [ ] Se alterar `completar_sistemas_de_outros_blocos()` (mapeamento de campos Lab/Ctrl/ATB → Sistemas) → atualizar manual-bloco13
 
 ---
 
@@ -118,11 +123,11 @@ Se alterar qualquer coisa no fluxo principal da página:
    → Verifique: manual-pagina-evolucao-diaria.mdc
 
 3. Alterei como os dados de um bloco alimentam outro?
-   → Verifique: _completar_blocos_sistemas em evolucao.py + manual-bloco13
+   → Verifique: fluxo.completar_sistemas_de_outros_blocos() em fluxo.py + manual-bloco13
 
 4. Alterei o formato de entrada ou saída de algum parser?
    → Verifique: manual do bloco + manual da página (seção Parsers)
 
-5. Alterei algo em fichas.py, gerador.py, fluxo.py ou agentes_secoes.py?
+5. Alterei algo em fichas.py, gerador/ (pacote), fluxo.py ou agentes_secoes/ (pacote)?
    → Verifique: manual-pagina-evolucao-diaria.mdc (seção correspondente)
 ```

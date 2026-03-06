@@ -15,7 +15,7 @@ alwaysApply: true
 - **UI**: `modules/secoes/condutas.py` → `render()` + `render_condutas_registradas()`
 - **Campo**: `get_campos()` → `conduta_final_lista` (lista manual)
 - **Agente IA**: **Não tem** — condutas vêm dos outros blocos
-- **Determinístico**: `modules/gerador.py` → `_secao_condutas()` via `coletar_condutas_agregadas()`
+- **Determinístico**: `modules/gerador/condutas.py` → `_secao_condutas()` via `coletar_condutas_agregadas()`
 
 ---
 

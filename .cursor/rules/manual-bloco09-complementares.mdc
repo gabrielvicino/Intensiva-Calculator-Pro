@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/complementares.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `comp_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_COMPLEMENTARES` + `preencher_complementares()`
-- **Determinístico**: `modules/gerador.py` → `_secao_complementares()`
+- **Agente IA**: `modules/agentes_secoes/complementares.py` → `_PROMPT_COMPLEMENTARES` + `preencher_complementares()`
+- **Determinístico**: `modules/gerador/complementares.py` → `_secao_complementares()`
 
 ---
 
@@ -41,7 +41,7 @@ Mais campo global: `complementares_notas` (input manual, agente nunca preenche).
   ```
 - [ ] **`render()`**: adicionar widget correspondente dentro do bloco do slot
 
-### 2. `modules/gerador.py` → `_secao_complementares()`
+### 2. `modules/gerador/complementares.py` → `_secao_complementares()`
 - [ ] Incluir o novo campo na linha gerada (linha ~634):
   ```python
   novo = _get(f"comp_{i}_novo_campo")
@@ -49,7 +49,7 @@ Mais campo global: `complementares_notas` (input manual, agente nunca preenche).
   ```
 - [ ] Regra geral: campo vazio → não gera linha
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/complementares.py`
 - [ ] **`_PROMPT_COMPLEMENTARES`**: adicionar em `<VARIAVEIS>`:
   ```
   - comp_{i}_novo_campo (string): Descrição.

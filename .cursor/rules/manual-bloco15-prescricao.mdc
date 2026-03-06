@@ -7,7 +7,7 @@ alwaysApply: true
 
 > **Bloco de extração multi-agente** — 3 agentes sequenciais geram texto formatado.
 > Único bloco com separador visual `===` no prontuário.
-> Lógica de IA em `extrator_exames.py` (NÃO em `agentes_secoes.py`).
+> Lógica de IA em `extrator_exames.py` (NÃO em `agentes_secoes/`).
 
 ---
 
@@ -16,7 +16,7 @@ alwaysApply: true
 - **UI**: `modules/secoes/prescricao.py` → `render()`
 - **Campos**: `get_campos()` → 3 campos únicos
 - **Agente IA**: `modules/extrator_exames.py` → `extrair_prescricao()` (multi-agente)
-- **Determinístico**: `modules/gerador.py` → `_secao_prescricao()`
+- **Determinístico**: `modules/gerador/prescricao.py` → `_secao_prescricao()`
 
 ---
 
@@ -52,7 +52,7 @@ alwaysApply: true
 - [ ] **`get_campos()`**: adicionar campo com valor `''`
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_prescricao()`
+### 2. `modules/gerador/prescricao.py` → `_secao_prescricao()`
 ```python
 # Função atual:
 def _secao_prescricao():
@@ -64,7 +64,7 @@ def _secao_prescricao():
 
 ### 3. Agente IA — **arquivo diferente!**
 - [ ] Editar `modules/extrator_exames.py` → um dos 3 prompts
-- [ ] **Não editar** `agentes_secoes.py` para este bloco
+- [ ] **Não editar** `agentes_secoes/` para este bloco
 
 ---
 
@@ -95,5 +95,5 @@ MEDICAÇÕES
 
 - Separador `===` é visual — isola a prescrição no prontuário
 - `prescricao_bruta` = entrada manual; `prescricao_formatada` = saída da IA
-- Lógica de IA completamente separada em `extrator_exames.py` (não `agentes_secoes.py`)
+- Lógica de IA completamente separada em `extrator_exames.py` (não `agentes_secoes/`)
 - `prescricao_conduta` → Bloco 14 automaticamente via `coletar_condutas_agregadas()`

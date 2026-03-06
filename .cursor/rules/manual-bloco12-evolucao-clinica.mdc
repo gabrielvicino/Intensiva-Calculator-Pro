@@ -15,7 +15,7 @@ alwaysApply: true
 - **UI**: `modules/secoes/evolucao_clinica.py` → `render()`
 - **Campos**: `get_campos()` → 1 campo único
 - **Agente IA**: **Não tem** — campo preenchido manualmente
-- **Determinístico**: `modules/gerador.py` → `_secao_evolucao_clinica()`
+- **Determinístico**: `modules/gerador/evolucao_clinica.py` → `_secao_evolucao_clinica()`
 
 ---
 
@@ -33,7 +33,7 @@ alwaysApply: true
 - [ ] **`get_campos()`**: adicionar campo com valor `''`
 - [ ] **`render()`**: adicionar widget (text_area ou text_input)
 
-### 2. `modules/gerador.py` → `_secao_evolucao_clinica()`
+### 2. `modules/gerador/evolucao_clinica.py` → `_secao_evolucao_clinica()`
 ```python
 # Função atual (3 linhas):
 def _secao_evolucao_clinica():
@@ -44,7 +44,7 @@ def _secao_evolucao_clinica():
 - [ ] Incluir novo campo na saída gerada
 
 ### 3. Agente IA — **Não há agente para este bloco**
-- Sem `_PROMPT_`, sem `preencher_*` — nada a atualizar em `agentes_secoes.py`
+- Sem `_PROMPT_`, sem `preencher_*` — nada a atualizar em `agentes_secoes/`
 
 ---
 

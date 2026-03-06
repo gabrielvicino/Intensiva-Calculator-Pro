@@ -31,9 +31,9 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/sistemas.py` → `render()`
 - **Slots de evolução**: `_CAMPOS_ANTE_ONTEM_HOJE` + `_deslocar_sistemas()`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_SISTEMAS` + `preencher_sistemas()`
-- **Determinístico**: `modules/gerador.py` → `_secao_sistemas()`
-- **Alimentação pelos blocos 10/11**: `views/evolucao.py` → bloco `_completar_blocos_sistemas`
+- **Agente IA**: `modules/agentes_secoes/sistemas.py` → `_PROMPT_SISTEMAS` + `preencher_sistemas()`
+- **Determinístico**: `modules/gerador/sistemas.py` → `_secao_sistemas()`
+- **Alimentação pelos blocos 10/11**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
 
 ### Campo global do bloco
 ```python
@@ -54,7 +54,7 @@ O sistema renal tem DOIS conjuntos paralelos para Diurese e Balanço:
 
 - O campo fixo (`sis_renal_diurese`) aparece como texto avulso no prontuário
 - A evolução (`_diu_*`) aparece via `_evo()` quando `_show=True`
-- `_completar_blocos_sistemas` preenche AMBOS independentemente
+- `completar_sistemas_de_outros_blocos()` preenche AMBOS independentemente
 
 ---
 
@@ -166,10 +166,10 @@ O sistema renal tem DOIS conjuntos paralelos para Diurese e Balanço:
   - Booleano: `'sis_xxx_campo': False`
 - [ ] **`render()`**: adicionar widget no lugar correto do sistema
 
-### 2. `modules/gerador.py` — `_secao_sistemas()`
+### 2. `modules/gerador/sistemas.py` — `_secao_sistemas()`
 - [ ] Ler campo com `_s("sis_xxx_campo")` e incluir na geração de texto do sistema
 
-### 3. `modules/agentes_secoes.py` — `_PROMPT_SISTEMAS`
+### 3. `modules/agentes_secoes/sistemas.py` — `_PROMPT_SISTEMAS`
 - [ ] Adicionar em `<VARIAVEIS>` na seção do sistema correspondente:
   ```
   - sis_xxx_campo (tipo): Descrição do que extrair.
@@ -196,11 +196,11 @@ Todos os passos acima, mais:
   ```
 - [ ] **`render()`**: usar `_evo_row("Label", "sis_xxx_campo")` em vez de widget simples
 
-### 2. `modules/gerador.py` — `_secao_sistemas()`
+### 2. `modules/gerador/sistemas.py` — `_secao_sistemas()`
 - [ ] Usar `_evo("Label", "sis_xxx_campo", "sis_xxx_campo_show")` em vez de `_s(...)`
   - Retorna `"Label: v5 → v4 → antepen → ult → hoje"` somente se `_show=True`
 
-### 3. `modules/agentes_secoes.py` — `_PROMPT_SISTEMAS`
+### 3. `modules/agentes_secoes/sistemas.py` — `_PROMPT_SISTEMAS`
 - [ ] Adicionar os 6 campos no `<VARIAVEIS>`:
   ```
   - sis_xxx_campo_ant5 (string): valor mais antigo (5º mais recente).
@@ -212,8 +212,8 @@ Todos os passos acima, mais:
   ```
 - [ ] **`preencher_sistemas()`**: remover `_show` do retorno (linha ~2636) — já existe regra genérica que filtra todos os `*_show`
 
-### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `views/evolucao.py`
-- [ ] Adicionar no bloco `_completar_blocos_sistemas`:
+### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `modules/fluxo.py`
+- [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:
       _set(f"sis_xxx_campo_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_chave_lab", "")))
@@ -246,7 +246,7 @@ Todos os passos acima, mais:
 ## Regras Especiais
 
 - **`_deslocar_sistemas()`**: só desloca campos listados em `_CAMPOS_ANTE_ONTEM_HOJE`. Campos fixos nunca são deslocados
-- **`_set()` em `_completar_blocos_sistemas`**: só preenche se destino está VAZIO — nunca sobrescreve dados manuais ou da IA
+- **`_set()` em `completar_sistemas_de_outros_blocos()`** (`fluxo.py`): só preenche se destino está VAZIO — nunca sobrescreve dados manuais ou da IA
 - **`sis_metab_obs`**: aparece no gerador dentro do bloco Renal como `"Metab: {obs}"`
 - **`sis_nutri_obs`**: aparece no gerador dentro do bloco Gastro como `"Nutri: {obs}"`
 - **`preencher_sistemas()` pós-processamentos obrigatórios**:
@@ -257,6 +257,5 @@ Todos os passos acima, mais:
   - `sis_neuro_deficits_ausente` → normaliza → `"Ausente"` ou `None`
   - `sis_gastro_evacuacao_laxativo` → agente retorna esta chave, mas `preencher_sistemas()` grava em `sis_gastro_laxativo`
   - Todos os `*_show` → **removidos do retorno** — nunca sobrescreve checkboxes do usuário
-- **`_limpar_leuco(v)`** em `_completar_blocos_sistemas`: remove diferencial entre parênteses, ex: `"12.500 (Seg 70%)"` → `"12.500"`
-- **`_extrair_inr(v)`**: extrai valor entre parênteses do TP, ex: `"14.2s (1.10)"` → `"1.10"`
-- **`_extrair_ttpa(v)`**: extrai ratio entre parênteses, ex: `"39,6s (1,41)"` → `"1,41"`
+- **`_limpar_leuco(v)`** em `modules/fluxo.py`: remove diferencial entre parênteses, ex: `"12.500 (Seg 70%)"` → `"12.500"`
+- **`_extrair_parenteses(v)`** em `modules/fluxo.py`: extrai valor entre parênteses — usado para INR (`"14.2s (1.10)"` → `"1.10"`) e TTPA (`"39,6s (1,41)"` → `"1,41"`). Antes existia como `_extrair_inr`/`_extrair_ttpa` separados (unificados na refatoração)

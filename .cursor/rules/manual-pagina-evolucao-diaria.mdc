@@ -8,9 +8,9 @@ alwaysApply: true
 > Arquivo principal: `views/evolucao.py`
 > Dependências:
 > - `modules/fichas.py` — formulário, staging, inicialização
-> - `modules/gerador.py` — texto determinístico e tabelas HTML
-> - `modules/agentes_secoes.py` — agentes IA e seus dicionários de roteamento
-> - `modules/fluxo.py` — notas da IA e limpar tudo
+> - `modules/gerador/` — pacote de texto determinístico e tabelas HTML (`__init__.py` orquestra, cada seção tem seu `.py`)
+> - `modules/agentes_secoes/` — pacote de agentes IA (`__init__.py` expõe `_AGENTES`, `_NOTAS_MAP`, `NOMES_SECOES`; `_base.py` tem `_chamar_ia`)
+> - `modules/fluxo.py` — notas da IA, limpar tudo, `completar_sistemas_de_outros_blocos()`
 > - `modules/ia_extrator.py` — "fatiamento" inicial do prontuário bruto
 > - `modules/extrator_exames.py` — PACER (labs formatados + prescrição)
 > - `modules/parser_lab.py` — parsing determinístico de laboratoriais
@@ -129,7 +129,7 @@ Widgets são instanciados JÁ com os valores novos → aparecem preenchidos
 
 ### Regras do staging:
 - **Nunca sobrescreve com string vazia**: `if not (isinstance(v, str) and v.strip() == ""):` → preserva dados manuais
-- **`_completar_blocos_sistemas`** usa regra mais restrita: só preenche se destino está **completamente vazio** (`_set()`)
+- **`completar_sistemas_de_outros_blocos()`** em `fluxo.py` usa regra mais restrita: só preenche se destino está **completamente vazio** (`_set()`)
 - O staging é um **dict acumulado**: múltiplos agentes paralelos adicionam ao mesmo `_agent_staging` sem se sobrescrever
 - Usar `st.session_state.pop("_agent_staging")` (não `get`) — garante que roda apenas uma vez
 
@@ -153,7 +153,7 @@ Widgets são instanciados JÁ com os valores novos → aparecem preenchidos
 | `_lab_deterministico_pendente` | `laboratoriais.py` botão "Parsing" | `evolucao.py` ~468 | `parse_lab_deterministico()` |
 | `_lab_extrair_pendente` | `laboratoriais.py` botão "Extrair" | `evolucao.py` ~487 | PACER + agente lab em sequência |
 | `_sistemas_deterministico_pendente` | `sistemas.py` botão "Parsing Sistemas" | `evolucao.py` ~526 | `parse_sistemas_deterministico()` + defaults |
-| `_completar_blocos_sistemas` | `sistemas.py` botão "Completar Blocos Anteriores" | `evolucao.py` ~550 | Copia Lab/Ctrl/ATB/Cult → Sistemas |
+| `_completar_blocos_sistemas` | `sistemas.py` botão "Completar Blocos Anteriores" | `evolucao.py` ~450 | Chama `fluxo.completar_sistemas_de_outros_blocos()` |
 | `_prescricao_extrair_pendente` | `prescricao.py` botão "Extrair" | `evolucao.py` ~660 | `extrator_exames.extrair_prescricao()` |
 
 > **Regra**: sempre usar `st.session_state.pop("_flag", False)` — nunca `get()` — para garantir execução única por ciclo.
@@ -227,8 +227,9 @@ st.session_state["_sistemas_deterministico_pendente"] = True
 - **"Parsing Sistemas"** → `_sistemas_deterministico_pendente = True` → `parse_sistemas_deterministico(texto)` + aplica defaults pré-preenchidos (exame respiratório, cardiológico, abdominal padrão)
   - Formato esperado: `# Evolução por sistemas / - Neurológico / ECG 15 | RASS -2 / ...`
 - **"Completar Blocos Anteriores"** → `_completar_blocos_sistemas = True`:
+  - Chama `fluxo.completar_sistemas_de_outros_blocos()` — lógica centralizada em `modules/fluxo.py`
   - Copia dados de Lab, Ctrl, ATB, Culturas para os campos `sis_*`
-  - Regra `_set()`: só preenche se destino **vazio**
+  - Regra `_set()`: só preenche se destino **vazio** — nunca sobrescreve dados manuais ou da IA
 
 ---
 
@@ -309,7 +310,11 @@ save_evolucao(prontuario, nome, dados)
 
 ---
 
-## 9. Dicionários de Roteamento em `agentes_secoes.py`
+## 9. Dicionários de Roteamento em `agentes_secoes/` (pacote)
+
+> **Localização**: `modules/agentes_secoes/__init__.py` — exporta `_AGENTES`, `_NOTAS_MAP`, `NOMES_SECOES` e todas as funções `preencher_*`.
+> Cada agente individual fica em `modules/agentes_secoes/<secao>.py`.
+> Infraestrutura compartilhada (`_chamar_ia`, `_REGRA_DATA`, `_extrair_json`) em `modules/agentes_secoes/_base.py`.
 
 ### `_AGENTES` — chave → função de preenchimento
 ```python
@@ -415,9 +420,15 @@ save_evolucao(prontuario, nome, dados)
 
 ---
 
-## 11. `gerador.py` — Geração de Texto Determinístico
+## 11. `gerador/` (pacote) — Geração de Texto Determinístico
 
-### Funções utilitárias globais:
+> **Arquitetura**: `modules/gerador/` é um pacote. Cada seção tem seu arquivo (`laboratoriais.py`, `sistemas.py`, etc.).
+> - **`gerador/__init__.py`**: orquestra `gerar_texto_final()`, `gerar_secao()`, e o `_SECAO_MAP`
+> - **`gerador/_base.py`**: utilitários compartilhados (`_get`, `_caps_para_certo`, `_sigla_upper`, etc.)
+> - **`gerador/html.py`**: tabelas HTML (`gerar_html_labs`, `gerar_html_controles`)
+> - **`gerador/<secao>.py`**: cada arquivo contém sua `_secao_*()` correspondente
+
+### Funções utilitárias globais (em `gerador/_base.py`):
 
 | Função | O que faz |
 |---|---|
@@ -428,7 +439,7 @@ save_evolucao(prontuario, nome, dados)
 | `_obs_para_linhas(obs, excluir_conduta)` | Converte texto multiline em linhas com prefixo `> `. Se excluir_conduta=True, remove linhas "Conduta:" |
 | `_limpar_barra(val)` | Remove barras: "3/" → "3", "22/00/0" → "22000" |
 
-### Ordem das seções em `gerar_texto_final()`:
+### Ordem das seções em `gerar_texto_final()` (em `gerador/__init__.py`):
 ```
 1. _secao_identificacao()
 2. _secao_diagnosticos()
@@ -469,13 +480,13 @@ save_evolucao(prontuario, nome, dados)
   - Pareada: `Gas Par (hora) pH x / pCO2 x / ... | pCO2_v x / SvO2 x`
 - EAS: `Urn: Den: x / Leu Est: x / ...`
 
-### `gerar_html_labs()` — tabela comparativa:
+### `gerar_html_labs()` — tabela comparativa (em `gerador/html.py`):
 - Detecta automaticamente quais slots têm dados (presença de data/hb/cr/na/tp/plaq/gas_ph)
 - Colunas = datas dos slots ativos (formato DD/MM)
 - Linhas = todos os parâmetros (hemato, bioquímica, coagulação, gasometrias, EAS)
 - Usado no `_modal_comparar_labs()` (aba "🧪 Exames Laboratoriais")
 
-### `gerar_html_controles()` — tabela comparativa:
+### `gerar_html_controles()` — tabela comparativa (em `gerador/html.py`):
 - Detecta automaticamente quais dias têm dados
 - Colunas = dias ativos (ant5 → hoje)
 - Linhas = PAS, PAD, PAM, FC, FR, SatO2, Temp, Glic, Diurese, BH
@@ -606,7 +617,7 @@ st.session_state["_ia_provider"]  # provider como string
 st.session_state["_ia_modelo"]    # modelo escolhido
 ```
 
-### `_chamar_ia(prompt_system, texto, api_key, provider, modelo)` em `agentes_secoes.py`:
+### `_chamar_ia(prompt_system, texto, api_key, provider, modelo)` em `agentes_secoes/_base.py`:
 - Usado por todos os 13 agentes (exceto HMPA que tem chamada direta)
 - Detecta provedor pela string `provider`
 - Adiciona `_REGRA_DATA` ao system prompt: ano padrão 2026 se não explícito
@@ -665,9 +676,12 @@ st.session_state["_agent_staging"] = staging
 
 ## 17. Checklist: Adicionar Novo Agente de Seção
 
-1. **`agentes_secoes.py`**:
+1. **Criar `modules/agentes_secoes/nova_secao.py`**:
+   - Importar `from ._base import _chamar_ia, _REGRA_DATA`
    - Criar `_PROMPT_NOVA_SECAO` com `<VARIAVEIS>` e JSON schema
    - Criar `preencher_nova_secao(texto, api_key, provider, modelo) → dict`
+2. **`modules/agentes_secoes/__init__.py`**:
+   - Importar e re-exportar: `from .nova_secao import preencher_nova_secao`
    - Adicionar em `_AGENTES["nova_secao"] = preencher_nova_secao`
    - Adicionar em `_NOTAS_MAP["nova_secao"] = "nova_secao_notas"`
    - Adicionar em `NOMES_SECOES["nova_secao"] = "N. Nome da Seção"`

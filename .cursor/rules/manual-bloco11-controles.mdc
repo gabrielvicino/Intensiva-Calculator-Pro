@@ -15,10 +15,10 @@ alwaysApply: true
 
 - **UI + deslocamento + get_campos**: `modules/secoes/controles.py` — tudo controlado por `_PARAMS`
 - **Parser determinístico**: `modules/parser_controles.py`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_CONTROLES`
-- **Determinístico**: `modules/gerador.py` → `_secao_controles()` + `_linha_dia()`
-- **Tabela Comparativa** ("Comparar"): `modules/gerador.py` → `gerar_html_controles()`
-- **Mapeamento para Bloco 13**: `views/evolucao.py` → bloco `_completar_blocos_sistemas` (linha ~577)
+- **Agente IA**: `modules/agentes_secoes/controles.py` → `_PROMPT_CONTROLES`
+- **Determinístico**: `modules/gerador/controles.py` → `_secao_controles()` + `_linha_dia()`
+- **Tabela Comparativa** ("Comparar"): `modules/gerador/html.py` → `gerar_html_controles()`
+- **Mapeamento para Bloco 13**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
 
 ---
 
@@ -42,14 +42,14 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 - [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", True)`
   - `get_campos`, `_deslocar_dias`, `render` são automáticos
 
-### 2. `modules/gerador.py` — `_secao_controles()`
+### 2. `modules/gerador/controles.py` — `_secao_controles()`
 - [ ] **`_PARAMS_MM`** (linha ~844): adicionar `("Label Saída", "chave")`
   ```python
   ("NovoCampo", "nova_chave"),
   ```
 
-### 3. `modules/gerador.py` — `gerar_html_controles()`
-- [ ] **`_VITAIS`** (linha ~1762): adicionar `("Label", "chave")`
+### 3. `modules/gerador/html.py` — `gerar_html_controles()`
+- [ ] **`_VITAIS`**: adicionar `("Label", "chave")`
   - Será processado automaticamente por `_add_mm()`
 
 ### 4. `modules/parser_controles.py`
@@ -58,7 +58,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
   ("NovaSigla", "nova_chave"),
   ```
 
-### 5. `modules/agentes_secoes.py` — `_PROMPT_CONTROLES`
+### 5. `modules/agentes_secoes/controles.py` — `_PROMPT_CONTROLES`
 - [ ] Adicionar em **todos os 5 blocos de dia** (`hoje`, `ontem`, `anteontem`, `ant4`, `ant5`):
   ```
   - ctrl_hoje_chave_min (string): Valor mínimo.
@@ -76,7 +76,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 - [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", False)`
   - `get_campos`, `_deslocar_dias`, `render` são automáticos
 
-### 2. `modules/gerador.py` — `_linha_dia()` dentro de `_secao_controles()`
+### 2. `modules/gerador/controles.py` — `_linha_dia()` dentro de `_secao_controles()`
 - [ ] Ler o valor do campo (linha ~860):
   ```python
   novo_campo = _get(f"ctrl_{dia}_nova_chave").strip()
@@ -91,8 +91,8 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
       bh_parts.append(f"NovoCampo {novo_campo}")
   ```
 
-### 3. `modules/gerador.py` — `gerar_html_controles()`
-- [ ] Linha ~1808 — adicionar `_add_single("Label", "chave")` na seção correta
+### 3. `modules/gerador/html.py` — `gerar_html_controles()`
+- [ ] Adicionar `_add_single("Label", "chave")` na seção correta
 
 ### 4. `modules/parser_controles.py`
 - [ ] Adicionar bloco `re.search` após parse do balanço (linha ~130):
@@ -102,21 +102,21 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
       resultado[f"ctrl_{dia}_nova_chave"] = m_novo.group(1).strip()
   ```
 
-### 5. `modules/agentes_secoes.py` — `_PROMPT_CONTROLES`
+### 5. `modules/agentes_secoes/controles.py` — `_PROMPT_CONTROLES`
 - [ ] Adicionar em **todos os 5 blocos de dia**:
   ```
   - ctrl_hoje_chave (string): Descrição do valor.
   ```
 - [ ] `preencher_controles()`: **não precisa editar**
 
-### 6. Se campo deve alimentar Bloco 13 — `views/evolucao.py` (linha ~577)
-- [ ] Adicionar mapeamento (padrão dos campos diurese/balanco):
+### 6. Se campo deve alimentar Bloco 13 — `modules/fluxo.py`
+- [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   _set("sis_SISTEMA_campo", _limpar(st.session_state.get("ctrl_hoje_chave", "")))
   for sis_suf, ctrl_suf in [("hoje","hoje"),("ult","ontem"),("antepen","anteontem"),("ant4","ant4"),("ant5","ant5")]:
       _set(f"sis_SISTEMA_campo_{sis_suf}", _limpar(st.session_state.get(f"ctrl_{ctrl_suf}_chave", "")))
   ```
-- [ ] Verificar campo correspondente em `sistemas.py` e `gerador.py → _secao_sistemas()`
+- [ ] Verificar campo correspondente em `sistemas.py` e `gerador/sistemas.py → _secao_sistemas()`
 
 ---
 

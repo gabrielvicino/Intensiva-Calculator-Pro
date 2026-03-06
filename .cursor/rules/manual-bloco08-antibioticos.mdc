@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/antibioticos.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `atb_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_ANTIBIOTICOS` + `preencher_antibioticos()`
-- **Determinístico**: `modules/gerador.py` → `_secao_antibioticos()`
+- **Agente IA**: `modules/agentes_secoes/antibioticos.py` → `_PROMPT_ANTIBIOTICOS` + `preencher_antibioticos()`
+- **Determinístico**: `modules/gerador/antibioticos.py` → `_secao_antibioticos()`
 
 ---
 
@@ -46,12 +46,12 @@ Mais campo global: `antibioticos_notas` (nunca preenchido pelo agente).
   ```
 - [ ] **`render()`**: adicionar widget no lugar correto do slot
 
-### 2. `modules/gerador.py` → `_secao_antibioticos()`
+### 2. `modules/gerador/antibioticos.py` → `_secao_antibioticos()`
 - [ ] Incluir o campo na linha gerada para Atual ou Prévio (linha ~541)
 - [ ] Campo vazio → não gera trecho na linha
 - [ ] Nota: `_obs` existe no `get_campos()` mas **não é lido no gerador atual** — se quiser que apareça, adicionar explicitamente
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/antibioticos.py`
 - [ ] **`_PROMPT_ANTIBIOTICOS`**: adicionar em `<VARIAVEIS>`:
   ```
   - atb_{i}_novo_campo (string): Descrição.

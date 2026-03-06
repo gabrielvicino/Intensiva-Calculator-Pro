@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/identificacao.py` → `render()`
 - **Campos**: `get_campos()` → todos únicos
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_IDENTIFICACAO` + `preencher_identificacao()`
-- **Determinístico**: `modules/gerador.py` → `_secao_identificacao()`
+- **Agente IA**: `modules/agentes_secoes/identificacao.py` → `_PROMPT_IDENTIFICACAO` + `preencher_identificacao()`
+- **Determinístico**: `modules/gerador/identificacao.py` → `_secao_identificacao()`
 
 ---
 
@@ -61,11 +61,11 @@ alwaysApply: true
   - Campos numéricos → `number_input` ou `text_input`
   - `prontuario` usa `disabled=True` — manter padrão para campos somente-leitura
 
-### 2. `modules/gerador.py` → `_secao_identificacao()`
+### 2. `modules/gerador/identificacao.py` → `_secao_identificacao()`
 - [ ] Decidir se o campo aparece no prontuário (pode ser só UI, como `sofa_atual`)
 - [ ] Se aparecer: incluir na linha correspondente ou criar nova linha
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/identificacao.py`
 - [ ] **`_PROMPT_IDENTIFICACAO`**: adicionar em `<VARIAVEIS>` com tipo correto
 - [ ] **`preencher_identificacao()`**: converter tipo se necessário
   - `int` → `str` (ex: `sofa_adm`)

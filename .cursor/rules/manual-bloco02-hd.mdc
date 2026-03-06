@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/hd.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `hd_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_HD` + `preencher_hd()`
-- **Determinístico**: `modules/gerador.py` → `_secao_diagnosticos()`
+- **Agente IA**: `modules/agentes_secoes/hd.py` → `_PROMPT_HD` + `preencher_hd()`
+- **Determinístico**: `modules/gerador/diagnosticos.py` → `_secao_diagnosticos()`
 
 ---
 
@@ -50,12 +50,12 @@ Mais campo global: `hd_notas` (nunca preenchido pelo agente).
   ```
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_diagnosticos()`
+### 2. `modules/gerador/diagnosticos.py` → `_secao_diagnosticos()`
 - [ ] Incluir o campo na linha gerada (linha ~218)
 - [ ] Campo `_obs` → sai como `> obs` via `_obs_para_linhas()` (normaliza CAPS)
 - [ ] Campo vazio → não gera linha
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/hd.py`
 - [ ] **`_PROMPT_HD`**: adicionar em `<VARIAVEIS>` — **usando prefixo `diag_atual_{i}_novo`** e `diag_resolv_{i}_novo`
 - [ ] **`preencher_hd()`**: mapear AMBOS os prefixos para `hd_{i}_novo`:
   ```python

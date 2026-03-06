@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/dispositivos.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `disp_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_DISPOSITIVOS` + `preencher_dispositivos()`
-- **Determinístico**: `modules/gerador.py` → `_secao_dispositivos()`
+- **Agente IA**: `modules/agentes_secoes/dispositivos.py` → `_PROMPT_DISPOSITIVOS` + `preencher_dispositivos()`
+- **Determinístico**: `modules/gerador/dispositivos.py` → `_secao_dispositivos()`
 
 ---
 
@@ -43,12 +43,12 @@ Mais campo global: `dispositivos_notas` (nunca preenchido pelo agente).
   ```
 - [ ] **`render()`**: adicionar widget
 
-### 2. `modules/gerador.py` → `_secao_dispositivos()`
+### 2. `modules/gerador/dispositivos.py` → `_secao_dispositivos()`
 - [ ] Incluir o campo na linha gerada (linha ~361)
 - [ ] Respeitar agrupamento por status (Ativo vs Removido)
 - [ ] `_sigla_upper()` aplicado ao nome — aplicar ao novo campo se for sigla
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/dispositivos.py`
 - [ ] **`_PROMPT_DISPOSITIVOS`**: adicionar em `<VARIAVEIS>`
 - [ ] **`preencher_dispositivos()`**: mapear o campo
   - **Atenção**: agente usa `disp_{i}_data_in` → mapeado para `disp_{i}_data_insercao`

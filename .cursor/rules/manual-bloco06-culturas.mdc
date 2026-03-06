@@ -14,8 +14,8 @@ alwaysApply: true
 
 - **UI**: `modules/secoes/culturas.py` → `render()`
 - **Campos**: `get_campos()` → prefixo `cult_{i}_`
-- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_CULTURAS` + `preencher_culturas()`
-- **Determinístico**: `modules/gerador.py` → `_secao_culturas()`
+- **Agente IA**: `modules/agentes_secoes/culturas.py` → `_PROMPT_CULTURAS` + `preencher_culturas()`
+- **Determinístico**: `modules/gerador/culturas.py` → `_secao_culturas()`
 
 ---
 
@@ -58,11 +58,11 @@ Mais campo global: `culturas_notas` — **único `_notas` que o agente pode pree
   default = [val] if val in options else []
   ```
 
-### 2. `modules/gerador.py` → `_secao_culturas()`
+### 2. `modules/gerador/culturas.py` → `_secao_culturas()`
 - [ ] Incluir campo na linha gerada (linha ~288)
 - [ ] Respeitar agrupamento por status
 
-### 3. `modules/agentes_secoes.py`
+### 3. `modules/agentes_secoes/culturas.py`
 - [ ] **`_PROMPT_CULTURAS`**: adicionar em `<VARIAVEIS>`
 - [ ] **`preencher_culturas()`**: mapear o campo; validar status via `_STATUS_CULTURAS`
 
@@ -92,4 +92,4 @@ Mais campo global: `culturas_notas` — **único `_notas` que o agente pode pree
 - Reordenação via `cult_ordem`
 - UI: 4 visíveis, 5–8 em expander
 - `cult_{i}_conduta` → Bloco 14 automaticamente
-- Este bloco alimenta `sis_infec_cult_{i}_sitio/data` via `_completar_blocos_sistemas` em `views/evolucao.py`
+- Este bloco alimenta `sis_infec_cult_{i}_sitio/data` via `fluxo.completar_sistemas_de_outros_blocos()` em `modules/fluxo.py`
