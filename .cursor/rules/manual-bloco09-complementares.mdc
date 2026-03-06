@@ -1,0 +1,89 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 9 — Exames Complementares
+alwaysApply: true
+---
+
+# Bloco 9 — Exames Complementares: Manual de Campos
+
+> 8 slots numerados (`comp_1..comp_8`). Cada slot tem: exame, data, laudo, conduta.
+> O agente extrai apenas achados **patológicos** — normalidades são omitidas.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/complementares.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `comp_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_COMPLEMENTARES` + `preencher_complementares()`
+- **Determinístico**: `modules/gerador.py` → `_secao_complementares()`
+
+---
+
+## Campos por Slot
+
+```python
+f'comp_{i}_exame'   # nome do exame (ex: "Ecocardiograma TT")
+f'comp_{i}_data'    # data do exame (ex: "20/01/2025")
+f'comp_{i}_laudo'   # resultado/laudo livre
+f'comp_{i}_conduta' # conduta — nunca preenchida pelo agente
+```
+
+Mais campo global: `complementares_notas` (input manual, agente nunca preenche).
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/complementares.py`
+- [ ] **`get_campos()`**: adicionar em `campos.update(...)` dentro do loop `for i in range(1, 9)`:
+  ```python
+  f'comp_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget correspondente dentro do bloco do slot
+
+### 2. `modules/gerador.py` → `_secao_complementares()`
+- [ ] Incluir o novo campo na linha gerada (linha ~634):
+  ```python
+  novo = _get(f"comp_{i}_novo_campo")
+  # Ex: adicionar à linha cabecalho ou como linha extra
+  ```
+- [ ] Regra geral: campo vazio → não gera linha
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_COMPLEMENTARES`**: adicionar em `<VARIAVEIS>`:
+  ```
+  - comp_{i}_novo_campo (string): Descrição.
+  ```
+- [ ] **`preencher_complementares()`**: mapear o novo campo:
+  ```python
+  resultado[f"comp_{i}_novo_campo"] = item.get("novo_campo", "")
+  ```
+- [ ] **Condutas**: agente NUNCA preenche `_conduta` — deixar fora do mapeamento
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Exames Complementares
+
+1- Ecocardiograma TT (20/01/2025)
+FE preservada (55%). Disfunção diastólica grau I.
+
+2- TC Tórax (21/01/2025)
+Consolidação em lobo inferior direito.
+```
+
+- Cabeçalho: `{n}- {exame} ({data})` ou `{n}- {exame}` se sem data
+- Laudo: linha(s) abaixo, texto livre
+- Linha em branco entre exames
+
+---
+
+## Regras Especiais
+
+- Se `exame` vazio mas `laudo` preenchido → usa "Exame complementar" como nome
+- Slot completamente vazio → ignorado
+- Reordenação via `comp_ordem` no session_state — respeitar ao adicionar lógica no gerador
+- UI: 3 slots visíveis, 4–8 em expander (abre automaticamente se tiver conteúdo nos slots 4–8)
+- `comp_{i}_conduta` → vai automaticamente para Bloco 14 via `coletar_condutas_agregadas()`

@@ -1,0 +1,95 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 6 — Culturas
+alwaysApply: true
+---
+
+# Bloco 6 — Culturas: Manual de Campos
+
+> 8 slots numerados (`cult_1..cult_8`). 4 status possíveis.
+> Agrupamento por status no prontuário.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/culturas.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `cult_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_CULTURAS` + `preencher_culturas()`
+- **Determinístico**: `modules/gerador.py` → `_secao_culturas()`
+
+---
+
+## Campos por Slot
+
+```python
+f'cult_{i}_sitio'          # sítio de coleta (ex: "Hemocultura", "Urocultura")
+f'cult_{i}_data_coleta'    # data da coleta
+f'cult_{i}_data_resultado' # data do resultado
+f'cult_{i}_status'         # ver valores válidos abaixo
+f'cult_{i}_micro'          # microrganismo isolado (ex: "E. coli ESBL")
+f'cult_{i}_sensib'         # sensibilidade/resistência
+f'cult_{i}_conduta'        # conduta — nunca preenchida pelo agente
+```
+
+Mais campo global: `culturas_notas` — **único `_notas` que o agente pode preencher**.
+
+### Status válidos (EXATAMENTE):
+```
+"Positivo com Antibiograma"
+"Positivo aguarda isolamento"
+"Pendente negativo"
+"Negativo"
+```
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/culturas.py`
+- [ ] **`get_campos()`**: adicionar em `campos.update(...)` dentro do loop `for i in range(1, 9)`:
+  ```python
+  f'cult_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget
+- [ ] **Atenção**: validar status na UI para evitar `ValueError` com valores legados:
+  ```python
+  options = _STATUS_CULTURAS
+  val = st.session_state.get(key_status)
+  default = [val] if val in options else []
+  ```
+
+### 2. `modules/gerador.py` → `_secao_culturas()`
+- [ ] Incluir campo na linha gerada (linha ~288)
+- [ ] Respeitar agrupamento por status
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_CULTURAS`**: adicionar em `<VARIAVEIS>`
+- [ ] **`preencher_culturas()`**: mapear o campo; validar status via `_STATUS_CULTURAS`
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Culturas Positivas
+1- Hemocultura (coletada 10/01; resultado 12/01)
+> E. coli ESBL; Sensível a Meropenem, Resistente a Ampicilina
+
+# Culturas em Andamento
+2- Urocultura (coletada 14/01)
+> aguarda isolamento
+
+# Culturas Negativas
+3- LBA (coletada 08/01; resultado 10/01)
+```
+
+---
+
+## Regras Especiais
+
+- Status inválido na UI → `default=[]` para não travar o `st.pills`
+- `preencher_culturas()`: se status inválido mas sítio preenchido → mantém valor (não força `None`)
+- Reordenação via `cult_ordem`
+- UI: 4 visíveis, 5–8 em expander
+- `cult_{i}_conduta` → Bloco 14 automaticamente
+- Este bloco alimenta `sis_infec_cult_{i}_sitio/data` via `_completar_blocos_sistemas` em `views/evolucao.py`

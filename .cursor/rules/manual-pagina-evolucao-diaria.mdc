@@ -1,0 +1,692 @@
+---
+description: Manual completo da página Evolução Diária (views/evolucao.py) — arquitetura, fluxo e padrões de desenvolvimento
+alwaysApply: true
+---
+
+# Página Evolução Diária — Manual Completo
+
+> Arquivo principal: `views/evolucao.py`
+> Dependências:
+> - `modules/fichas.py` — formulário, staging, inicialização
+> - `modules/gerador.py` — texto determinístico e tabelas HTML
+> - `modules/agentes_secoes.py` — agentes IA e seus dicionários de roteamento
+> - `modules/fluxo.py` — notas da IA e limpar tudo
+> - `modules/ia_extrator.py` — "fatiamento" inicial do prontuário bruto
+> - `modules/extrator_exames.py` — PACER (labs formatados + prescrição)
+> - `modules/parser_lab.py` — parsing determinístico de laboratoriais
+> - `modules/parser_controles.py` — parsing determinístico de controles
+> - `modules/parser_sistemas.py` — parsing determinístico de sistemas
+> - `utils.py` — load_data, save_evolucao, load_evolucao
+
+---
+
+## 1. Estrutura Visual da Página
+
+```
+SIDEBAR (sempre visível)
+  └── popover discreto ("​"):
+        • Provider: Google Gemini | OpenAI GPT
+        • Modelo Gemini: gemini-2.5-flash | gemini-2.5-pro
+        • Modelo GPT: fixo gpt-4o
+        • Exibe últimos 8 chars da API Key ativa
+
+──────────────────────────────────────────────────
+TÍTULO: "📝 Evolução Diária"
+
+[BUSCA — @st.fragment, não recarrega o formulário pesado]
+  Campo: texto_bruto_original (busca_input_field)
+  Botão: 🔍 Buscar
+
+  Se prontuário NÃO encontrado → pergunta "Criar?"
+  Se prontuário encontrado     → carrega e rerun()
+
+PAINEL DE IDENTIFICAÇÃO
+  ui.render_barra_paciente() — exibe nome/prontuário/leito da sessão
+
+──────────────────────────────────────────────────
+BLOCO 1 — 📄 Prontuário
+  Container com borda:
+    Aviso se prontuário anterior foi carregado (com data)
+    text_area: texto_bruto_original ("Cole a evolução aqui...")
+    Botão: ✨ Extrair Seções  ← chama ia_extrator
+  
+  [Checklist — só aparece se _secoes_recortadas existir]
+    Grid 4 colunas: ✅/⬜ para cada seção extraída
+    Botão: "Completar Todos os Campos (N)" ← agentes paralelos
+
+──────────────────────────────────────────────────
+BLOCO 2 — ✍️ Dados Clínicos  [st.form "form_dados_clinicos"]
+  render_guia_navegacao()   ← links âncora para cada seção
+  fichas.render_formulario_completo()
+      │
+      ├── expander "Dados do Paciente"  [COLLAPSED]
+      │     1. Identificação    + Completar Campos + ✨ Gerar Bloco
+      │     2. HD               + Completar Campos + ✨ Gerar Bloco
+      │     3. Comorbidades     + Completar Campos + ✨ Gerar Bloco
+      │     4. MUC              + Completar Campos + ✨ Gerar Bloco
+      │     5. HMPA             + Completar Campos + ✨ Gerar Bloco
+      │
+      ├── expander "Evolução Horizontal"  [COLLAPSED]
+      │     6. Dispositivos     + Completar Campos + ✨ Gerar Bloco
+      │     7. Culturas         + Completar Campos + ✨ Gerar Bloco
+      │     8. Antibióticos     + Completar Campos + ✨ Gerar Bloco
+      │     9. Complementares   + Completar Campos + ✨ Gerar Bloco
+      │
+      └── expander "Evolução Diária"  [EXPANDED]
+            📅 Evolução Diária  ← botão GLOBAL (Labs + Ctrl + Sistemas)
+            10. Laboratoriais   + Completar Campos + ✨ Gerar Bloco
+            11. Controles       + Completar Campos + ✨ Gerar Bloco
+            12. Evolução Clínica                   + ✨ Gerar Bloco
+            13. Sistemas        + Completar Campos + ✨ Gerar Bloco
+            14. Prescrição                         + ✨ Gerar Bloco
+            15. Condutas                           + ✨ Gerar Bloco
+
+  form_submit_button: 📋 Gerar Prontuário Completo
+
+[Condutas Registradas — FORA do form, atualiza a cada submit]
+
+──────────────────────────────────────────────────
+BLOCO 3 — ✅ Prontuário Completo
+  Botão: 📋 Copiar Texto ← clipboard via JavaScript
+  text_area: texto_final_gerado (editável)
+
+──────────────────────────────────────────────────
+RODAPÉ
+  🔍 Comparar Prontuário → _modal_comparar()
+  💾 Salvar no Prontuário → save_evolucao()
+  🗑️ Limpar Tudo → fluxo.limpar_tudo()
+  mostrar_rodape() ← nota legal
+```
+
+---
+
+## 2. ⚠️ MECANISMO CENTRAL: `_agent_staging`
+
+**O padrão mais importante de toda a aplicação.**
+
+### Por que existe?
+
+No Streamlit, widgets (`st.text_input`, `st.pills`, etc.) leem o `session_state` **no momento em que são instanciados** no ciclo de render. Se você gravar em `session_state` após os widgets já terem sido criados, a mudança só aparece no próximo ciclo. Isso significa que agentes de IA **nunca podem gravar diretamente** em `session_state` após a renderização — a alteração seria invisível.
+
+### Solução: staging + rerun
+
+```
+Agente IA retorna dict com novos valores
+       ↓
+Valores acumulados em st.session_state["_agent_staging"]
+       ↓
+st.rerun() é chamado
+       ↓
+No início do NOVO ciclo de render:
+fichas.render_formulario_completo() é chamado
+       ↓
+staging = st.session_state.pop("_agent_staging")  ← DELETA do session_state
+for k, v in staging.items():
+    st.session_state[k] = v                        ← aplica TUDO antes de qualquer widget
+       ↓
+Widgets são instanciados JÁ com os valores novos → aparecem preenchidos
+```
+
+### Regras do staging:
+- **Nunca sobrescreve com string vazia**: `if not (isinstance(v, str) and v.strip() == ""):` → preserva dados manuais
+- **`_completar_blocos_sistemas`** usa regra mais restrita: só preenche se destino está **completamente vazio** (`_set()`)
+- O staging é um **dict acumulado**: múltiplos agentes paralelos adicionam ao mesmo `_agent_staging` sem se sobrescrever
+- Usar `st.session_state.pop("_agent_staging")` (não `get`) — garante que roda apenas uma vez
+
+---
+
+## 3. Padrão de Flags Pendentes
+
+**Problema**: `st.form_submit_button` dentro de `st.form` não pode chamar `st.dialog`, executar `st.rerun()` nem fazer IO pesado diretamente.
+
+**Solução**: O botão seta uma flag. O processamento real acontece **fora do form**, no corpo sequencial da página.
+
+### Mapa completo de todas as flags (em ordem de aparição no código):
+
+| Flag | Setada por | Processada em (linha ~) | Ação |
+|---|---|---|---|
+| `_gerar_bloco_pendente` | `fichas._btn_gerar_bloco(secao_key)` | `evolucao.py` ~423 | Gera texto de 1 seção → `_modal_gerar_bloco()` |
+| `_comparar_lab_pendente` | `laboratoriais.py` botão "Comparar" | `evolucao.py` ~431 | Abre `_modal_comparar_labs()` (modal unificado) |
+| `_comparar_ctrl_pendente` | `controles.py` botão "Comparar" | `evolucao.py` ~431 | Mesmo modal `_modal_comparar_labs()` |
+| `_agente_pendente` | `fichas._btn_agente(secao_key)` | `evolucao.py` ~439 | Roda agente individual da seção |
+| `_ctrl_deterministico_pendente` | `controles.py` botão "Parsing" | `evolucao.py` ~449 | `parse_controles_deterministico()` |
+| `_lab_deterministico_pendente` | `laboratoriais.py` botão "Parsing" | `evolucao.py` ~468 | `parse_lab_deterministico()` |
+| `_lab_extrair_pendente` | `laboratoriais.py` botão "Extrair" | `evolucao.py` ~487 | PACER + agente lab em sequência |
+| `_sistemas_deterministico_pendente` | `sistemas.py` botão "Parsing Sistemas" | `evolucao.py` ~526 | `parse_sistemas_deterministico()` + defaults |
+| `_completar_blocos_sistemas` | `sistemas.py` botão "Completar Blocos Anteriores" | `evolucao.py` ~550 | Copia Lab/Ctrl/ATB/Cult → Sistemas |
+| `_prescricao_extrair_pendente` | `prescricao.py` botão "Extrair" | `evolucao.py` ~660 | `extrator_exames.extrair_prescricao()` |
+
+> **Regra**: sempre usar `st.session_state.pop("_flag", False)` — nunca `get()` — para garantir execução única por ciclo.
+
+---
+
+## 4. Botão Global "📅 Evolução Diária"
+
+Localizado no topo do expander "Evolução Diária" em `fichas.render_formulario_completo()`.
+
+**O que faz em uma única ação:**
+```python
+laboratoriais._deslocar_laboratoriais()   # lab_2→3, lab_1→2, lab_1 vazia
+controles._deslocar_dias()                # hoje→ontem→anteontem→ant4→ant5
+sistemas._deslocar_sistemas()             # idem para todos os _CAMPOS_ANTE_ONTEM_HOJE
+
+st.session_state["_lab_deterministico_pendente"]      = True
+st.session_state["_ctrl_deterministico_pendente"]     = True
+st.session_state["_sistemas_deterministico_pendente"] = True
+# Os 3 parsings serão executados fora do form no mesmo ciclo de rerun
+```
+
+---
+
+## 5. Fluxo Detalhado: Extrair Seções (Bloco 1)
+
+```
+1. Usuário cola texto → clica "✨ Extrair Seções"
+2. ia_extrator.extrair_dados_prontuario(texto, api_key, provider, modelo)
+   → Retorna JSON com 14 campos (ver seção ia_extrator abaixo)
+3. fluxo.atualizar_notas_ia(dados_notas)
+   → Preenche os campos *_notas de cada seção no session_state
+   → Ex: dados["laboratoriais"] → session_state["laboratoriais_notas"]
+4. _secoes_recortadas é construído:
+   {sec: bool(session_state[notas_key]) for each secao}
+5. Checklist visual aparece: ✅ com conteúdo, ⬜ vazio
+6. Usuário clica "Completar Todos os Campos (N)"
+7. _aplicar_agentes_paralelo(list(_AGENTES.keys()))
+   → ThreadPoolExecutor(max_workers=min(N, 8))
+   → Cada thread: agentes_secoes._AGENTES[sec](texto, api_key, provider, modelo)
+   → Resultados acumulados em _agent_staging (sem sobrescrever com "")
+   → st.rerun() → fichas aplica staging
+```
+
+---
+
+## 6. Fluxo Detalhado: Parsing/Evolução Hoje (Blocos 10, 11, 13)
+
+### Bloco 10 — Laboratoriais
+- **"Evolução Hoje"** → `laboratoriais._deslocar_laboratoriais()`: lab_5 some, lab_4→5, lab_3→4, lab_2→3, lab_1→2, lab_1 vazia
+- **"Parsing"** → `_lab_deterministico_pendente = True` → `parse_lab_deterministico(texto, date.today())`
+  - Formato esperado: `DD/MM/YYYY – Hb 8,8 | Ht 27% | Cr 2,1 | ...`
+  - Admissão/Externo → `admissão – Hb 7,1 | ...` ou `externo – ...` → sempre slot 4
+- **"Extrair Exames"** → `_lab_extrair_pendente = True`:
+  1. PACER formata o texto bruto: `extrator_exames.extrair_exames(texto, ...)`
+  2. Resultado PACER → agente `preencher_laboratoriais()` → staging → rerun
+
+### Bloco 11 — Controles
+- **"Evolução Hoje"** → `controles._deslocar_dias()`: mesma lógica de deslocamento
+- **"Parsing"** → `_ctrl_deterministico_pendente = True` → `parse_controles_deterministico(texto, date.today())`
+  - Formato esperado:
+    ```
+    # Controles - 24 horas
+    > 18/02/2026
+    PAS: 100-132 | PAD: 60-80 | PAM: 75-95 | FC: 72-98 | SatO2: 96-99 | Temp: 36,5-37,2
+    Balanço Hídrico Total: -420ml | Diurese: 1450ml
+    ```
+
+### Bloco 13 — Sistemas
+- **"Evolução Hoje"** → `sistemas._deslocar_sistemas()`: somente campos em `_CAMPOS_ANTE_ONTEM_HOJE`
+- **"Parsing Sistemas"** → `_sistemas_deterministico_pendente = True` → `parse_sistemas_deterministico(texto)` + aplica defaults pré-preenchidos (exame respiratório, cardiológico, abdominal padrão)
+  - Formato esperado: `# Evolução por sistemas / - Neurológico / ECG 15 | RASS -2 / ...`
+- **"Completar Blocos Anteriores"** → `_completar_blocos_sistemas = True`:
+  - Copia dados de Lab, Ctrl, ATB, Culturas para os campos `sis_*`
+  - Regra `_set()`: só preenche se destino **vazio**
+
+---
+
+## 7. Fluxo Detalhado: Salvar e Carregar
+
+### Buscar/Carregar:
+```
+@st.fragment → _fragment_busca()  ← NÃO recarrega o formulário ao digitar
+  → check_evolucao_exists(prontuário)
+  → True:  load_evolucao(prontuário) → dict com todos os campos
+           Migração automática de schema legado (hd_atual_* → hd_1..4)
+           session_state.update({k: v para k válido em get_todos_campos_keys()})
+           st.rerun()
+  → False: _busca_pendente_criar = prontuario (fora do fragment)
+           → Perguntar "Criar novo?"
+           → Sim: save_evolucao(pend, "", {"prontuario": pend})
+                  session_state["prontuario"] = pend
+                  st.rerun()
+```
+
+### Salvar:
+```
+campos_keys = fichas.get_todos_campos_keys()
+dados = {k: session_state[k] for k in campos_keys}
+save_evolucao(prontuario, nome, dados)
+```
+
+### Limpar Tudo (`fluxo.limpar_tudo()`):
+```
+• Reseta todos os campos para defaults de _campos_base()
+• Força idade=0, sofa_adm=0, sofa_atual=0, paliativo=False
+• Limpa texto_final_gerado e texto_bruto_original
+• Remove: _agent_staging, _secoes_recortadas, _data_hora_carregado
+• Reseta todas as ordens:
+  hd_ordem, cult_ordem, disp_ordem, comp_ordem, atb_ordem → range(1,9)
+  muc_ordem → range(1,21)
+• st.rerun()
+```
+
+---
+
+## 8. `fichas.render_formulario_completo()` — Sequência Interna Exata
+
+```
+1. Aplica _agent_staging (se existir) e DELETA do session_state
+2. _sanitizar_radios()
+   → Corrige pills/radio que receberam "" em vez de None (vindos de IA ou planilha)
+   → Usa _get_campos_none_cached() — set pré-computado de chaves com default None
+3. _normalizar_datas()
+   → Formata campos de data digitados sem barras: "10012026" → "10/01/2026"
+   → Campos: *_data, *_ultima, *_proxima, *_ini, *_fim, di_hosp, di_uti, di_enf
+   → Campos _dt: formata hora — "18" → "18h", "04/03 18" → "04/03 18h"
+   → Usa _get_campos_data_hora_cached() — frozensets pré-computados
+4. st.markdown(_CSS_FORMULARIO, unsafe_allow_html=True)
+   → CSS injetado de constante de módulo (não recalculado)
+   → Estilos: expanders sem borda, h5 alternados amarelo/verde, conduta com borda verde
+5. expander "Dados do Paciente" [COLLAPSED]:
+   → blocos 1,2,3,4,5 + _btn_agente() + _btn_gerar_bloco() para cada
+6. expander "Evolução Horizontal" [COLLAPSED]:
+   → blocos 6,7,8,9 + _btn_agente() + _btn_gerar_bloco() para cada
+7. expander "Evolução Diária" [EXPANDED]:
+   → botão global "📅 Evolução Diária"
+   → blocos 10,11,12,13,14,15 + _btn_agente() + _btn_gerar_bloco() para cada
+```
+
+### `_btn_agente(secao_key)` — como funciona:
+```python
+# Retorna uma função (closure) que renderiza o botão "Completar Campos" da seção
+# O botão é um st.form_submit_button que seta _agente_pendente = secao_key
+```
+
+### `_btn_gerar_bloco(secao_key)` — como funciona:
+```python
+# Renderiza botão "✨ Gerar Bloco N. Nome"
+# Seta _gerar_bloco_pendente = secao_key
+# Processado fora do form → gerador.gerar_secao(key) → _modal_gerar_bloco()
+```
+
+---
+
+## 9. Dicionários de Roteamento em `agentes_secoes.py`
+
+### `_AGENTES` — chave → função de preenchimento
+```python
+{
+    "identificacao":  preencher_identificacao,
+    "hd":             preencher_hd,
+    "comorbidades":   preencher_comorbidades,
+    "muc":            preencher_muc,
+    "hmpa":           preencher_hmpa,
+    "dispositivos":   preencher_dispositivos,
+    "culturas":       preencher_culturas,
+    "antibioticos":   preencher_antibioticos,
+    "complementares": preencher_complementares,
+    "laboratoriais":  preencher_laboratoriais,
+    "controles":      preencher_controles,
+    "evolucao":       preencher_evolucao,
+    "sistemas":       preencher_sistemas,
+}
+# 13 chaves — "condutas" e "prescricao" NÃO têm agente aqui
+```
+
+### `_NOTAS_MAP` — chave → campo de notas no session_state
+```python
+{
+    "identificacao":  "identificacao_notas",
+    "hd":             "hd_notas",
+    "comorbidades":   "comorbidades_notas",
+    "muc":            "muc_notas",
+    "hmpa":           "hmpa_texto",       # ← nome diferente!
+    "dispositivos":   "dispositivos_notas",
+    "culturas":       "culturas_notas",
+    "antibioticos":   "antibioticos_notas",
+    "complementares": "complementares_notas",
+    "laboratoriais":  "laboratoriais_notas",
+    "controles":      "controles_notas",
+    "evolucao":       "evolucao_notas",
+    "sistemas":       "sistemas_notas",
+}
+```
+
+### `NOMES_SECOES` — chave → nome legível (usado na UI e no checklist)
+```python
+{
+    "identificacao":  "1. Identificação",
+    "hd":             "2. Diagnósticos",
+    "comorbidades":   "3. Comorbidades",
+    "muc":            "4. MUC",
+    "hmpa":           "5. HMPA",
+    "dispositivos":   "6. Dispositivos",
+    "culturas":       "7. Culturas",
+    "antibioticos":   "8. Antibióticos",
+    "complementares": "9. Complementares",
+    "laboratoriais":  "10. Exames Laboratoriais",
+    "controles":      "11. Controles & Balanço",
+    "evolucao":       "12. Evolução Clínica",
+    "sistemas":       "13. Sistemas",
+    "condutas":       "14. Condutas",    # ← sem agente, só para exibição
+    "prescricao":     "15. Prescrição",  # ← sem agente aqui, tem extrator próprio
+}
+```
+
+### `fluxo._MAPA_NOTAS` — usado por `atualizar_notas_ia()`
+```python
+# Igual ao _NOTAS_MAP + inclui "conduta": "conduta_final_lista"
+# ia_extrator retorna chave "conduta" → vai para conduta_final_lista
+```
+
+---
+
+## 10. `ia_extrator.py` — Fatiamento do Prontuário Bruto
+
+**Função**: `extrair_dados_prontuario(texto_bruto, api_key, provider, modelo) → dict`
+
+**O que faz**: Envia o texto bruto para a IA e recebe 14 campos fatiados (copia literal do texto, sem reescrita).
+
+**14 campos retornados**:
+| Chave | Campo notas | Gatilhos reconhecidos |
+|---|---|---|
+| `identificacao` | `identificacao_notas` | #ID, Nome, Paciente, Leito, Idade |
+| `hd` | `hd_notas` | #HD, Diagnósticos, Hipóteses |
+| `comorbidades` | `comorbidades_notas` | #CMD, Antecedentes, Comorbidades |
+| `muc` | `muc_notas` | #MUC, Medicações Prévias |
+| `hmpa` | `hmpa_texto` | #HPMA, #HDA, História |
+| `dispositivos` | `dispositivos_notas` | #DISP, CVC, TOT, SVD |
+| `culturas` | `culturas_notas` | #CULT, Hemocultura, Urocultura |
+| `antibioticos` | `antibioticos_notas` | #ATB, Antimicrobianos em uso |
+| `complementares` | `complementares_notas` | TC, ECO, RX, CATE — "efeito ímã" (junta todos) |
+| `laboratoriais` | `laboratoriais_notas` | #LAB, Hb, Leuco, Cr, Gasometria |
+| `controles` | `controles_notas` | #CTRL, PAS, FC, Balanço Hídrico |
+| `evolucao` | `evolucao_notas` | #EVO, narrativa subjetiva (SEM sistemas) |
+| `sistemas` | `sistemas_notas` | #EF, - Neurológico, - Respiratório, Neuro:, CV: |
+| `conduta` | `conduta_final_lista` | #CD, Plano, Condutas |
+
+**Regras críticas do SYSTEM_PROMPT**:
+- **Zero alucinação**: copia o trecho original, não resume nem reescreve
+- **sistemas**: captura QUALQUER texto organizado por sistemas orgânicos (mesmo chamado de "Exame Físico", "EF", "Revisão de Sistemas")
+- **evolucao**: só texto narrativo subjetivo — NÃO achados por sistema
+- **antibioticos**: só ATBs da prescrição atual (não histórico — esse vai para hmpa)
+- **conduta fragmentada** por sistemas → campo único `conduta`
+- **Cabeçalho de departamento** ("### UTI Adulto", "# Sala Vermelha") → inclui em `identificacao`
+
+**Suporte a OpenAI e Google Gemini**: detecta provedor pela string `provider` (contém "OpenAI"/"GPT" ou usa Gemini)
+
+---
+
+## 11. `gerador.py` — Geração de Texto Determinístico
+
+### Funções utilitárias globais:
+
+| Função | O que faz |
+|---|---|
+| `_get(key, default="")` | Lê session_state + aplica `_caps_para_certo()` em TODOS os textos |
+| `_caps_para_certo(val)` | CAPS LOCK → Title Case (ex: "GABRIEL" → "Gabriel"). Preposições em minúsculas. Só aplica se texto está em CAPS. |
+| `_caps_obs_linha(val)` | Como `_caps_para_certo` + trata nomes científicos: "ENTEROCOCCUS FAECALIS" → "Enterococcus faecalis" |
+| `_sigla_upper(val)` | 2-5 letras alfabéticas → MAIÚSCULAS (CVC, SVD, PAV, ITU) |
+| `_obs_para_linhas(obs, excluir_conduta)` | Converte texto multiline em linhas com prefixo `> `. Se excluir_conduta=True, remove linhas "Conduta:" |
+| `_limpar_barra(val)` | Remove barras: "3/" → "3", "22/00/0" → "22000" |
+
+### Ordem das seções em `gerar_texto_final()`:
+```
+1. _secao_identificacao()
+2. _secao_diagnosticos()
+3. _secao_comorbidades()
+4. _secao_muc()
+5. _secao_dispositivos()
+6. _secao_culturas()
+7. _secao_hmpa()          ← HMPA antes de ATB
+8. _secao_antibioticos()
+9. _secao_complementares()
+10. _secao_laboratoriais()
+11. _secao_controles()
+12. _secao_evolucao_clinica()
+13. _secao_sistemas()
+14. _secao_condutas()
+15. _secao_prescricao()   ← separada por "===" antes do header
+```
+**Pós-processamento final**: `texto.replace(" ml", " mL")` — normaliza mL em toda saída.
+
+### `gerar_secao(key)` — para o botão "Gerar Bloco":
+```python
+# Usa _SECAO_MAP (dict inicializado lazy via _init_secao_map())
+# _SECAO_MAP["identificacao"] = _secao_identificacao, etc.
+# Retorna string com \n entre linhas
+```
+
+### `_secao_laboratoriais()` — detalhes críticos:
+- Itera de **slot 1 até slot 10** (não só 4 slots)
+- Slot 1 = hoje, 2 = ontem, 3 = anteontem, **4 = Admissão/Externo** (especial), 5-10 = histórico
+- **Slot 4 usa formato especial**: `> Adm (data) – Hb 7,1 | Ht 21% | ...` (tudo inline, sem header `>`)
+- Slots 1-3 e 5-10: `> data` + linha de campos
+- `_normalizar_outros()`: capitalização especial do campo "Não Transcritos":
+  - >4 letras em CAPS → Title Case (GLICOSE → Glicose)
+  - ≤4 letras em CAPS → mantém (TSH, PCR, PTH)
+- Gasometria: "Gas Art", "Gas Ven", "Gas Par" baseado no tipo selecionado
+  - Se tipo ausente: `SatO2 > 82%` → Art; `SatO2 ≤ 82%` → Ven
+  - Hora formatada como `(08h)` a partir do campo `*_hora`
+  - Pareada: `Gas Par (hora) pH x / pCO2 x / ... | pCO2_v x / SvO2 x`
+- EAS: `Urn: Den: x / Leu Est: x / ...`
+
+### `gerar_html_labs()` — tabela comparativa:
+- Detecta automaticamente quais slots têm dados (presença de data/hb/cr/na/tp/plaq/gas_ph)
+- Colunas = datas dos slots ativos (formato DD/MM)
+- Linhas = todos os parâmetros (hemato, bioquímica, coagulação, gasometrias, EAS)
+- Usado no `_modal_comparar_labs()` (aba "🧪 Exames Laboratoriais")
+
+### `gerar_html_controles()` — tabela comparativa:
+- Detecta automaticamente quais dias têm dados
+- Colunas = dias ativos (ant5 → hoje)
+- Linhas = PAS, PAD, PAM, FC, FR, SatO2, Temp, Glic, Diurese, BH
+- Campos min-max: exibe como "min-max"; campos simples: valor direto
+- Usado no `_modal_comparar_labs()` (aba "💧 Controles & Balanço Hídrico")
+
+---
+
+## 12. Parsers Determinísticos
+
+### `parser_lab.py` — `parse_lab_deterministico(texto, data_hoje)`
+
+**Formato esperado por linha**:
+```
+DD/MM/YYYY – Hb 8,8 | Ht 27% | VCM 96 | Leuco 12.500 (Seg 70% / Bast 2%) | Cr 2,1 | ...
+externo – Hb 7,1 | Ht 21% | ...
+admissão – Hb 7,1 | ...
+```
+
+**Campos reconhecidos** (`_SIGLAS_CAMPOS`):
+```
+Prot Tot, CPK-MB, Leu Est, Hb, Ht, VCM, HCM, RDW, Leuco, Plaq,
+Cr, Ur, Na, K, Mg, Pi, CaT, Cai, TGP, TGO, FAL, GGT,
+BT (→ bt + bd se tiver parênteses), BD, Alb, Amil, Lipas,
+CPK, BNP, Trop, PCR, VHS, TP, TTPa
+```
+
+**Mapeamento de slot por data**:
+```
+delta = 0 → slot 1 (hoje)
+delta = 1 → slot 2 (ontem)
+delta = 2 → slot 3 (anteontem)
+delta = 3 ou 4 → slot 4 (externa — mas normalmente slot 4 é forçado por keyword)
+delta >= 5 → slot 4 + (delta-4), máximo slot 10
+```
+
+**Palavras-chave para slot 4**: admissão, admissao, adm, admissionais, admissional, externo, externos, externa, externas
+
+**URN (EAS)**: `Urn: Den: x / Leu Est: x / Leuco y / Hm z / Prot p / ...` → campos `ur_dens`, `ur_le`, `ur_leu`, `ur_hm`, `ur_prot`, etc.
+
+### `parser_controles.py` — `parse_controles_deterministico(texto, data_hoje)`
+
+**Formato esperado**:
+```
+# Controles - 24 horas
+> 18/02/2026
+PAS: 100-132 mmHg | PAD: 60-80 mmHg | PAM: 75-95 mmHg | FC: 72-98 bpm | ...
+Balanço Hídrico Total: +420ml | Diurese: 1450ml
+```
+
+**Mapeamento de slot por data**: `hoje`, `ontem`, `anteontem`, `ant4`, `ant5` (delta 0-4 dias; fora do range → ignorado)
+
+**Campos vitais reconhecidos**: PAS, PAD, PAM, FC, FR, SatO2, Temp, Dextro/Glic → min e max separados
+
+**Resultado**: chaves `ctrl_{dia}_{campo}_min`, `ctrl_{dia}_{campo}_max`, `ctrl_{dia}_balanco`, `ctrl_{dia}_diurese`, `ctrl_{dia}_data`, `ctrl_periodo`
+
+### `parser_sistemas.py` — `parse_sistemas_deterministico(texto)`
+
+**Formato esperado**:
+```
+# Evolução por sistemas
+- Neurológico
+  ECG 15 | RASS -2
+  CAM-ICU: Negativo
+  Pupilas: Normais
+- Respiratório
+  MV+ bilateral
+  VM: PSV, Pressão 8, Volume 450...
+- Cardiovascular
+  FC 85 | PAM 75 mmHg
+  Perfusão: Normal
+- Renal
+  Diurese 1800 mL | BH +350 mL
+  Cr: 2.8 → 2.5 → 2.1
+- Infeccioso / - Gastrointestinal / - Hematológico / - Pele
+```
+
+**Extrai cada seção** via `_extrair_secao(texto, titulo)` → regex entre `- Titulo` e próximo `- `
+
+Após parsing dos dados, aplica **defaults pré-preenchidos** dos campos com valor padrão não vazio (ex: exame respiratório, cardiológico, abdominal padrão do `get_campos()`)
+
+---
+
+## 13. Dialogs (Modais) da Página
+
+**Regra crítica**: todos os `@st.dialog` **devem ser definidos ANTES** do bloco de handlers que os chama (execução sequencial no Streamlit).
+
+| Dialog | Definido em (linha ~) | Quando é aberto |
+|---|---|---|
+| `_modal_gerar_bloco()` | ~363 | `_gerar_bloco_pendente` != None → após `gerador.gerar_secao()` |
+| `_modal_comparar_labs()` | ~396 | `_comparar_lab_pendente` OU `_comparar_ctrl_pendente` → modal unificado com abas |
+| `_modal_comparar()` | ~715 | Botão "🔍 Comparar Prontuário" no rodapé (prontuário original × gerado) |
+
+### `_modal_gerar_bloco()`:
+- Coluna 1: notas originais coladas (readonly)
+- Coluna 2: bloco gerado (editável — edições gravadas em `_bloco_secao_texto`)
+
+### `_modal_comparar_labs()`:
+- Aba 1 "🧪 Exames Laboratoriais": `gerador.gerar_html_labs()`
+- Aba 2 "💧 Controles & Balanço Hídrico": `gerador.gerar_html_controles()`
+- `_modal_comparar_ctrl = _modal_comparar_labs` (alias para compatibilidade)
+
+### `_modal_comparar()`:
+- Coluna 1: `texto_bruto_original` (readonly)
+- Coluna 2: `texto_final_gerado` (editável — edições gravadas diretamente em session_state)
+
+---
+
+## 14. Configuração de IA e Provider
+
+### Variáveis globais da página (disponíveis em todo `evolucao.py`):
+```python
+api_key          # chave ativa (Google ou OpenAI)
+modelo_escolhido # "gemini-2.5-flash", "gemini-2.5-pro" ou "gpt-4o"
+provider         # string do radio: "Google Gemini" ou "OpenAI GPT"
+```
+
+### `_provider_completo()`:
+```python
+# Retorna "Google Gemini gemini-2.5-pro" ou "OpenAI GPT"
+# Usado em TODAS as chamadas de IA para identificar provedor + modelo
+```
+
+### Acessíveis via session_state (para outros módulos):
+```python
+st.session_state["_ia_api_key"]   # chave ativa
+st.session_state["_ia_provider"]  # provider como string
+st.session_state["_ia_modelo"]    # modelo escolhido
+```
+
+### `_chamar_ia(prompt_system, texto, api_key, provider, modelo)` em `agentes_secoes.py`:
+- Usado por todos os 13 agentes (exceto HMPA que tem chamada direta)
+- Detecta provedor pela string `provider`
+- Adiciona `_REGRA_DATA` ao system prompt: ano padrão 2026 se não explícito
+- OpenAI: usa `response_format={"type": "json_object"}`
+- Gemini: usa `temperature=0.0`, faz strip de markdown e parseia JSON
+
+---
+
+## 15. Padrão de Agentes Paralelos (`_aplicar_agentes_paralelo`)
+
+```python
+# 1. Filtra seções que têm texto nas notas (não executa seções vazias)
+tarefas = [(sec, texto) for sec in secoes
+           if session_state.get(_NOTAS_MAP[sec], "").strip()]
+
+# 2. ThreadPoolExecutor — até 8 threads simultâneas
+# Cada thread chama: _AGENTES[sec](texto, api_key, provider, modelo)
+# Retorna (secao, dict_resultado)
+
+# 3. Barra de progresso em tempo real:
+#    progresso.progress(concluidos / len(tarefas))
+#    status_txt.caption(f"✅ {nome} ({concluidos}/{len(tarefas)})")
+
+# 4. Resultados acumulados em staging:
+for dados in resultados.values():
+    for k, v in dados.items():
+        if not (isinstance(v, str) and v.strip() == ""):  # não sobrescreve com ""
+            staging[k] = v
+st.session_state["_agent_staging"] = staging
+
+# 5. st.rerun() → fichas aplica staging
+```
+
+---
+
+## 16. Checklist: Adicionar Novo Botão de Ação
+
+1. **No módulo da seção** (dentro do `st.form`):
+   ```python
+   if st.form_submit_button("Minha Ação"):
+       st.session_state["_minha_acao_pendente"] = True
+   ```
+2. **Em `evolucao.py`** (fora do form, após o `if submitted:` block):
+   ```python
+   if st.session_state.pop("_minha_acao_pendente", False):
+       # fazer a ação aqui
+       staging = st.session_state.get("_agent_staging", {})
+       staging["campo_x"] = valor
+       st.session_state["_agent_staging"] = staging
+       st.rerun()
+   ```
+3. Se precisar abrir um **dialog**: definir `@st.dialog` **antes** do bloco de handlers (~linha 360)
+4. Se a ação for para um **módulo externo** (novo parser, novo extrator): criar em `modules/` e importar no topo de `evolucao.py`
+
+---
+
+## 17. Checklist: Adicionar Novo Agente de Seção
+
+1. **`agentes_secoes.py`**:
+   - Criar `_PROMPT_NOVA_SECAO` com `<VARIAVEIS>` e JSON schema
+   - Criar `preencher_nova_secao(texto, api_key, provider, modelo) → dict`
+   - Adicionar em `_AGENTES["nova_secao"] = preencher_nova_secao`
+   - Adicionar em `_NOTAS_MAP["nova_secao"] = "nova_secao_notas"`
+   - Adicionar em `NOMES_SECOES["nova_secao"] = "N. Nome da Seção"`
+2. **`modules/secoes/nova_secao.py`**: garantir que `get_campos()` retorna `nova_secao_notas: ''`
+3. **`fichas._campos_base()`**: `campos.update(nova_secao.get_campos())`
+4. **`fichas.render_formulario_completo()`**: `nova_secao.render(_agent_btn_callback=_btn_agente("nova_secao"))`
+5. **`fluxo._MAPA_NOTAS`**: se a seção deve aparecer no checklist pós-extração, adicionar aqui também
+
+---
+
+## 18. Regras e Comportamentos Globais
+
+| Comportamento | Onde | Detalhe |
+|---|---|---|
+| `@st.fragment` na busca | `_fragment_busca()` | Digitação NÃO recarrega o formulário pesado |
+| Inicialização única | `fichas.inicializar_estado()` | Garante campos no session_state com defaults (não sobrescreve valores existentes) |
+| Migração de schema | `_carregar_dados_prontuario()` | `hd_atual_*` / `hd_prev_*` → `hd_1..8_*` (schema legado) |
+| Normalização CAPS | `gerador._get()` | Aplicado em TODOS os campos lidos pelo gerador — `_caps_para_certo()` |
+| Normalização ml | `gerar_texto_final()` | `texto.replace(" ml", " mL")` no final de TODA a geração |
+| Borda verde conduta | `_CSS_FORMULARIO` | CSS: `input[placeholder="Escreva a conduta aqui..."]` → borda verde esquerda |
+| Pop de flags | Todo handler | `st.session_state.pop("_flag", default)` — garante execução única |
+| Caches de módulo | `fichas.py` | `_CAMPOS_BASE_CACHE`, `_CAMPOS_KEYS_CACHE`, `_CAMPOS_NONE_CACHE`, `_CAMPOS_DATA_CACHE` — calculados uma vez por processo |

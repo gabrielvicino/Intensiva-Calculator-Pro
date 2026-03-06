@@ -1,0 +1,99 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 15 — Prescrição
+alwaysApply: true
+---
+
+# Bloco 15 — Prescrição: Manual de Campos
+
+> **Bloco de extração multi-agente** — 3 agentes sequenciais geram texto formatado.
+> Único bloco com separador visual `===` no prontuário.
+> Lógica de IA em `extrator_exames.py` (NÃO em `agentes_secoes.py`).
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/prescricao.py` → `render()`
+- **Campos**: `get_campos()` → 3 campos únicos
+- **Agente IA**: `modules/extrator_exames.py` → `extrair_prescricao()` (multi-agente)
+- **Determinístico**: `modules/gerador.py` → `_secao_prescricao()`
+
+---
+
+## Campos
+
+```python
+'prescricao_bruta'      # texto colado pelo usuário (prescrição do sistema)
+'prescricao_formatada'  # saída formatada pela IA (exibida e usada no prontuário)
+'prescricao_conduta'    # conduta manual → vai para Bloco 14 automaticamente
+```
+
+---
+
+## Como Funciona o Multi-Agente
+
+`extrair_prescricao()` em `modules/extrator_exames.py`:
+
+| Etapa | Prompt | Saída |
+|---|---|---|
+| 1 | `_PROMPT_ID_PRESCRICAO` | Identificação + período |
+| 2 | `_PROMPT_DIETA` | Seção DIETA (até 6 categorias) |
+| 3 | `_PROMPT_MEDICACOES` | Seção MEDICAÇÕES + SOLUÇÕES ordenadas |
+
+- Saída é texto corrido (não JSON)
+- Resultado concatenado → `prescricao_formatada`
+- Ativado via flag: `_prescricao_extrair_pendente = True` no session_state
+
+---
+
+## Adicionar Novo Campo
+
+### 1. `modules/secoes/prescricao.py`
+- [ ] **`get_campos()`**: adicionar campo com valor `''`
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_prescricao()`
+```python
+# Função atual:
+def _secao_prescricao():
+    texto = _get("prescricao_formatada").strip()
+    if not texto: return []
+    return ["===", "# Prescrição", "", texto]
+```
+- [ ] Incluir novo campo na saída se necessário
+
+### 3. Agente IA — **arquivo diferente!**
+- [ ] Editar `modules/extrator_exames.py` → um dos 3 prompts
+- [ ] **Não editar** `agentes_secoes.py` para este bloco
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+===
+# Prescrição
+
+Paciente: João da Silva — Leito 12 — 20/01/2025
+
+DIETA
+Dieta enteral polimérica — 30 kcal/kg/dia
+Oferta hídrica total: 1.500 mL/dia
+
+MEDICAÇÕES
+[Analgesia / Sedação]
+1- Fentanil 25 mcg/h EV contínuo
+2- Midazolam 2 mg/h EV contínuo
+
+[Antibiótico]
+3- Piperacilina-Tazobactam 4,5g EV 8/8h
+```
+
+---
+
+## Regras Especiais
+
+- Separador `===` é visual — isola a prescrição no prontuário
+- `prescricao_bruta` = entrada manual; `prescricao_formatada` = saída da IA
+- Lógica de IA completamente separada em `extrator_exames.py` (não `agentes_secoes.py`)
+- `prescricao_conduta` → Bloco 14 automaticamente via `coletar_condutas_agregadas()`

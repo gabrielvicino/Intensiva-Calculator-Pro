@@ -28,7 +28,7 @@ def _parse_data_br(data_str: str) -> Optional[date]:
 
 
 def _slot_por_data(data_exame: date, data_hoje: date) -> str:
-    """Mapeia data para hoje/ontem/anteontem."""
+    """Mapeia data para hoje/ontem/anteontem/ant4/ant5."""
     delta = (data_hoje - data_exame).days
     if delta == 0:
         return "hoje"
@@ -36,6 +36,10 @@ def _slot_por_data(data_exame: date, data_hoje: date) -> str:
         return "ontem"
     if delta == 2:
         return "anteontem"
+    if delta == 3:
+        return "ant4"
+    if delta == 4:
+        return "ant5"
     return None  # Ignorar datas fora do range
 
 

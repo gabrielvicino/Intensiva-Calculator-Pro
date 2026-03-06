@@ -1,0 +1,262 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 13 — Evolução por Sistemas
+alwaysApply: true
+---
+
+# Bloco 13 — Evolução por Sistemas: Manual de Campos
+
+> Dois tipos de campo: **FIXO** (texto/pills, sem histórico) e **EVOLUÇÃO** (5 slots históricos com checkbox _show).
+> O agente preenche todos os campos exceto condutas e checkboxes `_show`.
+
+---
+
+## Sistemas e Prefixos
+
+| Sistema | Prefixo | Tem UI dedicada |
+|---|---|---|
+| Neurológico | `sis_neuro_` | Sim |
+| Respiratório | `sis_resp_` | Sim |
+| Cardiovascular | `sis_cardio_` | Sim |
+| Renal | `sis_renal_` | Sim |
+| Infeccioso | `sis_infec_` | Sim |
+| Gastro/Abdominal | `sis_gastro_` | Sim |
+| Hematológico | `sis_hemato_` | Sim |
+| Pele/Musculoesquelético | `sis_pele_` | Sim |
+| Metabólico | `sis_metab_` | Só `obs/pocus/conduta` — embutido no bloco Renal |
+| Nutricional | `sis_nutri_` | Só `obs/pocus/conduta` — embutido no bloco Gastro |
+
+---
+
+## Arquitetura do Bloco 13
+
+- **UI**: `modules/secoes/sistemas.py` → `render()`
+- **Slots de evolução**: `_CAMPOS_ANTE_ONTEM_HOJE` + `_deslocar_sistemas()`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_SISTEMAS` + `preencher_sistemas()`
+- **Determinístico**: `modules/gerador.py` → `_secao_sistemas()`
+- **Alimentação pelos blocos 10/11**: `views/evolucao.py` → bloco `_completar_blocos_sistemas`
+
+### Campo global do bloco
+```python
+'sistemas_notas'  # texto de notas/entrada para o agente — NÃO aparece no prontuário
+```
+
+---
+
+## ⚠️ Dois Tipos de Diurese/Balanço Coexistem no Sistema Renal
+
+O sistema renal tem DOIS conjuntos paralelos para Diurese e Balanço:
+
+| Campo fixo (texto de hoje) | Evolução 5 slots |
+|---|---|
+| `sis_renal_diurese` | `sis_renal_diu_ant5/.../hoje` |
+| `sis_renal_balanco` | `sis_renal_bh_ant5/.../hoje` |
+| `sis_renal_balanco_acum` | — (sem evolução) |
+
+- O campo fixo (`sis_renal_diurese`) aparece como texto avulso no prontuário
+- A evolução (`_diu_*`) aparece via `_evo()` quando `_show=True`
+- `_completar_blocos_sistemas` preenche AMBOS independentemente
+
+---
+
+## Campos Fixos por Sistema (seleção dos mais importantes)
+
+### Renal (além dos 9 evo-rows)
+```python
+'sis_renal_diurese'      # texto livre — "Diurese: 1.200 mL/24h"
+'sis_renal_balanco'      # balanço de hoje — texto livre
+'sis_renal_balanco_acum' # balanço acumulado — texto livre
+'sis_renal_volemia'      # pills — "Normovolêmico" / "Hipervolêmico" / "Hipovolêmico"
+'sis_renal_trs'          # pills — TRS em uso? Sim/Não
+'sis_renal_trs_via'      # texto livre — via de acesso
+'sis_renal_trs_ultima'   # data última sessão
+'sis_renal_trs_proxima'  # data próxima sessão
+```
+
+### Infeccioso (além dos 3 evo-rows)
+```python
+'sis_infec_febre'          # pills — Presente/Ausente
+'sis_infec_febre_vezes'    # nº de picos
+'sis_infec_febre_ultima'   # horário do último pico
+'sis_infec_atb'            # pills — em ATB?
+'sis_infec_atb_1/2/3'      # nomes dos ATBs
+'sis_infec_atb_guiado'     # pills — guiado por cultura?
+'sis_infec_culturas_and'   # pills — culturas em andamento?
+'sis_infec_cult_1..4_sitio/data' # sítio e data das culturas
+'sis_infec_isolamento'     # pills — em isolamento?
+'sis_infec_isolamento_tipo/motivo' # detalhes
+'sis_infec_patogenos'      # texto livre — patógenos em tratamento
+```
+
+### Cardiovascular (além dos 2 evo-rows: lac e trop)
+```python
+'sis_cardio_fc'              # frequência cardíaca
+'sis_cardio_pam'             # pressão arterial média
+'sis_cardio_perfusao'        # pills — Quente/Fria/Mista
+'sis_cardio_tec'             # TEC (tempo enchimento capilar)
+'sis_cardio_fluido_responsivo/tolerante' # pills
+'sis_cardio_exame_cardio'    # texto ausculta cardíaca
+'sis_cardio_cardioscopia'    # descrição cardioscopia
+'sis_cardio_dva_1..4_med'    # drogas vasoativas (nome)
+'sis_cardio_dva_1..4_dose'   # drogas vasoativas (dose)
+```
+
+### Neurológico (campos principais)
+```python
+'sis_neuro_ecg'              # GCS total (3-15)
+'sis_neuro_ecg_ao/rv/rm'     # componentes AO/RV/RM
+'sis_neuro_ecg_p'            # ECG-P (1-15, pediátrico)
+'sis_neuro_rass'             # RASS (-5 a +5)
+'sis_neuro_delirium'         # pills — Presente/Ausente
+'sis_neuro_cam_icu'          # pills — CAM-ICU +/-
+'sis_neuro_pupilas_tam'      # tamanho pupilas
+'sis_neuro_pupilas_simetria' # simetria
+'sis_neuro_pupilas_foto'     # fotorreatividade
+'sis_neuro_analgesia_1..3_tipo/drogas/dose/freq'  # até 3 analgésicos
+'sis_neuro_sedacao_meta'     # meta de sedação (texto)
+'sis_neuro_sedacao_1..3_drogas/dose' # até 3 sedativos
+'sis_neuro_bloqueador_med/dose'      # bloqueador neuromuscular
+```
+
+### Respiratório (campos principais)
+```python
+'sis_resp_ausculta'          # ausculta pulmonar
+'sis_resp_modo'              # pills — ventilado/espontâneo
+'sis_resp_modo_vent'         # modo ventilatório
+'sis_resp_fio2/peep/freq/pressao/volume' # parâmetros VM
+'sis_resp_complacencia/resistencia/dp/plato/pico'
+'sis_resp_dreno_1..3'        # drenos com débito
+```
+
+### Gastro (campos além dos 5 evo-rows TGI)
+```python
+'sis_gastro_exame_fisico'    # ausculta abdominal
+'sis_gastro_ictericia_presente' # pills
+'sis_gastro_dieta_oral/enteral/parenteral' # tipo de dieta
+'sis_gastro_escape_glicemico' # pills
+'sis_gastro_escape_manha/tarde/noite' # booleans (checkboxes)
+'sis_gastro_evacuacao'       # pills — evacuou?
+'sis_gastro_laxativo'        # texto — laxativo
+```
+
+### Hematológico (campos além dos 4 evo-rows)
+```python
+'sis_hemato_anticoag'        # pills — em anticoagulação?
+'sis_hemato_anticoag_motivo/tipo' # detalhes
+'sis_hemato_sangramento'     # pills — sangramento ativo?
+'sis_hemato_transf_1..3_comp/bolsas' # transfusões
+```
+
+### Pele (campos além do evo-row CPK)
+```python
+'sis_pele_edema'             # pills — Presente/Ausente
+'sis_pele_edema_cruzes'      # cruzes do edema
+'sis_pele_lpp'               # pills — LPP presente?
+'sis_pele_lpp_local_1..3/grau_1..3' # localização e grau
+'sis_pele_polineuropatia'    # pills
+```
+
+---
+
+## Checklist — Campo FIXO (texto livre, pills, sem histórico)
+
+### 1. `modules/secoes/sistemas.py`
+- [ ] **`get_campos()`**: adicionar chave com valor padrão
+  - Texto: `'sis_xxx_campo': ''`
+  - Pills/Sim/Não: `'sis_xxx_campo': None`
+  - Booleano: `'sis_xxx_campo': False`
+- [ ] **`render()`**: adicionar widget no lugar correto do sistema
+
+### 2. `modules/gerador.py` — `_secao_sistemas()`
+- [ ] Ler campo com `_s("sis_xxx_campo")` e incluir na geração de texto do sistema
+
+### 3. `modules/agentes_secoes.py` — `_PROMPT_SISTEMAS`
+- [ ] Adicionar em `<VARIAVEIS>` na seção do sistema correspondente:
+  ```
+  - sis_xxx_campo (tipo): Descrição do que extrair.
+  ```
+- [ ] **Conduta**: sempre `""` — nunca alterar regra
+- [ ] **`preencher_sistemas()`**: adicionar pós-processamento se o campo precisar de normalização (ex: Sim/Não → Presente/Ausente, string → bool, int → string)
+
+---
+
+## Checklist — Campo de EVOLUÇÃO (5 slots históricos + checkbox)
+
+Todos os passos acima, mais:
+
+### 1. `modules/secoes/sistemas.py`
+- [ ] **`_CAMPOS_ANTE_ONTEM_HOJE`** (linha ~5): adicionar tupla:
+  ```python
+  ("sis_xxx_campo", "ant5", "ant4", "antepen", "ult", "hoje"),
+  ```
+- [ ] **`get_campos()`**: adicionar os 6 campos:
+  ```python
+  'sis_xxx_campo_ant5': '', 'sis_xxx_campo_ant4': '',
+  'sis_xxx_campo_antepen': '', 'sis_xxx_campo_ult': '',
+  'sis_xxx_campo_hoje': '', 'sis_xxx_campo_show': False,
+  ```
+- [ ] **`render()`**: usar `_evo_row("Label", "sis_xxx_campo")` em vez de widget simples
+
+### 2. `modules/gerador.py` — `_secao_sistemas()`
+- [ ] Usar `_evo("Label", "sis_xxx_campo", "sis_xxx_campo_show")` em vez de `_s(...)`
+  - Retorna `"Label: v5 → v4 → antepen → ult → hoje"` somente se `_show=True`
+
+### 3. `modules/agentes_secoes.py` — `_PROMPT_SISTEMAS`
+- [ ] Adicionar os 6 campos no `<VARIAVEIS>`:
+  ```
+  - sis_xxx_campo_ant5 (string): valor mais antigo (5º mais recente).
+  - sis_xxx_campo_ant4 (string): 4º mais recente.
+  - sis_xxx_campo_antepen (string): anteontem.
+  - sis_xxx_campo_ult (string): ontem/último.
+  - sis_xxx_campo_hoje (string): hoje/mais recente.
+  - sis_xxx_campo_show (bool): false.
+  ```
+- [ ] **`preencher_sistemas()`**: remover `_show` do retorno (linha ~2636) — já existe regra genérica que filtra todos os `*_show`
+
+### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `views/evolucao.py`
+- [ ] Adicionar no bloco `_completar_blocos_sistemas`:
+  ```python
+  for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:
+      _set(f"sis_xxx_campo_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_chave_lab", "")))
+  ```
+
+---
+
+## Como funciona o `_show` (checkbox de prontuário)
+
+- Cada campo de evolução tem `sis_xxx_campo_show: False` por padrão
+- O usuário marca o checkbox `📋` na UI para ativar
+- No gerador: `_evo(..., show_key="sis_xxx_campo_show")` retorna `None` se `show=False`
+- **O agente NUNCA altera os `_show`** — `preencher_sistemas()` remove todas as chaves `*_show` do retorno da IA
+- Resultado: o usuário tem controle total sobre o que entra no prontuário
+
+---
+
+## Mapeamento de slots (Bloco 10/11 → Bloco 13)
+
+| Bloco 10 (lab_i) | Slot Bloco 13 | Bloco 11 (ctrl_dia) |
+|---|---|---|
+| `lab_1` | `_hoje` | `ctrl_hoje` |
+| `lab_2` | `_ult` | `ctrl_ontem` |
+| `lab_3` | `_antepen` | `ctrl_anteontem` |
+| `lab_4` | `_ant4` | `ctrl_ant4` |
+| `lab_5` | `_ant5` | `ctrl_ant5` |
+
+---
+
+## Regras Especiais
+
+- **`_deslocar_sistemas()`**: só desloca campos listados em `_CAMPOS_ANTE_ONTEM_HOJE`. Campos fixos nunca são deslocados
+- **`_set()` em `_completar_blocos_sistemas`**: só preenche se destino está VAZIO — nunca sobrescreve dados manuais ou da IA
+- **`sis_metab_obs`**: aparece no gerador dentro do bloco Renal como `"Metab: {obs}"`
+- **`sis_nutri_obs`**: aparece no gerador dentro do bloco Gastro como `"Nutri: {obs}"`
+- **`preencher_sistemas()` pós-processamentos obrigatórios**:
+  - `sis_neuro_ecg*` / `sis_neuro_rass` → int→string
+  - `sis_gastro_escape_manha/tarde/noite` → string→bool
+  - `sis_gastro_ictericia_presente` → "Sim"/"Não" → "Presente"/"Ausente"
+  - `sis_pele_edema` → "Sim"/"Não" → "Presente"/"Ausente"
+  - `sis_neuro_deficits_ausente` → normaliza → `"Ausente"` ou `None`
+  - `sis_gastro_evacuacao_laxativo` → agente retorna esta chave, mas `preencher_sistemas()` grava em `sis_gastro_laxativo`
+  - Todos os `*_show` → **removidos do retorno** — nunca sobrescreve checkboxes do usuário
+- **`_limpar_leuco(v)`** em `_completar_blocos_sistemas`: remove diferencial entre parênteses, ex: `"12.500 (Seg 70%)"` → `"12.500"`
+- **`_extrair_inr(v)`**: extrai valor entre parênteses do TP, ex: `"14.2s (1.10)"` → `"1.10"`
+- **`_extrair_ttpa(v)`**: extrai ratio entre parênteses, ex: `"39,6s (1,41)"` → `"1,41"`

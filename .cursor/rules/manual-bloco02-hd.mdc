@@ -1,0 +1,93 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 2 — HD (Hipóteses Diagnósticas)
+alwaysApply: true
+---
+
+# Bloco 2 — HD (Hipóteses Diagnósticas): Manual de Campos
+
+> 8 slots (`hd_1..hd_8`). Slots 1–4: diagnósticos atuais; 5–8: resolvidos.
+> Agente usa prefixo diferente (`diag_atual_1..4` / `diag_resolv_1..4`) e mapeamento inverso.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/hd.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `hd_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_HD` + `preencher_hd()`
+- **Determinístico**: `modules/gerador.py` → `_secao_diagnosticos()`
+
+---
+
+## Campos por Slot
+
+```python
+f'hd_{i}_nome'           # nome do diagnóstico
+f'hd_{i}_class'          # classificação/subtipo (ex: "KDIGO 3")
+f'hd_{i}_data_inicio'    # data de início (DD/MM/AAAA)
+f'hd_{i}_data_resolvido' # data de resolução (DD/MM/AAAA) — apenas para status "Resolvida"
+f'hd_{i}_status'         # None | "Atual" | "Resolvida" — pills na UI
+f'hd_{i}_obs'            # observação multiline — sai no prontuário como linhas `> obs`
+f'hd_{i}_conduta'        # conduta — nunca preenchida pelo agente
+```
+
+Mais campo global: `hd_notas` (nunca preenchido pelo agente).
+
+### ⚠️ IMPORTANTE: Os 8 slots são TODOS IGUAIS no `get_campos()` e na UI
+- Qualquer slot pode ter qualquer status ("Atual" ou "Resolvida")
+- A divisão atuais (slots 1–4) / resolvidos (slots 5–8) é **apenas na extração do AGENTE**, não no formulário
+- O gerador agrupa dinamicamente por `status`, respeitando `hd_ordem`
+- Numeração no prontuário é sequencial dentro de cada grupo (não o número do slot)
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/hd.py`
+- [ ] **`get_campos()`**: adicionar em `campos.update(...)` dentro do loop `for i in range(1, 9)`:
+  ```python
+  f'hd_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_diagnosticos()`
+- [ ] Incluir o campo na linha gerada (linha ~218)
+- [ ] Campo `_obs` → sai como `> obs` via `_obs_para_linhas()` (normaliza CAPS)
+- [ ] Campo vazio → não gera linha
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_HD`**: adicionar em `<VARIAVEIS>` — **usando prefixo `diag_atual_{i}_novo`** e `diag_resolv_{i}_novo`
+- [ ] **`preencher_hd()`**: mapear AMBOS os prefixos para `hd_{i}_novo`:
+  ```python
+  # Atuais (i=1..4) → hd_1..hd_4:
+  resultado[f"hd_{i}_novo"] = diag_atual[i].get("novo", "")
+  # Resolvidos (i=1..4) → hd_5..hd_8:
+  resultado[f"hd_{i+4}_novo"] = diag_resolv[i].get("novo", "")
+  ```
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Diagnósticos Atuais
+1- Choque Séptico; Foco Pulmonar; 10/01
+> Em uso de aminas vasoativas, otimizando...
+
+2- Insuficiência Respiratória Aguda; PAV; 10/01
+
+# Diagnósticos Resolvidos
+3- IVU; 05/01 - 09/01
+```
+
+---
+
+## Regras Especiais
+
+- Agente usa nomes de chave DIFERENTES (`diag_atual_1..4_*` / `diag_resolv_1..4_*`) — mapeamento obrigatório em `preencher_hd()`; atuais → `hd_1..4`, resolvidos → `hd_5..8`
+- `_obs` passa por `_obs_para_linhas()` com `excluir_conduta=True` — linhas que começam com "Conduta:" são removidas do prontuário
+- `_obs_para_linhas()` aplica `_caps_obs_linha()` (normaliza CAPS, preserva nomenclatura bacteriana Gênero espécie)
+- Gerador não inclui `_obs` de slot com nome vazio — se nome ausente, slot é ignorado completamente
+- Reordenação via `hd_ordem` — o gerador usa `st.session_state.get("hd_ordem", list(range(1,9)))`
+- UI: 4 visíveis, 5–8 em expander "Demais Hipóteses Diagnósticas (5–8)" — **sempre fechado ao abrir** (sem auto-expand)
+- `hd_{i}_conduta` → Bloco 14 automaticamente

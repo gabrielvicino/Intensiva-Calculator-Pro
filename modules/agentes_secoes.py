@@ -2722,26 +2722,68 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - ctrl_ontem_diurese (string): Volume ou aspecto da diurese.
 - ctrl_ontem_balanco (string): Valor do balanço hídrico.
 
-# --- BLOCO 3: ANTEONTEM (Anterior a Ontem) ---
+# --- BLOCO 3: ANTEONTEM ---
 - ctrl_anteontem_data (string): Data do registro de anteontem.
-- ctrl_anteontem_pas_min (string): Pressão Arterial Sistólica mínima.
-- ctrl_anteontem_pas_max (string): Pressão Arterial Sistólica máxima.
-- ctrl_anteontem_pad_min (string): Pressão Arterial Diastólica mínima.
-- ctrl_anteontem_pad_max (string): Pressão Arterial Diastólica máxima.
-- ctrl_anteontem_pam_min (string): Pressão Arterial Média mínima.
-- ctrl_anteontem_pam_max (string): Pressão Arterial Média máxima.
-- ctrl_anteontem_fc_min (string): Frequência Cardíaca mínima.
-- ctrl_anteontem_fc_max (string): Frequência Cardíaca máxima.
-- ctrl_anteontem_fr_min (string): Frequência Respiratória mínima.
-- ctrl_anteontem_fr_max (string): Frequência Respiratória máxima.
-- ctrl_anteontem_sato2_min (string): Saturação de O2 mínima.
-- ctrl_anteontem_sato2_max (string): Saturação de O2 máxima.
+- ctrl_anteontem_pas_min (string): PAS mínima.
+- ctrl_anteontem_pas_max (string): PAS máxima.
+- ctrl_anteontem_pad_min (string): PAD mínima.
+- ctrl_anteontem_pad_max (string): PAD máxima.
+- ctrl_anteontem_pam_min (string): PAM mínima.
+- ctrl_anteontem_pam_max (string): PAM máxima.
+- ctrl_anteontem_fc_min (string): FC mínima.
+- ctrl_anteontem_fc_max (string): FC máxima.
+- ctrl_anteontem_fr_min (string): FR mínima.
+- ctrl_anteontem_fr_max (string): FR máxima.
+- ctrl_anteontem_sato2_min (string): SatO2 mínima.
+- ctrl_anteontem_sato2_max (string): SatO2 máxima.
 - ctrl_anteontem_temp_min (string): Temperatura mínima.
 - ctrl_anteontem_temp_max (string): Temperatura máxima.
-- ctrl_anteontem_glic_min (string): Dextro/Glicemia capilar mínima (mg/dL).
-- ctrl_anteontem_glic_max (string): Dextro/Glicemia capilar máxima (mg/dL).
-- ctrl_anteontem_diurese (string): Volume ou aspecto da diurese.
-- ctrl_anteontem_balanco (string): Valor do balanço hídrico.
+- ctrl_anteontem_glic_min (string): Glicemia mínima.
+- ctrl_anteontem_glic_max (string): Glicemia máxima.
+- ctrl_anteontem_diurese (string): Diurese.
+- ctrl_anteontem_balanco (string): Balanço hídrico.
+
+# --- BLOCO 4: 4º DIA ---
+- ctrl_ant4_data (string): Data do 4º registro.
+- ctrl_ant4_pas_min (string): PAS mínima.
+- ctrl_ant4_pas_max (string): PAS máxima.
+- ctrl_ant4_pad_min (string): PAD mínima.
+- ctrl_ant4_pad_max (string): PAD máxima.
+- ctrl_ant4_pam_min (string): PAM mínima.
+- ctrl_ant4_pam_max (string): PAM máxima.
+- ctrl_ant4_fc_min (string): FC mínima.
+- ctrl_ant4_fc_max (string): FC máxima.
+- ctrl_ant4_fr_min (string): FR mínima.
+- ctrl_ant4_fr_max (string): FR máxima.
+- ctrl_ant4_sato2_min (string): SatO2 mínima.
+- ctrl_ant4_sato2_max (string): SatO2 máxima.
+- ctrl_ant4_temp_min (string): Temperatura mínima.
+- ctrl_ant4_temp_max (string): Temperatura máxima.
+- ctrl_ant4_glic_min (string): Glicemia mínima.
+- ctrl_ant4_glic_max (string): Glicemia máxima.
+- ctrl_ant4_diurese (string): Diurese.
+- ctrl_ant4_balanco (string): Balanço hídrico.
+
+# --- BLOCO 5: 5º DIA ---
+- ctrl_ant5_data (string): Data do 5º registro.
+- ctrl_ant5_pas_min (string): PAS mínima.
+- ctrl_ant5_pas_max (string): PAS máxima.
+- ctrl_ant5_pad_min (string): PAD mínima.
+- ctrl_ant5_pad_max (string): PAD máxima.
+- ctrl_ant5_pam_min (string): PAM mínima.
+- ctrl_ant5_pam_max (string): PAM máxima.
+- ctrl_ant5_fc_min (string): FC mínima.
+- ctrl_ant5_fc_max (string): FC máxima.
+- ctrl_ant5_fr_min (string): FR mínima.
+- ctrl_ant5_fr_max (string): FR máxima.
+- ctrl_ant5_sato2_min (string): SatO2 mínima.
+- ctrl_ant5_sato2_max (string): SatO2 máxima.
+- ctrl_ant5_temp_min (string): Temperatura mínima.
+- ctrl_ant5_temp_max (string): Temperatura máxima.
+- ctrl_ant5_glic_min (string): Glicemia mínima.
+- ctrl_ant5_glic_max (string): Glicemia máxima.
+- ctrl_ant5_diurese (string): Diurese.
+- ctrl_ant5_balanco (string): Balanço hídrico.
 </VARIAVEIS>"""
 
 def preencher_controles(texto, api_key, provider, modelo):

@@ -1,0 +1,65 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 12 — Evolução Clínica
+alwaysApply: true
+---
+
+# Bloco 12 — Evolução Clínica: Manual de Campos
+
+> **Bloco mais simples do sistema** — 1 campo único, sem agente, sem slots.
+> Campo funciona como área de colagem de texto livre.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/evolucao_clinica.py` → `render()`
+- **Campos**: `get_campos()` → 1 campo único
+- **Agente IA**: **Não tem** — campo preenchido manualmente
+- **Determinístico**: `modules/gerador.py` → `_secao_evolucao_clinica()`
+
+---
+
+## Campo
+
+```python
+'evolucao_notas'  # texto de evolução clínica — colado/digitado manualmente
+```
+
+---
+
+## Adicionar Novo Campo
+
+### 1. `modules/secoes/evolucao_clinica.py`
+- [ ] **`get_campos()`**: adicionar campo com valor `''`
+- [ ] **`render()`**: adicionar widget (text_area ou text_input)
+
+### 2. `modules/gerador.py` → `_secao_evolucao_clinica()`
+```python
+# Função atual (3 linhas):
+def _secao_evolucao_clinica():
+    texto = _get("evolucao_notas").strip()
+    if not texto: return []
+    return ["# Evolução Clínica", texto]
+```
+- [ ] Incluir novo campo na saída gerada
+
+### 3. Agente IA — **Não há agente para este bloco**
+- Sem `_PROMPT_`, sem `preencher_*` — nada a atualizar em `agentes_secoes.py`
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Evolução Clínica
+Paciente hemodinamicamente estável, em desmame de aminas. Mantém suporte
+ventilatório em PSV. Diurese adequada. Afebril. Sem novos focos infecciosos.
+```
+
+---
+
+## Regras Especiais
+
+- Texto colado diretamente, **sem nenhum processamento**
+- Sem conduta, sem reordenação, sem slots
+- `evolucao_notas` também é utilizado como **texto de entrada para os agentes dos outros blocos** (Bloco 10, 11, etc.) — não remover

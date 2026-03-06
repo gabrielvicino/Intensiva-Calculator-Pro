@@ -714,6 +714,20 @@ def _secao_laboratoriais() -> list[str]:
 
     import re as _re
 
+    def _normalizar_outros(texto: str) -> str:
+        """
+        Normaliza capitalização do campo 'Não Transcritos':
+        - Palavra all-caps com > 4 letras → Title Case  (GLICOSE → Glicose)
+        - Sigla all-caps com ≤ 4 letras  → mantém      (TSH, PCR, PTH → intacto)
+        - Resto (já misto)               → mantém
+        """
+        def _fix(m):
+            w = m.group(0)
+            if w.isupper() and len(w) > 4:
+                return w.capitalize()
+            return w
+        return _re.sub(r"[A-Za-zÀ-ÿ]{2,}", _fix, texto)
+
     def _linha_gas(i, gn):
         p  = "gas" if gn == 1 else f"gas{gn}"
         kv = "gasv_pco2" if gn == 1 else f"{p}v_pco2"
@@ -789,12 +803,20 @@ def _secao_laboratoriais() -> list[str]:
             continue
 
         linhas = []
-        if data:
-            linhas.append(f"> {data}")
-        if linha_main:
-            linhas.append(linha_main)
+        if i == 4:
+            # Slot 4 (Admissão/Externo): prefixo "Adm –" inline, sem header ">"
+            adm_prefix = f"> Adm ({data}) –" if data else "> Adm –"
+            if linha_main:
+                linhas.append(f"{adm_prefix} {linha_main}")
+            elif data:
+                linhas.append(adm_prefix)
+        else:
+            if data:
+                linhas.append(f"> {data}")
+            if linha_main:
+                linhas.append(linha_main)
         if outros:
-            linhas.append(outros)
+            linhas.append(_normalizar_outros(outros))
         linhas.extend(linhas_gas)
         if partes_eas:
             linhas.append("Urn: " + " / ".join(partes_eas))
@@ -855,8 +877,8 @@ def _secao_controles() -> list[str]:
             linhas.append(" | ".join(bh_parts))
         return linhas
 
-    dias = ["hoje", "ontem", "anteontem"]  # hoje em cima, ontem embaixo, anteontem mais embaixo
-    slots = [_linha_dia(d) for d in dias if _linha_dia(d)]
+    dias = ["hoje", "ontem", "anteontem", "ant4", "ant5"]
+    slots = [s for d in dias for s in [_linha_dia(d)] if s]
 
     if not slots:
         return []
@@ -1735,8 +1757,8 @@ def gerar_html_controles() -> str:
         v = _get(f"ctrl_{dia}_{campo}")
         return str(v).strip() if v else ""
 
-    _DIAS   = ["anteontem", "ontem", "hoje"]
-    _LABELS = {"anteontem": "Anteontem", "ontem": "Ontem", "hoje": "Hoje"}
+    _DIAS   = ["ant5", "ant4", "anteontem", "ontem", "hoje"]
+    _LABELS = {"ant5": "5º dia", "ant4": "4º dia", "anteontem": "Anteontem", "ontem": "Ontem", "hoje": "Hoje"}
     _VITAIS = [
         ("PAS",    "pas"),   ("PAD",   "pad"),  ("PAM",   "pam"),
         ("FC",     "fc"),    ("FR",    "fr"),    ("SatO2", "sato2"),

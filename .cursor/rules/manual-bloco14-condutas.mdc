@@ -1,0 +1,75 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 14 — Condutas
+alwaysApply: true
+---
+
+# Bloco 14 — Condutas: Manual de Campos
+
+> **Bloco agregador** — não tem campos próprios de conteúdo.
+> Agrega automaticamente todos os campos `*_conduta` de TODO o sistema.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/condutas.py` → `render()` + `render_condutas_registradas()`
+- **Campo**: `get_campos()` → `conduta_final_lista` (lista manual)
+- **Agente IA**: **Não tem** — condutas vêm dos outros blocos
+- **Determinístico**: `modules/gerador.py` → `_secao_condutas()` via `coletar_condutas_agregadas()`
+
+---
+
+## Campo
+
+```python
+'conduta_final_lista'  # lista manual de condutas adicionais (texto livre)
+```
+
+---
+
+## Como Funciona a Agregação
+
+`coletar_condutas_agregadas()` no gerador:
+1. Varre **todo** `st.session_state` buscando chaves terminando em `_conduta`
+2. Exclui: `{'conduta_final_lista'}` (via `_EXCLUIR_CONDUTAS`)
+3. Junta com `conduta_final_lista`
+4. Prefixo `- ` em cada linha (se ainda não tiver)
+
+---
+
+## Para Que um Campo Apareça Aqui
+
+**Não é necessário alterar este bloco.** Basta:
+- Em qualquer módulo (`hd.py`, `atb.py`, etc.), ter no `get_campos()` uma chave terminando em `_conduta`
+- O campo aparece automaticamente aqui quando preenchido
+
+---
+
+## Para Criar um Novo Campo de Conduta em Qualquer Bloco
+
+- [ ] Adicionar `f'{prefixo}_{i}_conduta': ''` em `get_campos()` do bloco
+- [ ] Adicionar widget `st.text_input(..., placeholder="Escreva a conduta aqui...")` na UI
+  - **Usar este placeholder exato** para aplicar o CSS de borda verde
+  - `label_visibility="collapsed"` para esconder o label
+- [ ] **Nenhuma alteração necessária** em `condutas.py` ou `_secao_condutas()`
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Condutas
+- Manter Piperacilina-Tazobactam por mais 3 dias
+- Solicitar ecocardiograma TT
+- Iniciar heparina profilática
+- Repetir hemograma em 48h
+```
+
+---
+
+## Regras Especiais
+
+- `render_condutas_registradas()` é chamada **fora do form** — exibe condutas já salvas sem precisar clicar em "Salvar"
+- `render()` dentro do form — tem botão "Registrar Condutas" para atualizar a lista
+- Condutas **nunca** são preenchidas por agentes de IA (regra global do sistema)
+- Se quiser excluir permanentemente um campo de conduta da agregação: adicionar a chave em `_EXCLUIR_CONDUTAS` no gerador

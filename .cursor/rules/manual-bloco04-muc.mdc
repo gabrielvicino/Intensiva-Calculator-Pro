@@ -1,0 +1,88 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 4 — MUC (Medicações de Uso Contínuo)
+alwaysApply: true
+---
+
+# Bloco 4 — MUC (Medicações de Uso Contínuo): Manual de Campos
+
+> **20 slots** numerados (`muc_1..muc_20`) — maior capacidade do sistema.
+> Agente traduz posologia numérica. Nome deve ser DCI (nome genérico).
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/muc.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `muc_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_MUC` + `preencher_muc()`
+- **Determinístico**: `modules/gerador.py` → `_secao_muc()`
+
+---
+
+## Campos por Slot
+
+```python
+f'muc_{i}_nome'    # nome DCI (ex: "Ácido Acetilsalicílico", não "AAS")
+f'muc_{i}_dose'    # dose com unidade (ex: "100mg")
+f'muc_{i}_freq'    # frequência (ex: "1x ao dia")
+f'muc_{i}_conduta' # conduta — nunca preenchida pelo agente
+```
+
+Campos globais:
+```python
+'muc_adesao_global'  # pills: "Uso Regular" | "Uso Irregular" | "Desconhecido"
+'muc_alergia'        # pills: "Desconhecido" | "Nega" | "Presente"
+'muc_alergia_obs'    # texto livre — ex: "Penicilina, Dipirona"
+'muc_notas'          # nunca preenchido pelo agente
+```
+
+### Como `muc_alergia` aparece no prontuário:
+- `"Nega"` → "Nega alergias"
+- `"Presente"` → "Alergias: {muc_alergia_obs}" (ou "Alergias: presente" se obs vazio)
+- `"Desconhecido"` → "Desconhece alergias"
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/muc.py`
+- [ ] **`get_campos()`**: adicionar no loop `for i in range(1, 21)` (20 slots!):
+  ```python
+  f'muc_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_muc()`
+- [ ] Incluir o campo na linha gerada (linha ~431)
+- [ ] Formato: `{n}- {nome}[; {dose}][; {freq}]`
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_MUC`**: adicionar em `<VARIAVEIS>`
+  - **Atenção**: agente usa prefixo `med_dom_{i}_*` (diferente de `muc_{i}_*`!)
+- [ ] **`preencher_muc()`**: mapear — o agente retorna `med_dom_{i}_nome` e o código mapeia para `muc_{i}_nome`
+  - Se criar campo novo, adicionar tanto no prompt (`med_dom_{i}_novo`) quanto no mapeamento (`muc_{i}_novo`)
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Medicações de Uso Contínuo
+Uso Regular | Alergias: AAS (rash cutâneo)
+
+1- Ácido Acetilsalicílico; 100mg; 1x ao dia
+2- Atorvastatina; 40mg; 1x ao dia
+3- Metformina; 500mg; 2x ao dia
+```
+
+---
+
+## Regras Especiais
+
+- `muc_adesao_global`: EXATAMENTE "Uso Regular", "Uso Irregular" ou "Desconhecido"
+- `muc_alergia`: EXATAMENTE "Desconhecido", "Nega" ou "Presente" (valores do pills)
+- Agente traduz posologia: "1-0-0" → "1x ao dia"; "1-1-1" → "1 comprimido a cada 8 horas"
+- Agente normaliza nome para DCI obrigatório
+- Reordenação via `muc_ordem`
+- UI: 3 visíveis, 4–20 em expander (abre automaticamente se slots 4–20 tiverem conteúdo)
+- `muc_{i}_conduta` → Bloco 14 automaticamente

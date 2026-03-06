@@ -1,0 +1,83 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 3 — Comorbidades
+alwaysApply: true
+---
+
+# Bloco 3 — Comorbidades: Manual de Campos
+
+> 10 slots numerados (`cmd_1..cmd_10`). Sem reordenação (ordem fixa).
+> Campos de hábitos: Etilismo, Tabagismo, SPA.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/comorbidades.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `cmd_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_COMORBIDADES` + `preencher_comorbidades()`
+- **Determinístico**: `modules/gerador.py` → `_secao_comorbidades()`
+
+---
+
+## Campos por Slot
+
+```python
+f'cmd_{i}_nome'    # nome da comorbidade
+f'cmd_{i}_class'   # classificação/estadiamento (ex: "ICC FEVE 40% - CF III")
+f'cmd_{i}_conduta' # conduta — nunca preenchida pelo agente
+```
+
+Campos globais:
+```python
+'cmd_etilismo'      # "Desconhecido" | "Ausente" | "Presente"
+'cmd_etilismo_obs'  # texto livre (ex: "5 doses/dia, abstinência há 2 anos")
+'cmd_tabagismo'     # "Desconhecido" | "Ausente" | "Presente"
+'cmd_tabagismo_obs' # texto livre
+'cmd_spa'           # "Desconhecido" | "Ausente" | "Presente"
+'cmd_spa_obs'       # texto livre
+'comorbidades_notas' # nunca preenchido pelo agente
+```
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/comorbidades.py`
+- [ ] **`get_campos()`**: adicionar no loop `for i in range(1, 11)` (10 slots):
+  ```python
+  f'cmd_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_comorbidades()`
+- [ ] Incluir o campo na linha gerada (linha ~479)
+- [ ] Formato atual: `{n}- {nome}[; {class}]` — sem obs, sem datas
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_COMORBIDADES`**: adicionar em `<VARIAVEIS>`
+- [ ] **`preencher_comorbidades()`**: mapear o campo; validar pills se for valor controlado
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Comorbidades
+Etilismo: Ativo | Tabagismo: Nega | SPA: Desconhecido
+
+1- Insuficiência Cardíaca; FE 35% - CF III
+2- Diabetes Mellitus tipo 2
+3- DPOC; GOLD III
+```
+
+- "Ausente" → "Nega"; "Presente" → "Ativo" (no gerador)
+
+---
+
+## Regras Especiais
+
+- Pills de hábitos: EXATAMENTE "Desconhecido", "Ausente" ou "Presente"
+- `preencher_comorbidades()`: se valor inválido para pills → `None`
+- **Sem reordenação** (diferente de HD, MUC, Dispositivos)
+- UI: 3 visíveis, 4–10 em expander
+- `cmd_{i}_conduta` → Bloco 14 automaticamente

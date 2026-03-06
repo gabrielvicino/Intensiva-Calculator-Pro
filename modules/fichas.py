@@ -313,7 +313,7 @@ def render_formulario_completo():
     with st.expander("Evolução Diária", expanded=True):
         # ── Botão global: Evolução Hoje para todos os blocos diários ──────────
         if st.form_submit_button(
-            "⭐ Evolução Diária",
+            "📅 Evolução Diária",
             key="_fsbtn_evo_hoje_global",
             use_container_width=True,
             help="Desloca os slots de Laboratoriais, Controles e Sistemas (hoje→ontem→anteontem) e executa o Parsing dos três blocos.",

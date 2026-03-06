@@ -1,0 +1,79 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 5 — Dispositivos Invasivos
+alwaysApply: true
+---
+
+# Bloco 5 — Dispositivos Invasivos: Manual de Campos
+
+> 8 slots numerados (`disp_1..disp_8`). Status: "Ativo" ou "Removido".
+> Nomes de dispositivos em MAIÚSCULAS (CVC, TOT, SVD).
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/dispositivos.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `disp_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_DISPOSITIVOS` + `preencher_dispositivos()`
+- **Determinístico**: `modules/gerador.py` → `_secao_dispositivos()`
+
+---
+
+## Campos por Slot
+
+```python
+f'disp_{i}_nome'          # nome do dispositivo (ex: "CVC", "TOT", "SVD")
+f'disp_{i}_local'         # local de inserção (ex: "jugular direita")
+f'disp_{i}_data_insercao' # data de inserção
+f'disp_{i}_data_retirada' # data de retirada (apenas para removidos)
+f'disp_{i}_status'        # "Ativo" ou "Removido"
+f'disp_{i}_conduta'       # conduta — nunca preenchida pelo agente
+```
+
+Mais campo global: `dispositivos_notas` (nunca preenchido pelo agente).
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/dispositivos.py`
+- [ ] **`get_campos()`**: adicionar em `campos.update(...)` dentro do loop `for i in range(1, 9)`:
+  ```python
+  f'disp_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_dispositivos()`
+- [ ] Incluir o campo na linha gerada (linha ~361)
+- [ ] Respeitar agrupamento por status (Ativo vs Removido)
+- [ ] `_sigla_upper()` aplicado ao nome — aplicar ao novo campo se for sigla
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_DISPOSITIVOS`**: adicionar em `<VARIAVEIS>`
+- [ ] **`preencher_dispositivos()`**: mapear o campo
+  - **Atenção**: agente usa `disp_{i}_data_in` → mapeado para `disp_{i}_data_insercao`
+  - Agente usa `disp_{i}_data_out` → mapeado para `disp_{i}_data_retirada`
+  - Manter essas conversões ao adicionar campos
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Dispositivos Atuais
+1- CVC; jugular direita; 15/01 - Atual
+
+# Dispositivos Prévios
+2- SVD; 10/01 - 14/01
+```
+
+---
+
+## Regras Especiais
+
+- `_status`: EXATAMENTE "Ativo" ou "Removido"
+- `_nome` → passado por `_sigla_upper()` → MAIÚSCULAS
+- **Agente NÃO extrai** VNI, cateter nasal, máscara de Venturi
+- Reordenação via `disp_ordem`
+- UI: 4 visíveis, 5–8 em expander
+- `disp_{i}_conduta` → Bloco 14 automaticamente

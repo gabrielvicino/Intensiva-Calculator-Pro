@@ -1,0 +1,128 @@
+---
+description: Lembrete obrigatório — ao fazer qualquer alteração no projeto, verificar e atualizar os manuais e regras correspondentes
+alwaysApply: true
+---
+
+# ⚠️ CHECKLIST OBRIGATÓRIO ANTES DE FINALIZAR QUALQUER ALTERAÇÃO
+
+> **Sempre que fizer uma mudança no código**, percorra este checklist mentalmente e execute os itens aplicáveis. Não finalizar sem confirmar cada ponto relevante.
+
+---
+
+## 1. Alteração em qualquer campo de qualquer bloco (adicionar, remover, renomear)
+
+Verificar e atualizar os **3 locais obrigatórios** (regra `novos-campos.mdc`):
+
+- [ ] **Formulário** (`modules/secoes/<secao>.py`): `get_campos()` + widget na UI
+- [ ] **Gerador** (`modules/gerador.py`): função `_secao_*` correspondente
+- [ ] **Agente** (`modules/agentes_secoes.py`): prompt + schema JSON + `preencher_*`
+
+E adicionalmente verificar:
+
+- [ ] Se o campo novo tem correspondente no **Bloco 13 (Sistemas)** → atualizar mapeamento em `views/evolucao.py` → `_completar_blocos_sistemas`
+- [ ] Se é campo de **evolução 5 slots** → atualizar `_CAMPOS_ANTE_ONTEM_HOJE` em `sistemas.py`
+- [ ] Se é **conduta** (`*_conduta`) → aparece automaticamente no Bloco 14, não precisa alterar `condutas.py`
+
+---
+
+## 2. Atualizar o manual do bloco afetado
+
+Após qualquer alteração de campo em um bloco, **atualizar o manual correspondente**:
+
+| Bloco alterado | Arquivo de manual a atualizar |
+|---|---|
+| Bloco 1 — Identificação | `.cursor/rules/manual-bloco01-identificacao.mdc` |
+| Bloco 2 — HD | `.cursor/rules/manual-bloco02-hd.mdc` |
+| Bloco 3 — Comorbidades | `.cursor/rules/manual-bloco03-comorbidades.mdc` |
+| Bloco 4 — MUC | `.cursor/rules/manual-bloco04-muc.mdc` |
+| Bloco 5 — Dispositivos | `.cursor/rules/manual-bloco05-dispositivos.mdc` |
+| Bloco 6 — Culturas | `.cursor/rules/manual-bloco06-culturas.mdc` |
+| Bloco 7 — HMPA | `.cursor/rules/manual-bloco07-hmpa.mdc` |
+| Bloco 8 — Antibióticos | `.cursor/rules/manual-bloco08-antibioticos.mdc` |
+| Bloco 9 — Complementares | `.cursor/rules/manual-bloco09-complementares.mdc` |
+| Bloco 10 — Laboratoriais | `.cursor/rules/manual-bloco10-laboratoriais.mdc` |
+| Bloco 11 — Controles | `.cursor/rules/manual-bloco11-controles.mdc` |
+| Bloco 12 — Evolução Clínica | `.cursor/rules/manual-bloco12-evolucao-clinica.mdc` |
+| Bloco 13 — Sistemas | `.cursor/rules/manual-bloco13-sistemas.mdc` |
+| Bloco 14 — Condutas | `.cursor/rules/manual-bloco14-condutas.mdc` |
+| Bloco 15 — Prescrição | `.cursor/rules/manual-bloco15-prescricao.mdc` |
+
+---
+
+## 3. Alteração na página `views/evolucao.py`
+
+Se alterar qualquer coisa no fluxo principal da página:
+
+- [ ] Atualizar `.cursor/rules/manual-pagina-evolucao-diaria.mdc`
+  - Nova flag pendente → seção "Mapa completo de flags"
+  - Novo dialog → seção "Dialogs"
+  - Novo fluxo de botão → seção de fluxo correspondente
+  - Nova dependência de módulo → seção "Dependências"
+
+---
+
+## 4. Alteração em `modules/fichas.py`
+
+- [ ] Se alterar `render_formulario_completo()`: atualizar seção "fichas.render_formulario_completo()" no manual da página
+- [ ] Se alterar `_campos_base()`: verificar se todos os `get_campos()` dos módulos afetados também foram atualizados
+- [ ] Se alterar CSS em `_CSS_FORMULARIO`: documentar no manual da página
+
+---
+
+## 5. Alteração em `modules/gerador.py`
+
+- [ ] Se alterar `gerar_texto_final()` (ordem das seções): atualizar manual da página
+- [ ] Se alterar `_secao_laboratoriais()`, `_secao_controles()` ou `_secao_sistemas()`: atualizar manual do bloco correspondente
+- [ ] Se adicionar nova função utilitária (`_caps_*`, `_sigla_*`, etc.): documentar no manual da página
+
+---
+
+## 6. Alteração em parsers (`parser_lab.py`, `parser_controles.py`, `parser_sistemas.py`)
+
+- [ ] Se adicionar novo campo reconhecido no `_SIGLAS_CAMPOS` (parser_lab) → atualizar manual-bloco10
+- [ ] Se alterar formato esperado de entrada → atualizar manual da página (seção "Parsers")
+- [ ] Se alterar mapeamento de slots por data → atualizar manual do bloco afetado
+
+---
+
+## 7. Alteração em `modules/agentes_secoes.py`
+
+- [ ] Se alterar `_AGENTES`, `_NOTAS_MAP` ou `NOMES_SECOES` → atualizar manual da página (seção "Dicionários de Roteamento")
+- [ ] Se alterar `_chamar_ia` ou `_REGRA_DATA` → atualizar manual da página (seção "Configuração de IA")
+
+---
+
+## 8. Alteração em `modules/fluxo.py`
+
+- [ ] Se alterar `limpar_tudo()` (adicionar/remover campos que precisam de reset especial) → atualizar manual da página
+- [ ] Se alterar `atualizar_notas_ia()` ou `_MAPA_NOTAS` → atualizar manual da página
+
+---
+
+## Quando NÃO é necessário atualizar manuais
+
+- Correções de bug sem mudança de interface/campos
+- Ajustes de CSS/visual que não mudam comportamento
+- Refatorações internas sem mudança de API pública das funções
+- Alterações em textos de placeholder, labels, tooltips (a menos que mudem o comportamento)
+
+---
+
+## Resumo rápido: "O que devo perguntar a mim mesmo antes de finalizar?"
+
+```
+1. Adicionei/removi/renomeei algum campo?
+   → Verifique: get_campos() + gerador + agente + manual do bloco
+
+2. Alterei o fluxo de algum botão ou flag?
+   → Verifique: manual-pagina-evolucao-diaria.mdc
+
+3. Alterei como os dados de um bloco alimentam outro?
+   → Verifique: _completar_blocos_sistemas em evolucao.py + manual-bloco13
+
+4. Alterei o formato de entrada ou saída de algum parser?
+   → Verifique: manual do bloco + manual da página (seção Parsers)
+
+5. Alterei algo em fichas.py, gerador.py, fluxo.py ou agentes_secoes.py?
+   → Verifique: manual-pagina-evolucao-diaria.mdc (seção correspondente)
+```

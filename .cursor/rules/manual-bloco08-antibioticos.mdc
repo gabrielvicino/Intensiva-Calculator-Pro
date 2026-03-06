@@ -1,0 +1,83 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 8 — Antibióticos
+alwaysApply: true
+---
+
+# Bloco 8 — Antibióticos: Manual de Campos
+
+> 8 slots numerados (`atb_1..atb_8`). Status: "Atual" ou "Prévio".
+> Cálculo automático de dias de uso. Foco aplicado em MAIÚSCULAS.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/antibioticos.py` → `render()`
+- **Campos**: `get_campos()` → prefixo `atb_{i}_`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_ANTIBIOTICOS` + `preencher_antibioticos()`
+- **Determinístico**: `modules/gerador.py` → `_secao_antibioticos()`
+
+---
+
+## Campos por Slot
+
+```python
+f'atb_{i}_nome'       # nome do ATB (DCI obrigatório)
+f'atb_{i}_foco'       # foco (ex: "PAV", "IVU") — sai em MAIÚSCULAS
+f'atb_{i}_tipo'       # "Empírico" ou "Guiado por Cultura"
+f'atb_{i}_data_ini'   # data início DD/MM/AAAA
+f'atb_{i}_data_fim'   # data fim DD/MM/AAAA (prevista para atual)
+f'atb_{i}_num_dias'   # nº de dias programados (string; se preenchido, sobreescreve cálculo)
+f'atb_{i}_status'     # "Atual" ou "Prévio"
+f'atb_{i}_obs'        # observação livre (ex: motivo suspensão em prévios)
+f'atb_{i}_conduta'    # conduta — nunca preenchida pelo agente
+```
+
+Mais campo global: `antibioticos_notas` (nunca preenchido pelo agente).
+
+---
+
+## Adicionar Novo Campo num Slot
+
+### 1. `modules/secoes/antibioticos.py`
+- [ ] **`get_campos()`**: adicionar em `campos.update(...)` dentro do loop `for i in range(1, 9)`:
+  ```python
+  f'atb_{i}_novo_campo': '',
+  ```
+- [ ] **`render()`**: adicionar widget no lugar correto do slot
+
+### 2. `modules/gerador.py` → `_secao_antibioticos()`
+- [ ] Incluir o campo na linha gerada para Atual ou Prévio (linha ~541)
+- [ ] Campo vazio → não gera trecho na linha
+- [ ] Nota: `_obs` existe no `get_campos()` mas **não é lido no gerador atual** — se quiser que apareça, adicionar explicitamente
+
+### 3. `modules/agentes_secoes.py`
+- [ ] **`_PROMPT_ANTIBIOTICOS`**: adicionar em `<VARIAVEIS>`:
+  ```
+  - atb_{i}_novo_campo (string): Descrição.
+  ```
+- [ ] **`preencher_antibioticos()`**: mapear o campo
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Antibiótico Atual
+1- Piperacilina-Tazobactam; Foco PAV; Empírico; 15/01 → 22/01 (Programado 7 dias)
+
+# Antibiótico Prévio
+2- Vancomicina; Foco SASM; Guiado por Cultura; 10/01 - 14/01 (Uso por 4 dias)
+```
+
+---
+
+## Regras Especiais
+
+- `_tipo`: EXATAMENTE "Empírico" ou "Guiado por Cultura"
+- `_status`: EXATAMENTE "Atual" ou "Prévio"
+- `_foco` → passado por `_sigla_upper()` → MAIÚSCULAS
+- `num_dias` tem prioridade sobre cálculo automático; se já contém "dia" não adiciona sufixo
+- Reordenação via `atb_ordem` no session_state
+- UI: 4 visíveis, 5–8 em expander
+- `atb_{i}_conduta` → Bloco 14 automaticamente

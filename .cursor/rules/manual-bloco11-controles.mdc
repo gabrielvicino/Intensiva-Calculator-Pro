@@ -1,0 +1,140 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 11 — Controles & Balanço Hídrico
+alwaysApply: true
+---
+
+# Bloco 11 — Controles & Balanço Hídrico: Manual de Campos
+
+> Ao criar ou remover um campo neste bloco, siga o checklist abaixo.
+> Existem dois tipos de campo: **min/max** (vitais: PAS, FC, etc.) e **simples** (Diurese, BH).
+> Os dias são sempre: `hoje`, `ontem`, `anteontem`, `ant4`, `ant5`.
+
+---
+
+## Arquitetura do Bloco 11
+
+- **UI + deslocamento + get_campos**: `modules/secoes/controles.py` — tudo controlado por `_PARAMS`
+- **Parser determinístico**: `modules/parser_controles.py`
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_CONTROLES`
+- **Determinístico**: `modules/gerador.py` → `_secao_controles()` + `_linha_dia()`
+- **Tabela Comparativa** ("Comparar"): `modules/gerador.py` → `gerar_html_controles()`
+- **Mapeamento para Bloco 13**: `views/evolucao.py` → bloco `_completar_blocos_sistemas` (linha ~577)
+
+---
+
+## PONTO CENTRAL: `_PARAMS` em `controles.py`
+
+```python
+_PARAMS = [
+    ("chave", "Label do Campo", True),   # True = tem min/max
+    ("chave", "Label do Campo", False),  # False = valor simples
+]
+```
+
+**`get_campos()`, `_deslocar_dias()` e `render()` iteram sobre `_PARAMS` automaticamente.**
+Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adicional.
+
+---
+
+## Checklist — Campo MIN/MAX (vitais: PAS, FC, Temp, etc.)
+
+### 1. `modules/secoes/controles.py`
+- [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", True)`
+  - `get_campos`, `_deslocar_dias`, `render` são automáticos
+
+### 2. `modules/gerador.py` — `_secao_controles()`
+- [ ] **`_PARAMS_MM`** (linha ~844): adicionar `("Label Saída", "chave")`
+  ```python
+  ("NovoCampo", "nova_chave"),
+  ```
+
+### 3. `modules/gerador.py` — `gerar_html_controles()`
+- [ ] **`_VITAIS`** (linha ~1762): adicionar `("Label", "chave")`
+  - Será processado automaticamente por `_add_mm()`
+
+### 4. `modules/parser_controles.py`
+- [ ] **`MAP_VITAIS`** (linha ~115): adicionar `("SiglaNoProntuário", "chave")`
+  ```python
+  ("NovaSigla", "nova_chave"),
+  ```
+
+### 5. `modules/agentes_secoes.py` — `_PROMPT_CONTROLES`
+- [ ] Adicionar em **todos os 5 blocos de dia** (`hoje`, `ontem`, `anteontem`, `ant4`, `ant5`):
+  ```
+  - ctrl_hoje_chave_min (string): Valor mínimo.
+  - ctrl_hoje_chave_max (string): Valor máximo.
+  ```
+- [ ] `preencher_controles()`: **não precisa editar**
+
+### 6. Bloco 13 — vitais **não mapeiam** para sistemas (nenhuma ação necessária)
+
+---
+
+## Checklist — Campo SIMPLES (Diurese, Balanço, valores únicos)
+
+### 1. `modules/secoes/controles.py`
+- [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", False)`
+  - `get_campos`, `_deslocar_dias`, `render` são automáticos
+
+### 2. `modules/gerador.py` — `_linha_dia()` dentro de `_secao_controles()`
+- [ ] Ler o valor do campo (linha ~860):
+  ```python
+  novo_campo = _get(f"ctrl_{dia}_nova_chave").strip()
+  ```
+- [ ] Adicionar na guarda de linha vazia (linha ~863):
+  ```python
+  if not any([data, vitais, diurese, balanco, novo_campo]):
+  ```
+- [ ] Gerar saída (seguindo padrão de `bh_parts`):
+  ```python
+  if novo_campo:
+      bh_parts.append(f"NovoCampo {novo_campo}")
+  ```
+
+### 3. `modules/gerador.py` — `gerar_html_controles()`
+- [ ] Linha ~1808 — adicionar `_add_single("Label", "chave")` na seção correta
+
+### 4. `modules/parser_controles.py`
+- [ ] Adicionar bloco `re.search` após parse do balanço (linha ~130):
+  ```python
+  m_novo = re.search(r"NovaSigla:\s*([^|]+)", linha_relevante, re.IGNORECASE)
+  if m_novo:
+      resultado[f"ctrl_{dia}_nova_chave"] = m_novo.group(1).strip()
+  ```
+
+### 5. `modules/agentes_secoes.py` — `_PROMPT_CONTROLES`
+- [ ] Adicionar em **todos os 5 blocos de dia**:
+  ```
+  - ctrl_hoje_chave (string): Descrição do valor.
+  ```
+- [ ] `preencher_controles()`: **não precisa editar**
+
+### 6. Se campo deve alimentar Bloco 13 — `views/evolucao.py` (linha ~577)
+- [ ] Adicionar mapeamento (padrão dos campos diurese/balanco):
+  ```python
+  _set("sis_SISTEMA_campo", _limpar(st.session_state.get("ctrl_hoje_chave", "")))
+  for sis_suf, ctrl_suf in [("hoje","hoje"),("ult","ontem"),("antepen","anteontem"),("ant4","ant4"),("ant5","ant5")]:
+      _set(f"sis_SISTEMA_campo_{sis_suf}", _limpar(st.session_state.get(f"ctrl_{ctrl_suf}_chave", "")))
+  ```
+- [ ] Verificar campo correspondente em `sistemas.py` e `gerador.py → _secao_sistemas()`
+
+---
+
+## Campos já mapeados Bloco 11 → Bloco 13
+
+| Campo Controles | Destino sis_ | Obs |
+|---|---|---|
+| `ctrl_hoje_diurese` | `sis_renal_diurese` | Campo direto (hoje apenas) |
+| `ctrl_hoje_balanco` | `sis_renal_balanco` | Campo direto (hoje apenas) |
+| `ctrl_{dia}_diurese` | `sis_renal_diu_{sis_suf}` | 5 dias — evolução |
+| `ctrl_{dia}_balanco` | `sis_renal_bh_{sis_suf}` | 5 dias — evolução |
+
+> Vitais (PAS, PAD, PAM, FC, FR, SatO2, Temp, Glic) **não mapeiam para Bloco 13**.
+
+---
+
+## Regras Especiais
+
+- **`preencher_controles()`** não tem pós-processamento — o JSON da IA vai direto ao `session_state`
+- **Dias ativos** em `gerar_html_controles()` são detectados por `("data", "pas_min", "diurese", "balanco")` — ao adicionar campo simples novo, avaliar se deve entrar nessa detecção
+- **Deslocamento**: ao clicar "Evolução Hoje", `ant5` é descartado, todos os outros avançam um slot, `hoje` fica vazio

@@ -124,167 +124,222 @@ def get_campos():
         })
     return campos
 
-# Títulos dos slots: 1=Hoje, 2=Ontem, 3=Anteontem, 4=Lab Admissão/Externo, 5+=Anteriores
+# Títulos dos slots
 _SLOT_TITULOS = {
     1: "Hoje",
     2: "Ontem",
     3: "Anteontem",
-    4: "Laboratoriais Admissão / Externo",
+    4: "Admissão / Externo",
 }
 
+_SEC_STYLE = (
+    'font-size:0.73rem;font-weight:700;color:#1565c0;'
+    'text-transform:uppercase;letter-spacing:.06em;'
+    'border-top:1px solid #dee2e6;margin-top:4px;padding:4px 0 2px 0;'
+)
 
-def _render_slot(i):
-    titulo = _SLOT_TITULOS.get(i) or f"Resultado Anterior #{i}"
-    
-    with st.container(border=True):
-        # Cabeçalho: Data
-        c_tit, c_date = st.columns([2, 1], vertical_alignment="center")
-        c_tit.markdown(f"**{titulo}**")
-        c_date.text_input(f"Data #{i}", key=f'lab_{i}_data', placeholder="DD/MM/AAAA", label_visibility="collapsed")
-        
-        # LINHA 1: Hemato
-        cols1 = st.columns([1, 1, 1, 1, 1, 2.5, 1.2])
-        with cols1[0]: st.text_input("Hb", key=f'lab_{i}_hb')
-        with cols1[1]: st.text_input("Ht", key=f'lab_{i}_ht')
-        with cols1[2]: st.text_input("VCM", key=f'lab_{i}_vcm')
-        with cols1[3]: st.text_input("HCM", key=f'lab_{i}_hcm')
-        with cols1[4]: st.text_input("RDW", key=f'lab_{i}_rdw')
-        with cols1[5]: st.text_input("Leuco (Dif)", key=f'lab_{i}_leuco', placeholder="Total (Seg/Bast)")
-        with cols1[6]: st.text_input("Plaq", key=f'lab_{i}_plaq')
-        
-        # LINHA 2: Renal
-        cols2 = st.columns(8)
-        with cols2[0]: st.text_input("Cr", key=f'lab_{i}_cr')
-        with cols2[1]: st.text_input("Ur", key=f'lab_{i}_ur')
-        with cols2[2]: st.text_input("Na", key=f'lab_{i}_na')
-        with cols2[3]: st.text_input("K", key=f'lab_{i}_k')
-        with cols2[4]: st.text_input("Mg", key=f'lab_{i}_mg')
-        with cols2[5]: st.text_input("Pi", key=f'lab_{i}_pi')
-        with cols2[6]: st.text_input("CaT", key=f'lab_{i}_cat')
-        with cols2[7]: st.text_input("CaI", key=f'lab_{i}_cai')
 
-        # LINHA 3: Hepático
-        cols3 = st.columns(10)
-        with cols3[0]: st.text_input("TGP", key=f'lab_{i}_tgp')
-        with cols3[1]: st.text_input("TGO", key=f'lab_{i}_tgo')
-        with cols3[2]: st.text_input("FAL", key=f'lab_{i}_fal')
-        with cols3[3]: st.text_input("GGT", key=f'lab_{i}_ggt')
-        with cols3[4]: st.text_input("BT", key=f'lab_{i}_bt')
-        with cols3[5]: st.text_input("BD", key=f'lab_{i}_bd')
-        with cols3[6]: st.text_input("Prot Tot", key=f'lab_{i}_prot_tot')
-        with cols3[7]: st.text_input("Alb", key=f'lab_{i}_alb')
-        with cols3[8]: st.text_input("Amil", key=f'lab_{i}_amil')
-        with cols3[9]: st.text_input("Lipas", key=f'lab_{i}_lipas')
+def _render_labs_table(slots: list):
+    """
+    Layout vertical: linhas = parâmetros, colunas = dias.
 
-        # LINHA 4: Cardio/Coag
-        cols4 = st.columns(8)
-        with cols4[0]: st.text_input("CPK", key=f'lab_{i}_cpk')
-        with cols4[1]: st.text_input("CPK-MB", key=f'lab_{i}_cpk_mb')
-        with cols4[2]: st.text_input("BNP", key=f'lab_{i}_bnp')
-        with cols4[3]: st.text_input("Trop", key=f'lab_{i}_trop')
-        with cols4[4]: st.text_input("PCR", key=f'lab_{i}_pcr')
-        with cols4[5]: st.text_input("VHS", key=f'lab_{i}_vhs')
-        with cols4[6]: st.text_input("TP", key=f'lab_{i}_tp')
-        with cols4[7]: st.text_input("TTPa", key=f'lab_{i}_ttpa')
+    • A coluna do PRIMEIRO slot mostra labels visíveis (label_visibility="visible").
+    • As demais usam label_visibility="hidden": o label fica invisível mas ocupa o
+      mesmo espaço → alinhamento perfeito sem depender de alturas fixas em px.
+    • Tab desce dentro de cada coluna (DOM order: col1 completa → col2 → ...).
+    """
+    # Primeira coluna levemente mais larga (comporta labels visíveis)
+    col_widths = [1.3] + [1] * (len(slots) - 1)
+    cols = st.columns(col_widths)
+    day_cols = list(cols)
+    first = slots[0]
 
-        # LINHA 5: Urina (Sem separador visual, apenas label discreto)
-        st.caption("Urina (EAS)")
-        u1, u2, u3, u4, u5, u6, u7, u8 = st.columns(8)
-        with u1: st.text_input("Dens", key=f'lab_{i}_ur_dens')
-        with u2: st.text_input("L.Est", key=f'lab_{i}_ur_le')
-        with u3: st.text_input("Nit", key=f'lab_{i}_ur_nit')
-        with u4: st.text_input("Leuco", key=f'lab_{i}_ur_leu')
-        with u5: st.text_input("Hm", key=f'lab_{i}_ur_hm')
-        with u6: st.text_input("Prot", key=f'lab_{i}_ur_prot')
-        with u7: st.text_input("Cet", key=f'lab_{i}_ur_cet')
-        with u8: st.text_input("Glic", key=f'lab_{i}_ur_glic')
+    def _lv(slot):
+        return "visible" if slot == first else "hidden"
 
-        # GASOMETRIA — expander com até 3 gasometrias
-        def _render_gas_block(slot, gn):
-            """Renderiza um bloco de gasometria. gn=1 usa prefixo 'gas', gn=2 'gas2', gn=3 'gas3'."""
-            p  = "gas" if gn == 1 else f"gas{gn}"
-            kv = f"lab_{slot}_{p}v_pco2"
-            ks = f"lab_{slot}_svo2"       if gn == 1 else f"lab_{slot}_{p}_svo2"
+    def _sec(title):
+        for dc, slot in zip(day_cols, slots):
+            text = title if slot == first else "&nbsp;"
+            with dc:
+                st.markdown(f'<div style="{_SEC_STYLE}">{text}</div>',
+                            unsafe_allow_html=True)
 
-            _tipo_key = f"lab_{slot}_{p}_tipo"
-            if st.session_state.get(_tipo_key) not in (None, "Arterial", "Venosa", "Pareada"):
-                st.session_state[_tipo_key] = None
+    def _row(label, suf, placeholder=""):
+        for dc, slot in zip(day_cols, slots):
+            with dc:
+                st.text_input(label, key=f"lab_{slot}_{suf}",
+                              label_visibility=_lv(slot), placeholder=placeholder)
 
-            _c_hora, _c_pills, _c_esp = st.columns([1, 3, 4])
-            with _c_hora:
-                st.text_input("Hora", key=f"lab_{slot}_{p}_hora", placeholder="16h", label_visibility="collapsed")
-            with _c_pills:
-                st.pills(f"Gaso {gn} #{slot}", ["Arterial", "Venosa", "Pareada"], key=_tipo_key, label_visibility="collapsed")
+    def _row_pills(label, gprefix, gn):
+        for dc, slot in zip(day_cols, slots):
+            with dc:
+                _tipo_key = f"lab_{slot}_{gprefix}_tipo"
+                if st.session_state.get(_tipo_key) not in (None, "Arterial", "Venosa", "Pareada"):
+                    st.session_state[_tipo_key] = None
+                st.pills(f"T{gn}s{slot}", ["Arterial", "Venosa", "Pareada"],
+                         key=_tipo_key, label_visibility=_lv(slot))
 
-            ga = st.columns(6)
-            with ga[0]: st.text_input("pH",    key=f"lab_{slot}_{p}_ph")
-            with ga[1]: st.text_input("pCO2",  key=f"lab_{slot}_{p}_pco2")
-            with ga[2]: st.text_input("pO2",   key=f"lab_{slot}_{p}_po2")
-            with ga[3]: st.text_input("HCO3",  key=f"lab_{slot}_{p}_hco3")
-            with ga[4]: st.text_input("BE",    key=f"lab_{slot}_{p}_be")
-            with ga[5]: st.text_input("SatO2", key=f"lab_{slot}_{p}_sat")
-
-            gb = st.columns(6)
-            with gb[0]: st.text_input("Lac",  key=f"lab_{slot}_{p}_lac")
-            with gb[1]: st.text_input("AG",   key=f"lab_{slot}_{p}_ag")
-            with gb[2]: st.text_input("Cl",   key=f"lab_{slot}_{p}_cl")
-            with gb[3]: st.text_input("Na",   key=f"lab_{slot}_{p}_na")
-            with gb[4]: st.text_input("K",    key=f"lab_{slot}_{p}_k")
-            with gb[5]: st.text_input("Cai",  key=f"lab_{slot}_{p}_cai")
-
-            gc1, gc2, gc3 = st.columns([1, 1, 4])
-            with gc1: st.text_input("pCO2(v)", key=kv)
-            with gc2: st.text_input("SvO2",    key=ks)
-
-        st.caption("Gasometria")
-        _render_gas_block(i, 1)
-
-        with st.expander("+ Gasometrias anteriores", expanded=False):
-            _render_gas_block(i, 2)
-            st.divider()
-            _render_gas_block(i, 3)
-
-        # LINHA 8: Outros
-        st.text_input(
-            "Outros", 
-            key=f'lab_{i}_outros', 
-            placeholder="Ex: Culturas parciais, Níveis séricos, etc."
-        )
-
-        # LINHA 9: Conduta (EM LINHA, dentro do bloco)
-        st.text_input(
-                "Conduta Laboratorial",
-                key=f"lab_{i}_conduta",
-                label_visibility="collapsed",
-                placeholder="Escreva a conduta aqui..."
+    # ── Cabeçalho de dia + Data ──────────────────────────────────
+    for dc, slot in zip(day_cols, slots):
+        titulo = _SLOT_TITULOS.get(slot, f"Exame #{slot}")
+        with dc:
+            st.markdown(
+                f'<div style="text-align:center;font-size:0.82rem;font-weight:700;'
+                f'color:#1a73e8;padding-bottom:2px;">{titulo}</div>',
+                unsafe_allow_html=True,
             )
+    _row("Data", "data", "DD/MM/AAAA")
+
+    # ── Hematologia ──────────────────────────────────────────────
+    _sec("Hematologia")
+    _row("Hb",   "hb")
+    _row("Ht",   "ht")
+    _row("VCM",  "vcm")
+    _row("HCM",  "hcm")
+    _row("RDW",  "rdw")
+    for dc, slot in zip(day_cols, slots):
+        with dc:
+            st.text_input("Leuco (Dif)", key=f"lab_{slot}_leuco",
+                          label_visibility=_lv(slot), placeholder="Total (Seg/Bast)")
+    _row("Plaq", "plaq")
+
+    # ── Renal / Eletrólitos ──────────────────────────────────────
+    _sec("Renal / Eletrólitos")
+    _row("Cr",  "cr")
+    _row("Ur",  "ur")
+    _row("Na",  "na")
+    _row("K",   "k")
+    _row("Mg",  "mg")
+    _row("Pi",  "pi")
+    _row("CaT", "cat")
+    _row("CaI", "cai")
+
+    # ── Hepático / Pancreático ────────────────────────────────────
+    _sec("Hepático / Pancreático")
+    _row("TGP",      "tgp")
+    _row("TGO",      "tgo")
+    _row("FAL",      "fal")
+    _row("GGT",      "ggt")
+    _row("BT",       "bt")
+    _row("BD",       "bd")
+    _row("Prot Tot", "prot_tot")
+    _row("Alb",      "alb")
+    _row("Amil",     "amil")
+    _row("Lipas",    "lipas")
+
+    # ── Cardiologia / Hematologia / Inflamatórios ─────────────────
+    _sec("Cardiologia / Hematologia / Inflamatórios")
+    _row("CPK",    "cpk")
+    _row("CPK-MB", "cpk_mb")
+    _row("BNP",    "bnp")
+    _row("Trop",   "trop")
+    _row("PCR",    "pcr")
+    _row("VHS",    "vhs")
+    _row("TP",     "tp")
+    _row("TTPa",   "ttpa")
+
+    # ── Gasometria 1 ─────────────────────────────────────────────
+    _sec("Gasometria")
+    _row("Hora",    "gas_hora",  "16h")
+    _row_pills("Tipo", "gas", 1)
+    _row("pH",      "gas_ph")
+    _row("pCO2",    "gas_pco2")
+    _row("pO2",     "gas_po2")
+    _row("HCO3",    "gas_hco3")
+    _row("BE",      "gas_be")
+    _row("SatO2",   "gas_sat")
+    _row("Lac",     "gas_lac")
+    _row("AG",      "gas_ag")
+    _row("Cl",      "gas_cl")
+    _row("Na (g)",  "gas_na")
+    _row("K (g)",   "gas_k")
+    _row("CaI (g)", "gas_cai")
+    _row("pCO2(v)", "gasv_pco2")
+    _row("SvO2",    "svo2")
+
+    # ── Urina (EAS) ──────────────────────────────────────────────
+    _sec("Urina (EAS)")
+    _row("Dens",      "ur_dens")
+    _row("L.Est",     "ur_le")
+    _row("Nit",       "ur_nit")
+    _row("Leuco (U)", "ur_leu")
+    _row("Hm",        "ur_hm")
+    _row("Prot",      "ur_prot")
+    _row("Cet",       "ur_cet")
+    _row("Glic",      "ur_glic")
+
+    # ── Outros & Conduta ─────────────────────────────────────────
+    _sec("Outros")
+    _row("Não Transcritos", "outros", "Culturas, níveis séricos...")
+    for dc, slot in zip(day_cols, slots):
+        with dc:
+            st.text_input("Conduta", key=f"lab_{slot}_conduta",
+                          label_visibility="collapsed",
+                          placeholder="Escreva a conduta aqui...")
+
+
+def _render_gas_extras(slots: list):
+    """Gasometrias 2 e 3 — em expander abaixo da tabela principal."""
+    with st.expander("Gasometrias adicionais (Gas 2 / Gas 3)", expanded=False):
+        gas_cols = st.columns(len(slots))
+        for gc, slot in zip(gas_cols, slots):
+            titulo = _SLOT_TITULOS.get(slot, f"#{slot}")
+            with gc:
+                st.markdown(f"**{titulo}**")
+                for gn, gp in [(2, "gas2"), (3, "gas3")]:
+                    st.caption(f"Gas {gn}")
+                    _tipo_key = f"lab_{slot}_{gp}_tipo"
+                    if st.session_state.get(_tipo_key) not in (None, "Arterial", "Venosa", "Pareada"):
+                        st.session_state[_tipo_key] = None
+                    _c_hora, _c_tipo = st.columns([1, 2])
+                    with _c_hora:
+                        st.text_input("Hora", key=f"lab_{slot}_{gp}_hora",
+                                      placeholder="16h", label_visibility="collapsed")
+                    with _c_tipo:
+                        st.pills(f"T{gn}s{slot}", ["Arterial", "Venosa", "Pareada"],
+                                 key=_tipo_key, label_visibility="collapsed")
+                    kv = f"lab_{slot}_{gp}v_pco2"
+                    ks = f"lab_{slot}_{gp}_svo2"
+                    for lbl, suf in [
+                        ("pH", f"{gp}_ph"), ("pCO2", f"{gp}_pco2"), ("pO2", f"{gp}_po2"),
+                        ("HCO3", f"{gp}_hco3"), ("BE", f"{gp}_be"), ("SatO2", f"{gp}_sat"),
+                        ("Lac", f"{gp}_lac"), ("AG", f"{gp}_ag"), ("Cl", f"{gp}_cl"),
+                        ("Na", f"{gp}_na"), ("K", f"{gp}_k"), ("CaI", f"{gp}_cai"),
+                    ]:
+                        st.text_input(lbl, key=f"lab_{slot}_{suf}",
+                                      label_visibility="visible")
+                    st.text_input("pCO2(v)", key=kv)
+                    st.text_input("SvO2",    key=ks)
+                    if gn == 2:
+                        st.divider()
+
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
     st.markdown('<span id="sec-10"></span>', unsafe_allow_html=True)
     st.markdown("##### 10. Exames Laboratoriais")
 
-    st.text_area("Notas", key="laboratoriais_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
+    st.text_area("Notas", key="laboratoriais_notas", height="content",
+                 placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")
 
-    # Botões: Evolução Hoje | Parsing Exames | Completar Campos | Extrair Exames | Comparar
+    # Botões
     _bcol1, _bcol2, _bcol3, _bcol4, _bcol5 = st.columns([1, 1, 1, 1, 1])
     with _bcol1:
-        evo_clicked = st.form_submit_button(
+        if st.form_submit_button(
             "Evolução Hoje",
             key="btn_evolucao_hoje_lab",
             use_container_width=True,
             help="Último Resultado vira Anterior #2, Anterior #2 vira #3, etc. Slot 1 fica vazio para novos exames.",
-        )
-        if evo_clicked:
+        ):
             _deslocar_laboratoriais()
-            st.toast("✅ Resultados deslocados. Último → Anterior #2, etc. Slot 1 pronto para preenchimento.", icon="✅")
+            st.toast("✅ Resultados deslocados.", icon="✅")
     with _bcol2:
         if st.form_submit_button(
             "Parsing Exames",
             key="_fsbtn_lab_deterministico",
             use_container_width=True,
-            help="Preenche deterministicamente (DD/MM – Hb x | Ht x | ...). Não perde dados já preenchidos.",
+            help="Preenche deterministicamente. Não perde dados já preenchidos.",
         ):
             st.session_state["_lab_deterministico_pendente"] = True
     with _bcol3:
@@ -303,17 +358,15 @@ def render(_agent_btn_callback=None):
             "Comparar",
             key="_fsbtn_comparar_lab",
             use_container_width=True,
-            help="Abre tabela comparativa com todos os campos (hemato, bioquímica, gasometria, urina)",
+            help="Abre tabela comparativa com todos os campos",
         ):
             st.session_state["_comparar_lab_pendente"] = True
 
-    # --- 4 Slots VISÍVEIS (Hoje, Ontem, Anteontem, Lab Externos) ---
-    for i in range(1, 5):
-        _render_slot(i)
-        st.write("")
-    
-    # --- Demais exames (fechado por padrão) ---
+    # ── Tabela principal: slots 1–4 ──────────────────────────────
+    _render_labs_table([1, 2, 3, 4])
+    _render_gas_extras([1, 2, 3, 4])
+
+    # ── Demais exames: slots 5–10 ────────────────────────────────
     with st.expander("Demais exames", expanded=False):
-        for i in range(5, 11):
-            _render_slot(i)
-            st.write("")
+        _render_labs_table([5, 6, 7, 8, 9, 10])
+        _render_gas_extras([5, 6, 7, 8, 9, 10])

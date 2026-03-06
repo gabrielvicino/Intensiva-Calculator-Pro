@@ -1,0 +1,112 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 10 — Exames Laboratoriais
+alwaysApply: true
+---
+
+# Bloco 10 — Exames Laboratoriais: Manual de Campos
+
+> Ao criar ou remover um campo neste bloco, siga o checklist abaixo **na ordem indicada**.
+> Slots 1–3 são preenchidos pelo agente IA. Slot 4 (Admissão/Externo) é **sempre manual**. Slots 5–10 são histórico.
+
+---
+
+## Arquitetura do Bloco 10
+
+- **UI**: `modules/secoes/laboratoriais.py` → `_render_labs_table()`
+- **Deslocamento** ("Evolução Hoje"): controlado por `_LAB_SUFIXOS` — lista única de sufixos
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_LABORATORIAIS` + `preencher_laboratoriais()`
+- **Determinístico**: `modules/gerador.py` → `_secao_laboratoriais()`
+- **Tabela Comparativa** ("Comparar"): `modules/gerador.py` → `gerar_html_labs()`
+- **Mapeamento para Bloco 13**: `views/evolucao.py` → bloco `_completar_blocos_sistemas`
+
+---
+
+## Checklist — Campo Comum (bioquímica/hemato/coag/inflam)
+
+### 1. `modules/secoes/laboratoriais.py`
+- [ ] **`_LAB_SUFIXOS`** (linha ~4): adicionar o sufixo na posição correta
+- [ ] **`get_campos()`** (linha ~69): adicionar `f'lab_{i}_SUFIXO': ''` no loop `for i in range(1,11)`
+- [ ] **`_render_labs_table()`**: adicionar `_row("Label", "sufixo")` na seção visual correta
+
+### 2. `modules/gerador.py` — `_secao_laboratoriais()`
+- [ ] **`_MAIN`** (linha ~690): adicionar `("Label", "sufixo")` na posição correta
+  - Exceção: campos compostos como BT/BD usam chave especial `"__bt_bd__"` com lógica customizada
+
+### 3. `modules/gerador.py` — `gerar_html_labs()`
+- [ ] Adicionar `_add("Label", "sufixo")` na seção HTML correspondente (linha ~1684–1743)
+
+### 4. `modules/agentes_secoes.py` — `_PROMPT_LABORATORIAIS`
+- [ ] Adicionar em `<VARIAVEIS>` para **lab_1, lab_2 E lab_3** (3 vezes):
+  ```
+  - lab_1_sufixo (string): Descrição do que extrair.
+  ```
+- [ ] Se campo tem regra especial de extração: adicionar em "REGRAS DE MAPEAMENTO CLÍNICO" (linha ~1426)
+- [ ] **Condutas NUNCA são preenchidas pelo agente** — sempre `""`
+
+### 5. Se campo deve alimentar Bloco 13 — `views/evolucao.py`
+- [ ] Adicionar no bloco `_completar_blocos_sistemas`:
+  ```python
+  for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:
+      _set(f"sis_SISTEMA_CAMPO_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_sufixo","")))
+  ```
+- [ ] Verificar se o campo correspondente existe em `modules/secoes/sistemas.py` e `modules/gerador.py → _secao_sistemas()`
+
+---
+
+## Checklist — Campo de Urina (prefixo `ur_`)
+
+Igual ao campo comum, com diferenças:
+- [ ] **`_EAS`** em `_secao_laboratoriais()` (linha ~709): adicionar `("Label", "ur_sufixo")`
+- [ ] Seção "Urina (EAS)" em `_render_labs_table()` e em `gerar_html_labs()`
+- [ ] **Não mapeia para Bloco 13** (nenhum campo de urina tem correspondente em sistemas)
+
+---
+
+## Checklist — Campo DENTRO da Gasometria (parâmetro de gás)
+
+- [ ] `_LAB_SUFIXOS`: adicionar `"gas_sufixo"`, `"gas2_sufixo"`, `"gas3_sufixo"` (3 vezes)
+- [ ] `get_campos()`: `f'lab_{i}_gas_sufixo': ''` + gas2 + gas3 (3 vezes)
+- [ ] `_render_labs_table()`: adicionar `_row("Label", "gas_sufixo")` na seção Gasometria 1
+- [ ] `_render_gas_extras()`: adicionar para gas2 e gas3
+- [ ] **`_GAS_CAMPOS`** em `_secao_laboratoriais()` (linha ~703): adicionar `("Label", "sufixo")`
+- [ ] `gerar_html_labs()`: adicionar na seção de gasometria
+- [ ] `_PROMPT_LABORATORIAIS`: adicionar em 9 posições (lab_1/2/3 × gas_/gas2_/gas3_)
+- [ ] `preencher_laboratoriais()`: se campo tem inferência automática (como tipo Arterial/Venosa), adicionar lógica
+
+---
+
+## Campos já mapeados Bloco 10 → Bloco 13
+
+| Campo lab | Destino sis_ |
+|---|---|
+| `hb` | `sis_hemato_hb` |
+| `plaq` | `sis_hemato_plaq` |
+| `tp` | `sis_hemato_inr` |
+| `ttpa` | `sis_hemato_ttpa` |
+| `cr` | `sis_renal_cr` |
+| `ur` | `sis_renal_ur` |
+| `na` | `sis_renal_na` |
+| `k` | `sis_renal_k` |
+| `mg` | `sis_renal_mg` |
+| `pi` | `sis_renal_fos` |
+| `cai` | `sis_renal_cai` |
+| `pcr` | `sis_infec_pcr` |
+| `leuco` | `sis_infec_leuc` |
+| `vhs` | `sis_infec_vhs` |
+| `tgo` | `sis_gastro_tgo` |
+| `tgp` | `sis_gastro_tgp` |
+| `fal` | `sis_gastro_fal` |
+| `ggt` | `sis_gastro_ggt` |
+| `bt` | `sis_gastro_bt` |
+| `trop` | `sis_cardio_trop` |
+| `gas_lac` | `sis_cardio_lac` |
+| `cpk` | `sis_pele_cpk` |
+
+---
+
+## Regras Especiais
+
+- **Slot 4 (Admissão)**: o agente **nunca preenche**. Saída determinística usa prefixo `> Adm (data) –`
+- **Agente IA preenche apenas lab_1, lab_2, lab_3** — nunca lab_4 a lab_10
+- **Conduta** (`*_conduta`): sempre `""` no agente; campo com `placeholder="Escreva a conduta aqui..."` para borda verde
+- **`_normalizar_outros()`**: campo `outros` (Não Transcritos) tem normalização de caps no gerador

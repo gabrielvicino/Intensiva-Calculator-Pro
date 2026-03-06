@@ -1,0 +1,72 @@
+---
+description: Manual completo para adicionar/remover campos no Bloco 7 — HMPA
+alwaysApply: true
+---
+
+# Bloco 7 — HMPA (História da Moléstia Pregressa Atual): Manual de Campos
+
+> **Bloco mais simples** — 2 campos únicos, sem slots numerados.
+> Agente **não retorna JSON** — reescreve texto corrido.
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/hmpa.py` → `render()`
+- **Campos**: `get_campos()` → 2 campos únicos
+- **Agente IA**: `modules/agentes_secoes.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
+- **Determinístico**: `modules/gerador.py` → `_secao_hmpa()`
+
+---
+
+## Campos
+
+```python
+'hmpa_texto'     # texto bruto digitado/colado pelo usuário
+'hmpa_reescrito' # texto reescrito pela IA (sobrescreve o bruto na saída)
+```
+
+---
+
+## Adicionar Campo Novo
+
+Raramente necessário. Se precisar:
+
+### 1. `modules/secoes/hmpa.py`
+- [ ] **`get_campos()`**: adicionar campo com valor padrão `''`
+- [ ] **`render()`**: adicionar widget
+
+### 2. `modules/gerador.py` → `_secao_hmpa()`
+- [ ] Incluir na geração:
+  ```python
+  texto = _get("hmpa_reescrito") or _get("hmpa_texto")
+  # Adicionar novo campo à string se relevante
+  ```
+
+### 3. `modules/agentes_secoes.py` → `_PROMPT_HMPA` + `preencher_hmpa()`
+- [ ] **ATENÇÃO**: este bloco NÃO usa `_chamar_ia` para JSON — usa chamada direta à API
+- [ ] A saída é texto corrido (prose), não JSON
+- [ ] `preencher_hmpa()` retorna `{"hmpa_reescrito": texto_reescrito}`
+- [ ] Se adicionar campo novo que precise de IA, criar prompt separado ou usar JSON na chamada
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# História da Moléstia Pregressa Atual
+Paciente masculino, 65 anos, portador de ICC com FE reduzida (35%), internado
+por dispneia progressiva há 3 dias. Nega febre ou tosse. PAS ao chegar 80 mmHg...
+```
+
+- Prioridade: `hmpa_reescrito` > `hmpa_texto`
+- Texto colado diretamente, sem processamento adicional
+
+---
+
+## Regras Especiais
+
+- **Único bloco com agente de redação** (não extração)
+- O agente **não inventa dados** — reescreve com fidelidade absoluta
+- Modelo mais potente: Gemini 2.5 Pro ou GPT-4o
+- Sem campo `_conduta`, sem reordenação, sem slots
