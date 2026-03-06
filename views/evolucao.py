@@ -156,10 +156,10 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
         st.warning("Nenhuma seção tem texto para processar.")
         return
 
-    st.toast(f"🤖 {n_tarefas} agente(s) iniciado(s) — a página ficará em execução...", icon="⏳")
+    st.toast(f"⏳ {n_tarefas} agente(s) iniciado(s) — a página ficará em execução...", icon="⏳")
 
     with st.status(
-        f"🤖 Agentes de IA em execução — {n_tarefas} seção(ões)...",
+        f"⏳ Agentes de IA em execução — {n_tarefas} seção(ões)...",
         expanded=True,
     ) as _status_agentes:
         progresso  = st.progress(0)
@@ -236,8 +236,8 @@ with st.container(border=True):
             if not _ok:
                 st.error(f"🚫 {_msg}")
             else:
-                st.toast("🤖 IA iniciada — aguarde alguns segundos...", icon="⏳")
-                with st.status("🤖 Extraindo seções com IA...", expanded=True) as _st_extr:
+                st.toast("⏳ IA iniciada — aguarde alguns segundos...", icon="⏳")
+                with st.status("⏳ Extraindo seções com IA...", expanded=True) as _st_extr:
                     _st_extr.write("📤 Enviando prontuário para análise...")
                     dados_notas = ia_extrator.extrair_dados_prontuario(
                         texto_bruto=texto_input,
@@ -461,7 +461,7 @@ if st.session_state.pop("_lab_extrair_pendente", False) and api_key:
                     _st_lab.update(label="⚠️ Nenhum dado extraído", state="error", expanded=True)
                     st.warning("⚠️ Nenhum dado laboratorial foi extraído do texto. Verifique o formato dos exames.")
                 else:
-                    _st_lab.write("🤖 Aplicando agente de laboratoriais aos campos...")
+                    _st_lab.write("⚙️ Aplicando agente de laboratoriais aos campos...")
                     dados_lab = agentes_secoes._AGENTES["laboratoriais"](
                         resultado_pacer, api_key, _provider_completo(), modelo_escolhido
                     )
