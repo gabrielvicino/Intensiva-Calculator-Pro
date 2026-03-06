@@ -1,8 +1,19 @@
+import os
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import json
 from datetime import datetime
+
+
+def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
+    """Carrega chave de API dos secrets do Streamlit ou variável de ambiente."""
+    try:
+        if hasattr(st, "secrets") and nome_secret in st.secrets:
+            return st.secrets[nome_secret]
+    except Exception:
+        pass
+    return os.getenv(nome_env, "")
 
 # Link da sua planilha
 SHEET_URL = "https://docs.google.com/spreadsheets/d/15Rxc1tYYmgG7Sikn2UOvz-GFN6jvneMHnA-l-O8keNs/edit?gid=0#gid=0"

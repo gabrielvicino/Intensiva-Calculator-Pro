@@ -1,7 +1,5 @@
 import streamlit as st
-import os
 import json
-import concurrent.futures
 import streamlit.components.v1 as components
 from pathlib import Path
 from datetime import date
@@ -9,9 +7,8 @@ from datetime import date
 from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes, extrator_exames
 from modules.parser_lab import parse_lab_deterministico
 from modules.parser_controles import parse_controles_deterministico
-from modules.parser_sistemas import parse_sistemas_deterministico
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
-from utils import load_data, save_evolucao, load_evolucao, check_evolucao_exists, mostrar_rodape
+from utils import load_data, save_evolucao, load_evolucao, check_evolucao_exists, mostrar_rodape, carregar_chave_api
 
 # ── Chaves de API (secrets.toml → .env → vazio) ───────────────────────────────
 try:
@@ -20,16 +17,8 @@ try:
 except ImportError:
     pass
 
-def _carregar_chave(nome_secret: str, nome_env: str) -> str:
-    try:
-        if hasattr(st, "secrets") and nome_secret in st.secrets:
-            return st.secrets[nome_secret]
-    except Exception:
-        pass
-    return os.getenv(nome_env, "")
-
-OPENAI_API_KEY = _carregar_chave("OPENAI_API_KEY", "OPENAI_API_KEY")
-GOOGLE_API_KEY = _carregar_chave("GOOGLE_API_KEY", "GOOGLE_API_KEY")
+OPENAI_API_KEY = carregar_chave_api("OPENAI_API_KEY", "OPENAI_API_KEY")
+GOOGLE_API_KEY = carregar_chave_api("GOOGLE_API_KEY", "GOOGLE_API_KEY")
 
 MODELOS_GEMINI = ["gemini-2.5-flash", "gemini-2.5-pro"]
 
@@ -94,26 +83,7 @@ def _carregar_dados_prontuario(busca: str) -> bool:
     if not dados:
         return False
     data_hora = dados.pop("_data_hora", "")
-    # Migração: hd_atual_* / hd_prev_* → hd_* (schema unificado)
-    if "hd_atual_1_nome" in dados:
-        for i in range(1, 5):
-            dados[f"hd_{i}_nome"]           = dados.get(f"hd_atual_{i}_nome", "")
-            dados[f"hd_{i}_class"]          = dados.get(f"hd_atual_{i}_class", "")
-            dados[f"hd_{i}_data_inicio"]    = dados.get(f"hd_atual_{i}_data", "")
-            dados[f"hd_{i}_data_resolvido"] = ""
-            dados[f"hd_{i}_status"]         = "Atual"
-            dados[f"hd_{i}_obs"]            = dados.get(f"hd_atual_{i}_obs", "")
-            dados[f"hd_{i}_conduta"]        = dados.get(f"hd_atual_{i}_conduta", "")
-        for i in range(1, 5):
-            j = i + 4
-            dados[f"hd_{j}_nome"]           = dados.get(f"hd_prev_{i}_nome", "")
-            dados[f"hd_{j}_class"]          = dados.get(f"hd_prev_{i}_class", "")
-            dados[f"hd_{j}_data_inicio"]    = dados.get(f"hd_prev_{i}_data_ini", "")
-            dados[f"hd_{j}_data_resolvido"] = dados.get(f"hd_prev_{i}_data_fim", "")
-            dados[f"hd_{j}_status"]         = "Resolvida"
-            dados[f"hd_{j}_obs"]            = dados.get(f"hd_prev_{i}_obs", "")
-            dados[f"hd_{j}_conduta"]        = dados.get(f"hd_prev_{i}_conduta", "")
-        dados["hd_ordem"] = list(range(1, 9))
+    dados = fichas.migrar_schema_legado(dados)
     campos_validos = fichas.get_todos_campos_keys()
     st.session_state.update({k: v for k, v in dados.items() if k in campos_validos})
     st.session_state["_data_hora_carregado"] = data_hora
@@ -177,50 +147,27 @@ ui.render_barra_paciente()
 # ── Agentes em paralelo ────────────────────────────────────────────────────────
 
 def _aplicar_agentes_paralelo(secoes: list[str]):
-    """Roda os agentes das seções fornecidas em paralelo e aplica resultados via staging."""
-    tarefas = [
-        (sec, st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
-        for sec in secoes
-        if st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip()
-    ]
-    if not tarefas:
+    """Wrapper de UI: exibe progresso e delega a orquestração para fluxo.rodar_agentes_paralelo."""
+    n_tarefas = sum(
+        1 for sec in secoes
+        if st.session_state.get(agentes_secoes._NOTAS_MAP.get(sec, ""), "").strip()
+    )
+    if not n_tarefas:
         st.warning("Nenhuma seção tem texto para processar.")
         return
 
-    progresso  = st.progress(0, text=f"🤖 Processando {len(tarefas)} agentes em paralelo...")
+    progresso  = st.progress(0, text=f"🤖 Processando {n_tarefas} agentes em paralelo...")
     status_txt = st.empty()
-    concluidos = 0
-    erros      = []
-    resultados = {}
 
-    def _rodar(secao, texto):
-        fn = agentes_secoes._AGENTES[secao]
-        return secao, fn(texto, api_key, _provider_completo(), modelo_escolhido)
+    def _on_progress(concluidos, total, nome):
+        if nome:
+            status_txt.caption(f"✅ {nome} ({concluidos}/{total})")
+        progresso.progress(concluidos / total)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tarefas), 8)) as executor:
-        futures = {executor.submit(_rodar, s, t): s for s, t in tarefas}
-        for future in concurrent.futures.as_completed(futures):
-            concluidos += 1
-            try:
-                secao, dados = future.result()
-                nome = agentes_secoes.NOMES_SECOES[secao]
-                if "_erro" in dados:
-                    erros.append(f"{nome}: {dados['_erro']}")
-                else:
-                    resultados[secao] = dados
-                status_txt.caption(f"✅ {nome} ({concluidos}/{len(tarefas)})")
-            except Exception as exc:
-                sec = futures[future]
-                erros.append(f"{agentes_secoes.NOMES_SECOES[sec]}: {exc}")
-            progresso.progress(concluidos / len(tarefas))
-
-    # Acumula no staging; nunca sobrescreve com string vazia
-    staging = st.session_state.get("_agent_staging", {})
-    for dados in resultados.values():
-        for k, v in dados.items():
-            if not (isinstance(v, str) and v.strip() == ""):
-                staging[k] = v
-    st.session_state["_agent_staging"] = staging
+    n_ok, erros = fluxo.rodar_agentes_paralelo(
+        secoes, api_key, _provider_completo(), modelo_escolhido,
+        on_progress=_on_progress,
+    )
 
     progresso.progress(1.0, text="✅ Concluído!")
     status_txt.empty()
@@ -229,7 +176,7 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
         for e in erros:
             st.warning(f"⚠️ {e}")
     else:
-        st.success(f"✅ {len(resultados)} seções preenchidas com sucesso!")
+        st.success(f"✅ {n_ok} seções preenchidas com sucesso!")
     st.rerun()
 
 
@@ -497,20 +444,7 @@ if st.session_state.pop("_sistemas_deterministico_pendente", False):
     if not texto_sist:
         st.warning("Cole a evolução por sistemas no campo de notas do Bloco 13 primeiro.")
     else:
-        dados = parse_sistemas_deterministico(texto_sist)
-        staging = st.session_state.get("_agent_staging", {})
-        for k, v in dados.items():
-            if v is not None and str(v).strip() != "":
-                staging[k] = v
-        # Aplica defaults de sistemas que ainda estão vazios
-        from modules.secoes.sistemas import get_campos as _get_campos_sistemas
-        for k, v in _get_campos_sistemas().items():
-            if k.startswith("sis_") and k not in staging and v and str(v).strip():
-                staging[k] = v
-        st.session_state["_agent_staging"] = staging
-        cnt = sum(1 for k in staging if k.startswith("sis_") and staging.get(k))
-        st.toast(f"✅ {cnt} campos de sistemas preenchidos (determinístico + defaults).", icon="📋")
-        st.rerun()
+        fluxo.aplicar_sistemas_deterministico(texto_sist)
 
 # ── Completar Bloco 13 a partir dos Blocos Anteriores ─────────────────────────
 if st.session_state.pop("_completar_blocos_sistemas", False):

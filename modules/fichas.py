@@ -344,3 +344,31 @@ def render_formulario_completo():
         st.divider()
         condutas.render()
         _btn_gerar_bloco("condutas")
+
+
+def migrar_schema_legado(dados: dict) -> dict:
+    """Migra prontuários com schema antigo (hd_atual_*/hd_prev_*) para o schema atual (hd_*).
+
+    Seguro chamar sempre: retorna o dict intacto se não há campos legados.
+    """
+    if "hd_atual_1_nome" not in dados:
+        return dados
+    for i in range(1, 5):
+        dados[f"hd_{i}_nome"]           = dados.get(f"hd_atual_{i}_nome", "")
+        dados[f"hd_{i}_class"]          = dados.get(f"hd_atual_{i}_class", "")
+        dados[f"hd_{i}_data_inicio"]    = dados.get(f"hd_atual_{i}_data", "")
+        dados[f"hd_{i}_data_resolvido"] = ""
+        dados[f"hd_{i}_status"]         = "Atual"
+        dados[f"hd_{i}_obs"]            = dados.get(f"hd_atual_{i}_obs", "")
+        dados[f"hd_{i}_conduta"]        = dados.get(f"hd_atual_{i}_conduta", "")
+    for i in range(1, 5):
+        j = i + 4
+        dados[f"hd_{j}_nome"]           = dados.get(f"hd_prev_{i}_nome", "")
+        dados[f"hd_{j}_class"]          = dados.get(f"hd_prev_{i}_class", "")
+        dados[f"hd_{j}_data_inicio"]    = dados.get(f"hd_prev_{i}_data_ini", "")
+        dados[f"hd_{j}_data_resolvido"] = dados.get(f"hd_prev_{i}_data_fim", "")
+        dados[f"hd_{j}_status"]         = "Resolvida"
+        dados[f"hd_{j}_obs"]            = dados.get(f"hd_prev_{i}_obs", "")
+        dados[f"hd_{j}_conduta"]        = dados.get(f"hd_prev_{i}_conduta", "")
+    dados["hd_ordem"] = list(range(1, 9))
+    return dados
