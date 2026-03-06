@@ -1,6 +1,7 @@
 import concurrent.futures
 import streamlit as st
 from modules import fichas
+from utils import verificar_rate_limit
 
 # ── Helpers de limpeza de valores (usados em completar_sistemas_de_outros_blocos) ──
 
@@ -98,6 +99,10 @@ def rodar_agentes_paralelo(
     on_progress: callable(concluidos, total, nome_secao) — chamado a cada agente concluído.
     Retorna (n_preenchidos, lista_erros).
     """
+    permitido, msg = verificar_rate_limit()
+    if not permitido:
+        return 0, [f"🚫 Rate limit: {msg}"]
+
     from modules import agentes_secoes
 
     tarefas = [

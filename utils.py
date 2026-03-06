@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -14,6 +15,76 @@ def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
     except Exception:
         pass
     return os.getenv(nome_env, "")
+
+
+# ── Rate Limiting ──────────────────────────────────────────────────────────────
+
+def _rate_config() -> tuple[int, int]:
+    """Lê limites de st.secrets ou usa defaults: (max_calls, janela_minutos)."""
+    try:
+        max_calls  = int(st.secrets.get("RATE_MAX_CALLS",  20))
+        janela_min = int(st.secrets.get("RATE_JANELA_MIN", 10))
+        return max_calls, janela_min
+    except Exception:
+        return 20, 10
+
+
+def verificar_rate_limit() -> tuple[bool, str]:
+    """Verifica se a sessão excedeu o limite de chamadas à IA no período.
+
+    Limites configuráveis via st.secrets:
+        RATE_MAX_CALLS  — máximo de chamadas permitidas na janela (default 20)
+        RATE_JANELA_MIN — duração da janela em minutos (default 10)
+
+    Retorna (permitido: bool, mensagem: str).
+    """
+    max_calls, janela_min = _rate_config()
+    janela_seg = janela_min * 60
+    agora = time.time()
+
+    if "_rate_timestamps" not in st.session_state:
+        st.session_state["_rate_timestamps"] = []
+
+    # Remove registros fora da janela deslizante
+    st.session_state["_rate_timestamps"] = [
+        t for t in st.session_state["_rate_timestamps"]
+        if agora - t < janela_seg
+    ]
+
+    contagem = len(st.session_state["_rate_timestamps"])
+
+    if contagem >= max_calls:
+        mais_antigo = st.session_state["_rate_timestamps"][0]
+        restante    = int(janela_seg - (agora - mais_antigo))
+        minutos     = restante // 60
+        segundos    = restante % 60
+        return False, (
+            f"Limite de {max_calls} chamadas por {janela_min} min atingido. "
+            f"Aguarde {minutos}m {segundos}s antes de nova chamada à IA."
+        )
+
+    st.session_state["_rate_timestamps"].append(agora)
+    return True, ""
+
+
+def uso_rate_limit() -> tuple[int, int, int]:
+    """Retorna (chamadas_na_janela, max_calls, segundos_ate_reset) para exibição."""
+    max_calls, janela_min = _rate_config()
+    janela_seg = janela_min * 60
+    agora = time.time()
+
+    timestamps = [
+        t for t in st.session_state.get("_rate_timestamps", [])
+        if agora - t < janela_seg
+    ]
+    contagem = len(timestamps)
+    if timestamps:
+        segundos_reset = int(janela_seg - (agora - timestamps[0]))
+    else:
+        segundos_reset = 0
+
+    return contagem, max_calls, segundos_reset
+
 
 # Link da sua planilha
 SHEET_URL = "https://docs.google.com/spreadsheets/d/15Rxc1tYYmgG7Sikn2UOvz-GFN6jvneMHnA-l-O8keNs/edit?gid=0#gid=0"
