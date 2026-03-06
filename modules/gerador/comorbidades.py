@@ -50,14 +50,4 @@ def _secao_comorbidades() -> list[str]:
     return ["# Comorbidades"] + corpo
 
 
-def _calcular_dias(data_ini: str, data_fim: str) -> str:
-    """Calcula diferença em dias entre duas datas DD/MM/AAAA. Retorna '' se não for possível."""
-    try:
-        d1 = datetime.strptime(data_ini.strip(), "%d/%m/%Y")
-        d2 = datetime.strptime(data_fim.strip(), "%d/%m/%Y")
-        dias = (d2 - d1).days
-        if dias > 0:
-            return f"{dias} dias"
-    except Exception:
-        pass
-    return ""
+# _calcular_dias está em _base.py (compartilhada com antibioticos.py e outros)

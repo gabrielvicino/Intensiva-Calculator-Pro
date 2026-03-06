@@ -4,7 +4,7 @@ from datetime import datetime
 __all__ = [
     "st", "datetime",
     "_get", "_caps_para_certo", "_caps_obs_linha", "_sigla_upper",
-    "_obs_para_linhas",
+    "_obs_para_linhas", "_calcular_dias",
 ]
 
 
@@ -103,6 +103,19 @@ def _obs_para_linhas(obs: str, excluir_conduta: bool = False) -> list[str]:
         linha = _caps_obs_linha(linha)
         linhas.append(f"> {linha}")
     return linhas
+
+
+def _calcular_dias(data_ini: str, data_fim: str) -> str:
+    """Calcula diferença em dias entre duas datas DD/MM/AAAA. Retorna '' se não for possível."""
+    try:
+        d1 = datetime.strptime(data_ini.strip(), "%d/%m/%Y")
+        d2 = datetime.strptime(data_fim.strip(), "%d/%m/%Y")
+        dias = (d2 - d1).days
+        if dias > 0:
+            return f"{dias} dias"
+    except Exception:
+        pass
+    return ""
 
 
 def _sigla_upper(val: str) -> str:
