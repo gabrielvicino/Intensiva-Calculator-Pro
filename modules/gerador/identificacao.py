@@ -107,20 +107,4 @@ def _secao_identificacao() -> list[str]:
     return header + ["# Identificação & Scores"] + corpo
 
 
-def _obs_para_linhas(obs: str, excluir_conduta: bool = False) -> list[str]:
-    """
-    Converte o campo obs (multiline) em linhas prefixadas com '> '.
-    Se excluir_conduta=True, não inclui linhas que começam com 'Conduta:' (vão para Condutas Registradas).
-    Cada linha é convertida de CAPS para forma gramatical (evitar tudo em maiúsculas).
-    """
-    linhas = []
-    raw_obs = obs if isinstance(obs, str) else ""
-    for linha in raw_obs.splitlines():
-        linha = linha.strip()
-        if not linha:
-            continue
-        if excluir_conduta and linha.lower().startswith("conduta:"):
-            continue
-        linha = _caps_obs_linha(linha)  # CAPS -> forma gramatical; bactérias: Gênero espécie
-        linhas.append(f"> {linha}")
-    return linhas
+# _obs_para_linhas está em _base.py (compartilhada com diagnosticos.py e outros)

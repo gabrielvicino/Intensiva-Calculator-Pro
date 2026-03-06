@@ -4,6 +4,7 @@ from datetime import datetime
 __all__ = [
     "st", "datetime",
     "_get", "_caps_para_certo", "_caps_obs_linha", "_sigla_upper",
+    "_obs_para_linhas",
 ]
 
 
@@ -83,6 +84,25 @@ def _get(key, default=""):
     if isinstance(val, str) and val:
         return _caps_para_certo(val)
     return val
+
+
+def _obs_para_linhas(obs: str, excluir_conduta: bool = False) -> list[str]:
+    """
+    Converte o campo obs (multiline) em linhas prefixadas com '> '.
+    Se excluir_conduta=True, não inclui linhas que começam com 'Conduta:' (vão para Condutas Registradas).
+    Cada linha é convertida de CAPS para forma gramatical (evitar tudo em maiúsculas).
+    """
+    linhas = []
+    raw_obs = obs if isinstance(obs, str) else ""
+    for linha in raw_obs.splitlines():
+        linha = linha.strip()
+        if not linha:
+            continue
+        if excluir_conduta and linha.lower().startswith("conduta:"):
+            continue
+        linha = _caps_obs_linha(linha)
+        linhas.append(f"> {linha}")
+    return linhas
 
 
 def _sigla_upper(val: str) -> str:
