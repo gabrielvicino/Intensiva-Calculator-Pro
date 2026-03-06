@@ -110,6 +110,17 @@ def _secao_laboratoriais() -> list[str]:
 
         return resultado
 
+    def _slot_tem_dados(i):
+        return any([_v(i, "data"), _v(i, "hb"), _v(i, "cr"), _v(i, "na"),
+                    _v(i, "plaq"), _v(i, "gas_ph"), _v(i, "outros")])
+
+    # Último slot populado entre 1-4 é rotulado como Admissão
+    last_main_slot = None
+    for _i in range(4, 0, -1):
+        if _slot_tem_dados(_i):
+            last_main_slot = _i
+            break
+
     slots = []
     for i in range(1, 11):
         data   = _v(i, "data")
@@ -135,13 +146,12 @@ def _secao_laboratoriais() -> list[str]:
             continue
 
         linhas = []
-        if i == 4:
-            # Slot 4 (Admissão/Externo): prefixo "Adm –" inline, sem header ">"
-            adm_prefix = f"> Adm ({data}) –" if data else "> Adm –"
+        if i == last_main_slot:
+            # Último slot principal → rótulo de Admissão
+            label_adm = f"> Adm ({data})" if data else "> Adm"
+            linhas.append(label_adm)
             if linha_main:
-                linhas.append(f"{adm_prefix} {linha_main}")
-            elif data:
-                linhas.append(adm_prefix)
+                linhas.append(linha_main)
         else:
             if data:
                 linhas.append(f"> {data}")

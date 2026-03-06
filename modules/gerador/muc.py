@@ -1,4 +1,5 @@
 from ._base import *
+import re as _re_muc
 import streamlit as st
 
 def _secao_muc() -> list[str]:
@@ -20,7 +21,10 @@ def _secao_muc() -> list[str]:
             partes.append(dose)
         freq = _get(f"muc_{id_real}_freq")
         if freq:
-            partes.append(freq)
+            # Remove especificações de horário entre parênteses: (manhã), (noite), (jejum), etc.
+            freq_limpa = _re_muc.sub(r'\s*\([^)]*\)', '', freq).strip()
+            if freq_limpa:
+                partes.append(freq_limpa)
         linhas.append(f"{len(linhas)+1}- {'; '.join(partes)}")
 
     if not linhas:
