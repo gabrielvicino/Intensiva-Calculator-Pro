@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 8 — Antibióticos
-alwaysApply: true
+description: Use ao modificar campos do Bloco 8 — Antibióticos (antibioticos.py no secoes, gerador ou agentes_secoes)
+globs: modules/secoes/antibioticos.py, modules/gerador/antibioticos.py, modules/agentes_secoes/antibioticos.py
+alwaysApply: false
 ---
 
 # Bloco 8 — Antibióticos: Manual de Campos
@@ -47,7 +48,7 @@ Mais campo global: `antibioticos_notas` (nunca preenchido pelo agente).
 - [ ] **`render()`**: adicionar widget no lugar correto do slot
 
 ### 2. `modules/gerador/antibioticos.py` → `_secao_antibioticos()`
-- [ ] Incluir o campo na linha gerada para Atual ou Prévio (linha ~541)
+- [ ] Incluir o campo na linha gerada para Atual ou Prévio
 - [ ] Campo vazio → não gera trecho na linha
 - [ ] Nota: `_obs` existe no `get_campos()` mas **não é lido no gerador atual** — se quiser que apareça, adicionar explicitamente
 

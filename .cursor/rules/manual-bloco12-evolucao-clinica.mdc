@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 12 — Evolução Clínica
-alwaysApply: true
+description: Use ao modificar campos do Bloco 12 — Evolução Clínica (evolucao_clinica.py no secoes ou gerador)
+globs: modules/secoes/evolucao_clinica.py, modules/gerador/evolucao_clinica.py
+alwaysApply: false
 ---
 
 # Bloco 12 — Evolução Clínica: Manual de Campos

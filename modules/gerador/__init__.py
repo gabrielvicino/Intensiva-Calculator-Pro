@@ -3,7 +3,14 @@ Pacote gerador — cada seção em seu próprio módulo.
 Interface pública idêntica ao arquivo original.
 """
 import streamlit as st
-from ._base import *
+from ._base import (
+    _get,
+    _caps_para_certo,
+    _caps_obs_linha,
+    _sigla_upper,
+    _obs_para_linhas,
+    _calcular_dias,
+)
 from .html import gerar_html_labs, gerar_html_controles
 
 from .identificacao import _secao_identificacao

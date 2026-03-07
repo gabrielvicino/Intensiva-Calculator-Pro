@@ -1,4 +1,6 @@
 import json
+import re
+from datetime import date
 from openai import OpenAI
 from google import genai as _genai_new
 from google.genai import types as _genai_types
@@ -18,6 +20,13 @@ DIRETRIZES DE "CORTE E COLAGEM" (ZERO ALUCINAÇÃO)
 5. TEXTO INCOMPLETO É NORMAL: Prontuários reais são frequentemente parciais. Se um sistema
    (ex: renal, hematológico) não estiver descrito no texto, o campo correspondente fica "".
    NÃO invente nem complete com dados ausentes.
+
+════════════════════════════
+REGRA GLOBAL DE DATAS
+
+- Ano padrão: se o ano não estiver explícito no texto, use o ano informado no campo "Data de hoje" da mensagem do usuário.
+- Formato de saída: DD/MM/AAAA (4 dígitos no ano). Nunca use 2 dígitos no ano.
+- Se outro ano estiver explícito no texto (ex: 2024, 2025), use o ano mencionado.
 
 ════════════════════════════
 REGRAS DE OURO CLÍNICAS
@@ -95,8 +104,12 @@ MAPEAMENTO DE CAMPOS
 11. controles
     Gatilhos: #CTRL, Controles, Sinais Vitais, PAS, PAD, PAM, FC, FR, SatO2, SpO2,
               Temperatura, Dextro, Glicemia, Balanço Hídrico, Diurese
-    Formato típico: "PAS: 100-132 | PAD: 41-60 | FC: 72-95 | Diurese: 1600mL | BH: -492mL"
-    Capture TODA a linha/bloco, incluindo a data (ex: "> 18/02/2026")
+    Capture o bloco COMPLETO, preservando EXATAMENTE o formato original, incluindo:
+    - Cabeçalho do bloco (ex: "# Controles - 24 horas", "## Controles & Balanço Hídrico")
+    - Datas de cada dia (ex: "> 18/02/2026", "> 07/03/2026")
+    - Todas as linhas de vitais: "PAS: 100-132 | PAD: 41-60 | FC: 72-95 | SatO2: 96-99"
+    - Linhas de balanço hídrico: "Balanço Hídrico Total: -420ml | Diurese: 1450ml"
+    NÃO truncar, NÃO resumir. Copiar todos os dias presentes, inclusive histórico.
 
 12. evolucao
     Gatilhos: #EVO, Evolução (narrativa), Subjetivo, Intercorrências, Resumo do dia,
@@ -115,12 +128,17 @@ MAPEAMENTO DE CAMPOS
 
 14. conduta
     Gatilhos: #CD, #CONDUTA, Plano, Planejamento, Condutas, Prescrições do dia
-    Inclua todas as subseções de conduta, mesmo divididas por sistemas
+    Inclua todas as subseções de conduta, mesmo divididas por sistemas.
+    FORMATO DE SAÍDA: cada item de conduta em uma linha separada, prefixado com "- ".
+    Exemplo: "- Manter Piperacilina-Tazobactam por mais 3 dias\n- Solicitar ecocardiograma TT\n- Repetir hemograma amanhã"
+    Se o texto original já usa "- " ou numeração, mantenha um item por linha.
 
 ════════════════════════════
 SAÍDA OBRIGATÓRIA
 
-Retorne APENAS um objeto JSON válido. Se um campo não tiver correspondência, retorne "".
+Retorne APENAS um objeto JSON válido, sem markdown, sem explicações antes ou depois.
+Se um campo não tiver correspondência, retorne "".
+ATENÇÃO JSON: Dentro dos valores, nunca use aspas duplas literais — substitua por aspas simples se necessário.
 
 {
     "identificacao": "...",
@@ -140,11 +158,37 @@ Retorne APENAS um objeto JSON válido. Se um campo não tiver correspondência, 
 }"""
 
 
+def _extrair_json_robusto(texto: str) -> dict:
+    """
+    Extrai JSON de resposta que pode conter markdown, prefixos ou sufixos de texto.
+    Mais robusto que json.loads direto — tenta múltiplas estratégias antes de falhar.
+    """
+    if not texto or not texto.strip():
+        raise ValueError("Resposta vazia da IA")
+    txt = texto.strip()
+    txt = re.sub(r"^```(?:json)?\s*", "", txt)
+    txt = re.sub(r"\s*```\s*$", "", txt)
+    txt = txt.strip()
+    match = re.search(r"\{[\s\S]*\}", txt)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    return json.loads(txt)
+
+
 def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "OpenAI GPT", modelo: str = "gpt-4o") -> dict:
     """
     Envia o prontuário bruto para a IA e retorna um dicionário com os 14 campos extraídos.
     Suporta OpenAI (padrão) e Google Gemini.
     """
+    data_hoje = date.today().strftime("%d/%m/%Y")
+    msg_usuario = (
+        f"Data de hoje: {data_hoje}\n\n"
+        f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}"
+    )
+
     try:
         if "OpenAI" in provider or "GPT" in provider:
             modelo_openai = modelo if modelo.startswith("gpt") else "gpt-4o"
@@ -153,27 +197,26 @@ def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "Op
                 model=modelo_openai,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}"}
+                    {"role": "user", "content": msg_usuario},
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
             return json.loads(response.choices[0].message.content)
 
         else:
-            # Google Gemini
-            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro-preview-05-06"
+            # Google Gemini — fallback para gemini-2.5-pro se modelo inválido
+            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro"
             client = _genai_new.Client(api_key=api_key)
             response = client.models.generate_content(
                 model=_modelo,
-                contents=f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}",
+                contents=msg_usuario,
                 config=_genai_types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.0,
                     thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
                 ),
             )
-            txt = (response.text or "").replace("```json", "").replace("```", "").strip()
-            return json.loads(txt)
+            return _extrair_json_robusto(response.text or "")
 
     except json.JSONDecodeError as e:
         return {"_erro": f"JSON inválido retornado pela IA: {e}"}

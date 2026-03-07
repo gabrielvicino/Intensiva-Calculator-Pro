@@ -5,8 +5,7 @@ from pathlib import Path
 from datetime import date
 
 from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes, extrator_exames
-from modules.parser_lab import parse_lab_deterministico
-from modules.parser_controles import parse_controles_deterministico
+from modules.parsers import parse_lab_deterministico, parse_controles_deterministico
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
 from utils import load_data, save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
 

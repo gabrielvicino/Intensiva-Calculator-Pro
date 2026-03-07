@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 15 — Prescrição
-alwaysApply: true
+description: Use ao modificar campos do Bloco 15 — Prescrição (prescricao.py no secoes ou gerador, extrator_exames.py)
+globs: modules/secoes/prescricao.py, modules/gerador/prescricao.py, modules/extrator_exames.py
+alwaysApply: false
 ---
 
 # Bloco 15 — Prescrição: Manual de Campos

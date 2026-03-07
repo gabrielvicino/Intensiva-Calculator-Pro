@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 13 — Evolução por Sistemas
-alwaysApply: true
+description: Use ao modificar campos do Bloco 13 — Evolução por Sistemas (sistemas/ no secoes, gerador/sistemas.py, agentes_secoes/sistemas.py, parser_sistemas.py, fluxo.py)
+globs: modules/secoes/sistemas/*.py, modules/gerador/sistemas.py, modules/agentes_secoes/sistemas.py, modules/parser_sistemas.py, modules/fluxo.py
+alwaysApply: false
 ---
 
 # Bloco 13 — Evolução por Sistemas: Manual de Campos
@@ -184,7 +185,7 @@ O sistema renal tem DOIS conjuntos paralelos para Diurese e Balanço:
 Todos os passos acima, mais:
 
 ### 1. `modules/secoes/sistemas.py`
-- [ ] **`_CAMPOS_ANTE_ONTEM_HOJE`** (linha ~5): adicionar tupla:
+- [ ] **`_CAMPOS_ANTE_ONTEM_HOJE`**: adicionar tupla:
   ```python
   ("sis_xxx_campo", "ant5", "ant4", "antepen", "ult", "hoje"),
   ```
@@ -210,7 +211,7 @@ Todos os passos acima, mais:
   - sis_xxx_campo_hoje (string): hoje/mais recente.
   - sis_xxx_campo_show (bool): false.
   ```
-- [ ] **`preencher_sistemas()`**: remover `_show` do retorno (linha ~2636) — já existe regra genérica que filtra todos os `*_show`
+- [ ] **`preencher_sistemas()`**: remover `_show` do retorno se necessário — já existe regra genérica que filtra todos os `*_show`
 
 ### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `modules/fluxo.py`
 - [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
@@ -240,6 +241,38 @@ Todos os passos acima, mais:
 | `lab_3` | `_antepen` | `ctrl_anteontem` |
 | `lab_4` | `_ant4` | `ctrl_ant4` |
 | `lab_5` | `_ant5` | `ctrl_ant5` |
+
+---
+
+## Saída no Prontuário (exemplo real)
+
+```
+# Evolução por Sistemas
+- Neurológico
+ECG 15 (AO 4 RV 5 RM 6) | RASS -2
+CAM-ICU: Negativo, sem delirium
+Pupilas: Normais, simétricas, fotoreagentes
+Morfina 2mg/h | Fentanil 25mcg/h
+Midazolam 3mg/h (meta RASS -2)
+- Respiratório
+MV+ bilateralmente
+Ventilado: PSV | PEEP 8 | FiO2 40% | PS 10
+- Cardiovascular
+FC 82 | PAM 78 mmHg
+Perfusão: Quente e Seca | TEC 2s
+Noradrenalina 0,15mcg/kg/min
+Trop: 0,05 → 0,04 → 0,03
+- Renal
+Diurese 1.800 mL | BH +350 mL
+Cr: 2,8 → 2,5 → 2,1
+```
+
+**Regras de formato:**
+- Cabeçalho: `# Evolução por Sistemas`
+- Cada sistema: `- NomeSistema` → linhas do conteúdo
+- Campos de evolução (`_evo`): `Label: v_ant5 → v_ant4 → v_antepen → v_ult → v_hoje` — só exibidos se `_show=True`
+- Campos fixos: aparecem diretamente sem prefixo de seta
+- Sistemas `metab` e `nutri`: aparecem embutidos dentro de Renal e Gastro, respectivamente, como `Metab: {obs}` / `Nutri: {obs}`
 
 ---
 

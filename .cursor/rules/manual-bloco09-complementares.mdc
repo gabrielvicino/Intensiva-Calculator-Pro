@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 9 — Exames Complementares
-alwaysApply: true
+description: Use ao modificar campos do Bloco 9 — Exames Complementares (complementares.py no secoes, gerador ou agentes_secoes)
+globs: modules/secoes/complementares.py, modules/gerador/complementares.py, modules/agentes_secoes/complementares.py
+alwaysApply: false
 ---
 
 # Bloco 9 — Exames Complementares: Manual de Campos
@@ -42,7 +43,7 @@ Mais campo global: `complementares_notas` (input manual, agente nunca preenche).
 - [ ] **`render()`**: adicionar widget correspondente dentro do bloco do slot
 
 ### 2. `modules/gerador/complementares.py` → `_secao_complementares()`
-- [ ] Incluir o novo campo na linha gerada (linha ~634):
+- [ ] Incluir o novo campo na linha gerada:
   ```python
   novo = _get(f"comp_{i}_novo_campo")
   # Ex: adicionar à linha cabecalho ou como linha extra

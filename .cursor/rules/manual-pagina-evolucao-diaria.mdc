@@ -1,6 +1,7 @@
 ---
-description: Manual completo da página Evolução Diária (views/evolucao.py) — arquitetura, fluxo e padrões de desenvolvimento
-alwaysApply: true
+description: Use ao modificar views/evolucao.py, modules/fichas.py, modules/fluxo/ ou qualquer arquivo dos pacotes gerador/ ou agentes_secoes/
+globs: views/evolucao.py, modules/fichas.py, modules/fluxo/*.py, modules/gerador/*.py, modules/agentes_secoes/*.py, modules/parsers/*.py
+alwaysApply: false
 ---
 
 # Página Evolução Diária — Manual Completo
@@ -10,12 +11,10 @@ alwaysApply: true
 > - `modules/fichas.py` — formulário, staging, inicialização
 > - `modules/gerador/` — pacote de texto determinístico e tabelas HTML (`__init__.py` orquestra, cada seção tem seu `.py`)
 > - `modules/agentes_secoes/` — pacote de agentes IA (`__init__.py` expõe `_AGENTES`, `_NOTAS_MAP`, `NOMES_SECOES`; `_base.py` tem `_chamar_ia`)
-> - `modules/fluxo.py` — notas da IA, limpar tudo, `completar_sistemas_de_outros_blocos()`
+> - `modules/fluxo/` — pacote de orquestração: `state.py` (notas IA, limpar tudo), `orchestration.py` (agentes paralelos), `bridge.py` (`completar_sistemas_de_outros_blocos`)
 > - `modules/ia_extrator.py` — "fatiamento" inicial do prontuário bruto
 > - `modules/extrator_exames.py` — PACER (labs formatados + prescrição)
-> - `modules/parser_lab.py` — parsing determinístico de laboratoriais
-> - `modules/parser_controles.py` — parsing determinístico de controles
-> - `modules/parser_sistemas.py` — parsing determinístico de sistemas
+> - `modules/parsers/` — pacote de parsers determinísticos: `parsers/lab.py`, `parsers/controles.py`, `parsers/sistemas.py`
 > - `utils.py` — load_data, save_evolucao, load_evolucao
 
 ---
@@ -129,7 +128,7 @@ Widgets são instanciados JÁ com os valores novos → aparecem preenchidos
 
 ### Regras do staging:
 - **Nunca sobrescreve com string vazia**: `if not (isinstance(v, str) and v.strip() == ""):` → preserva dados manuais
-- **`completar_sistemas_de_outros_blocos()`** em `fluxo.py` usa regra mais restrita: só preenche se destino está **completamente vazio** (`_set()`)
+- **`completar_sistemas_de_outros_blocos()`** em `fluxo/bridge.py` usa regra mais restrita: só preenche se destino está **completamente vazio** (`_set()`)
 - O staging é um **dict acumulado**: múltiplos agentes paralelos adicionam ao mesmo `_agent_staging` sem se sobrescrever
 - Usar `st.session_state.pop("_agent_staging")` (não `get`) — garante que roda apenas uma vez
 
@@ -227,7 +226,7 @@ st.session_state["_sistemas_deterministico_pendente"] = True
 - **"Parsing Sistemas"** → `_sistemas_deterministico_pendente = True` → `parse_sistemas_deterministico(texto)` + aplica defaults pré-preenchidos (exame respiratório, cardiológico, abdominal padrão)
   - Formato esperado: `# Evolução por sistemas / - Neurológico / ECG 15 | RASS -2 / ...`
 - **"Completar Blocos Anteriores"** → `_completar_blocos_sistemas = True`:
-  - Chama `fluxo.completar_sistemas_de_outros_blocos()` — lógica centralizada em `modules/fluxo.py`
+  - Chama `fluxo.completar_sistemas_de_outros_blocos()` — lógica centralizada em `modules/fluxo/bridge.py`
   - Copia dados de Lab, Ctrl, ATB, Culturas para os campos `sis_*`
   - Regra `_set()`: só preenche se destino **vazio** — nunca sobrescreve dados manuais ou da IA
 
@@ -497,7 +496,7 @@ save_evolucao(prontuario, nome, dados)
 
 ## 12. Parsers Determinísticos
 
-### `parser_lab.py` — `parse_lab_deterministico(texto, data_hoje)`
+### `parsers/lab.py` — `parse_lab_deterministico(texto, data_hoje)`
 
 **Formato esperado por linha**:
 ```
@@ -527,7 +526,7 @@ delta >= 5 → slot 4 + (delta-4), máximo slot 10
 
 **URN (EAS)**: `Urn: Den: x / Leu Est: x / Leuco y / Hm z / Prot p / ...` → campos `ur_dens`, `ur_le`, `ur_leu`, `ur_hm`, `ur_prot`, etc.
 
-### `parser_controles.py` — `parse_controles_deterministico(texto, data_hoje)`
+### `parsers/controles.py` — `parse_controles_deterministico(texto, data_hoje)`
 
 **Formato esperado**:
 ```
@@ -543,7 +542,7 @@ Balanço Hídrico Total: +420ml | Diurese: 1450ml
 
 **Resultado**: chaves `ctrl_{dia}_{campo}_min`, `ctrl_{dia}_{campo}_max`, `ctrl_{dia}_balanco`, `ctrl_{dia}_diurese`, `ctrl_{dia}_data`, `ctrl_periodo`
 
-### `parser_sistemas.py` — `parse_sistemas_deterministico(texto)`
+### `parsers/sistemas.py` — `parse_sistemas_deterministico(texto)`
 
 **Formato esperado**:
 ```

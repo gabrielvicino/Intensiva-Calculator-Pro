@@ -1,6 +1,6 @@
 ---
-description: Lembrete obrigatório — ao fazer qualquer alteração no projeto, verificar e atualizar os manuais e regras correspondentes
-alwaysApply: true
+description: Checklist completo de atualização — leia e execute após qualquer alteração de campo, módulo ou fluxo no projeto
+alwaysApply: false
 ---
 
 # ⚠️ CHECKLIST OBRIGATÓRIO ANTES DE FINALIZAR QUALQUER ALTERAÇÃO
@@ -79,9 +79,11 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 ---
 
-## 6. Alteração em parsers (`parser_lab.py`, `parser_controles.py`, `parser_sistemas.py`)
+## 6. Alteração em parsers (`modules/parsers/`)
 
-- [ ] Se adicionar novo campo reconhecido no `_SIGLAS_CAMPOS` (parser_lab) → atualizar manual-bloco10
+> **Arquitetura:** parsers ficam em `modules/parsers/` (pacote). `parsers/lab.py`, `parsers/controles.py`, `parsers/sistemas.py`. Os arquivos `parser_lab.py`, `parser_controles.py`, `parser_sistemas.py` na raiz de `modules/` são shims de compatibilidade — edite sempre os arquivos dentro de `modules/parsers/`.
+
+- [ ] Se adicionar novo campo reconhecido no `_SIGLAS_CAMPOS` (`parsers/lab.py`) → atualizar manual-bloco10
 - [ ] Se alterar formato esperado de entrada → atualizar manual da página (seção "Parsers")
 - [ ] Se alterar mapeamento de slots por data → atualizar manual do bloco afetado
 
@@ -96,11 +98,17 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 ---
 
-## 8. Alteração em `modules/fluxo.py`
+## 8. Alteração em `modules/fluxo/` (pacote)
 
-- [ ] Se alterar `limpar_tudo()` (adicionar/remover campos que precisam de reset especial) → atualizar manual da página
-- [ ] Se alterar `atualizar_notas_ia()` ou `_MAPA_NOTAS` → atualizar manual da página
-- [ ] Se alterar `completar_sistemas_de_outros_blocos()` (mapeamento de campos Lab/Ctrl/ATB → Sistemas) → atualizar manual-bloco13
+> **Arquitetura:** `fluxo` é uma pasta (pacote). Submodulos:
+> - `fluxo/state.py` — `_MAPA_NOTAS`, `limpar_tudo`, `atualizar_notas_ia`, helpers `_limpar*`
+> - `fluxo/orchestration.py` — `rodar_agentes_paralelo`, `aplicar_sistemas_deterministico`
+> - `fluxo/bridge.py` — `completar_sistemas_de_outros_blocos`
+> - `fluxo/__init__.py` — re-exporta tudo (interface pública idêntica ao `fluxo.py` original)
+
+- [ ] Se alterar `limpar_tudo()` (`state.py`) → atualizar manual da página
+- [ ] Se alterar `atualizar_notas_ia()` ou `_MAPA_NOTAS` (`state.py`) → atualizar manual da página
+- [ ] Se alterar `completar_sistemas_de_outros_blocos()` (`bridge.py`) → atualizar manual-bloco13
 
 ---
 

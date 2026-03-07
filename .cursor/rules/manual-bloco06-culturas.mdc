@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 6 — Culturas
-alwaysApply: true
+description: Use ao modificar campos do Bloco 6 — Culturas (culturas.py no secoes, gerador ou agentes_secoes)
+globs: modules/secoes/culturas.py, modules/gerador/culturas.py, modules/agentes_secoes/culturas.py
+alwaysApply: false
 ---
 
 # Bloco 6 — Culturas: Manual de Campos
@@ -59,7 +60,7 @@ Mais campo global: `culturas_notas` — **único `_notas` que o agente pode pree
   ```
 
 ### 2. `modules/gerador/culturas.py` → `_secao_culturas()`
-- [ ] Incluir campo na linha gerada (linha ~288)
+- [ ] Incluir campo na linha gerada
 - [ ] Respeitar agrupamento por status
 
 ### 3. `modules/agentes_secoes/culturas.py`

@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import mostrar_rodape
+from utils import mostrar_rodape, verificar_rate_limit
 from google import genai as _genai_new
 from google.genai import types as _genai_types
 from openai import OpenAI
@@ -1248,32 +1248,21 @@ with tab1:
     with col2:
         st.markdown("**Resultado dos Exames**")
         if processar:
-            # Define mensagem do spinner baseado em usar_analise
-            if st.session_state.usar_analise:
-                msg_spinner = "Processando exames laboratoriais..."
+            ok, msg = verificar_rate_limit()
+            if not ok:
+                st.error(msg)
             else:
-                msg_spinner = "Processando exames laboratoriais..."
-            
-            with st.spinner(msg_spinner):
-                # USA A NOVA FUNÇÃO MULTI-AGENTE COM TODOS OS AGENTES
-                # GPT-4o para TUDO (máxima precisão, paralelização mantém velocidade)
-                resultado_exames, analise_clinica = processar_multi_agente(
-                    motor_escolhido,
-                    api_key,
-                    modelo_escolhido,
-                    agentes_ativos,  # TODOS OS AGENTES SEMPRE
-                    input_val,
-                    executar_analise=st.session_state.usar_analise
-                )
-                st.session_state["output_exames"] = resultado_exames
-                st.session_state["output_analise"] = analise_clinica if st.session_state.usar_analise else ""
-                
-                # Debug: mostra informação no terminal
-                print(f"\n[INFO] Processamento concluído:")
-                print(f"  - Resultado exames: {len(resultado_exames)} chars")
-                print(f"  - Análise clínica: {len(analise_clinica) if analise_clinica else 0} chars")
-                print(f"  - Análise ativada: {st.session_state.usar_analise}")
-                print(f"  - Análise tem conteúdo: {bool(analise_clinica and len(analise_clinica.strip()) > 0)}\n")
+                with st.spinner("Processando exames laboratoriais..."):
+                    resultado_exames, analise_clinica = processar_multi_agente(
+                        motor_escolhido,
+                        api_key,
+                        modelo_escolhido,
+                        agentes_ativos,
+                        input_val,
+                        executar_analise=st.session_state.usar_analise
+                    )
+                    st.session_state["output_exames"] = resultado_exames
+                    st.session_state["output_analise"] = analise_clinica if st.session_state.usar_analise else ""
         
         # EXIBIÇÃO DO RESULTADO DOS EXAMES
         if "output_exames" in st.session_state and st.session_state["output_exames"]:
@@ -1331,15 +1320,18 @@ with tab2:
     with col2:
         st.markdown("**Resultado da Prescrição**")
         if processar:
-            with st.spinner("Processando prescrição..."):
-                # USA A NOVA FUNÇÃO MULTI-AGENTE COM 3 AGENTES
-                resultado_prescricao = processar_multi_agente_prescricao(
-                    motor_escolhido,
-                    api_key,
-                    modelo_escolhido,
-                    input_val
-                )
-                st.session_state["output_presc"] = resultado_prescricao
+            ok, msg = verificar_rate_limit()
+            if not ok:
+                st.error(msg)
+            else:
+                with st.spinner("Processando prescrição..."):
+                    resultado_prescricao = processar_multi_agente_prescricao(
+                        motor_escolhido,
+                        api_key,
+                        modelo_escolhido,
+                        input_val
+                    )
+                    st.session_state["output_presc"] = resultado_prescricao
         
         # EXIBIÇÃO DO RESULTADO DA PRESCRIÇÃO
         if "output_presc" in st.session_state and st.session_state["output_presc"]:

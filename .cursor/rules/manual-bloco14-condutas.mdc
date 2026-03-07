@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 14 — Condutas
-alwaysApply: true
+description: Use ao modificar campos do Bloco 14 — Condutas (condutas.py no secoes ou gerador)
+globs: modules/secoes/condutas.py, modules/gerador/condutas.py
+alwaysApply: false
 ---
 
 # Bloco 14 — Condutas: Manual de Campos

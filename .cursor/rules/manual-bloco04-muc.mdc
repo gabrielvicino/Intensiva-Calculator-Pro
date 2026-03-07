@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 4 — MUC (Medicações de Uso Contínuo)
-alwaysApply: true
+description: Use ao modificar campos do Bloco 4 — MUC/Medicações de Uso Contínuo (muc.py no secoes, gerador ou agentes_secoes)
+globs: modules/secoes/muc.py, modules/gerador/muc.py, modules/agentes_secoes/muc.py
+alwaysApply: false
 ---
 
 # Bloco 4 — MUC (Medicações de Uso Contínuo): Manual de Campos
@@ -53,7 +54,7 @@ Campos globais:
 - [ ] **`render()`**: adicionar widget
 
 ### 2. `modules/gerador/muc.py` → `_secao_muc()`
-- [ ] Incluir o campo na linha gerada (linha ~431)
+- [ ] Incluir o campo na linha gerada
 - [ ] Formato: `{n}- {nome}[; {dose}][; {freq}]`
 
 ### 3. `modules/agentes_secoes/muc.py`

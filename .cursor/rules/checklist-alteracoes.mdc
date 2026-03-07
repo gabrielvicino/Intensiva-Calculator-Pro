@@ -1,0 +1,17 @@
+---
+description: Gatilho obrigatório — lembra o agente de ler manuais antes de alterar blocos e executar o checklist após qualquer mudança
+alwaysApply: true
+---
+
+# Regras de Manutenção do Projeto
+
+## Antes de alterar qualquer bloco
+
+Leia o manual do bloco correspondente **antes** de fazer qualquer modificação:
+- Blocos 1–15 → `.cursor/rules/manual-bloco{01..15}-*.mdc`
+- Página de evolução → `.cursor/rules/manual-pagina-evolucao-diaria.mdc`
+
+## Após qualquer alteração de campo, módulo ou fluxo
+
+**Obrigatório:** leia `.cursor/rules/atualizar-manuais.mdc` e execute o checklist completo.
+Não finalize nenhuma alteração sem confirmar todos os itens aplicáveis.

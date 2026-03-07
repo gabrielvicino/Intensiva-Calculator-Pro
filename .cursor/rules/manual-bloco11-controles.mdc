@@ -1,6 +1,7 @@
 ---
-description: Manual completo para adicionar/remover campos no Bloco 11 — Controles & Balanço Hídrico
-alwaysApply: true
+description: Use ao modificar campos do Bloco 11 — Controles & Balanço Hídrico (controles.py no secoes, gerador ou agentes_secoes; parser_controles.py)
+globs: modules/secoes/controles.py, modules/gerador/controles.py, modules/agentes_secoes/controles.py, modules/parser_controles.py
+alwaysApply: false
 ---
 
 # Bloco 11 — Controles & Balanço Hídrico: Manual de Campos
@@ -39,11 +40,11 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 ## Checklist — Campo MIN/MAX (vitais: PAS, FC, Temp, etc.)
 
 ### 1. `modules/secoes/controles.py`
-- [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", True)`
+- [ ] **`_PARAMS`**: adicionar `("chave", "Label", True)`
   - `get_campos`, `_deslocar_dias`, `render` são automáticos
 
 ### 2. `modules/gerador/controles.py` — `_secao_controles()`
-- [ ] **`_PARAMS_MM`** (linha ~844): adicionar `("Label Saída", "chave")`
+- [ ] **`_PARAMS_MM`**: adicionar `("Label Saída", "chave")`
   ```python
   ("NovoCampo", "nova_chave"),
   ```
@@ -53,7 +54,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
   - Será processado automaticamente por `_add_mm()`
 
 ### 4. `modules/parser_controles.py`
-- [ ] **`MAP_VITAIS`** (linha ~115): adicionar `("SiglaNoProntuário", "chave")`
+- [ ] **`MAP_VITAIS`**: adicionar `("SiglaNoProntuário", "chave")`
   ```python
   ("NovaSigla", "nova_chave"),
   ```
@@ -73,15 +74,15 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 ## Checklist — Campo SIMPLES (Diurese, Balanço, valores únicos)
 
 ### 1. `modules/secoes/controles.py`
-- [ ] **`_PARAMS`** (linha ~4): adicionar `("chave", "Label", False)`
+- [ ] **`_PARAMS`**: adicionar `("chave", "Label", False)`
   - `get_campos`, `_deslocar_dias`, `render` são automáticos
 
 ### 2. `modules/gerador/controles.py` — `_linha_dia()` dentro de `_secao_controles()`
-- [ ] Ler o valor do campo (linha ~860):
+- [ ] Ler o valor do campo junto com `diurese` e `balanco`:
   ```python
   novo_campo = _get(f"ctrl_{dia}_nova_chave").strip()
   ```
-- [ ] Adicionar na guarda de linha vazia (linha ~863):
+- [ ] Adicionar na guarda de linha vazia:
   ```python
   if not any([data, vitais, diurese, balanco, novo_campo]):
   ```
@@ -95,7 +96,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 - [ ] Adicionar `_add_single("Label", "chave")` na seção correta
 
 ### 4. `modules/parser_controles.py`
-- [ ] Adicionar bloco `re.search` após parse do balanço (linha ~130):
+- [ ] Adicionar bloco `re.search` após parse do balanço:
   ```python
   m_novo = re.search(r"NovaSigla:\s*([^|]+)", linha_relevante, re.IGNORECASE)
   if m_novo:
@@ -130,6 +131,27 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 | `ctrl_{dia}_balanco` | `sis_renal_bh_{sis_suf}` | 5 dias — evolução |
 
 > Vitais (PAS, PAD, PAM, FC, FR, SatO2, Temp, Glic) **não mapeiam para Bloco 13**.
+
+---
+
+## Saída no Prontuário (exemplo real)
+
+```
+# Controles & Balanço Hídrico
+>06/03/2026
+PAS 110-130 | PAD 65-80 | PAM 78-96 | FC 72-88 | SatO2 96-99 | Temp 36,5-37,2
+Diurese 1.450 mL | BH -350 mL
+>05/03/2026
+PAS 100-125 | FC 78-92
+Diurese 1.200 mL | BH +100 mL
+```
+
+**Regras de formato:**
+- Cabeçalho: `# Controles & Balanço Hídrico`
+- Se período = "12 horas": adiciona `>> 12 horas <<` após o cabeçalho
+- Por dia: `>data` → linha de vitais (`min-max` ou só `min` se max ausente) → linha de diurese/BH
+- Vitais com apenas um valor: `PAS 120` (sem traço)
+- Diurese e BH: `Diurese {val} | BH {val}` na mesma linha
 
 ---
 

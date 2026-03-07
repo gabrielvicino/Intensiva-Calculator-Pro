@@ -54,7 +54,7 @@ def _chamar_ia(prompt_system: str, texto: str, api_key: str, provider: str, mode
             )
             return json.loads(resp.choices[0].message.content)
         else:
-            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro-preview-05-06"
+            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro"
             client = _genai_new.Client(api_key=api_key)
             resp = client.models.generate_content(
                 model=_modelo,
