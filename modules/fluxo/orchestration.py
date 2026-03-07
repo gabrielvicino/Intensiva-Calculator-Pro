@@ -8,13 +8,13 @@ from utils import verificar_rate_limit
 
 def rodar_agentes_paralelo(
     secoes: list,
-    api_key: str,
-    provider: str,
-    modelo: str,
+    google_key: str,
+    openai_key: str,
     on_progress=None,
 ) -> tuple:
-    """Executa os agentes das secoes em paralelo e acumula resultados no staging.
+    """Executa os agentes das secoes em paralelo, cada um com seu modelo configurado.
 
+    Consulta modules.ia_config para obter (api_key, provider, modelo) por seção.
     on_progress: callable(concluidos, total, nome_secao) -- chamado a cada agente concluido.
     Retorna (n_preenchidos, lista_erros).
     """
@@ -23,6 +23,7 @@ def rodar_agentes_paralelo(
         return 0, [f"Rate limit: {msg}"]
 
     from modules import agentes_secoes
+    from modules.ia_config import get_ia_config
 
     tarefas = [
         (sec, st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
@@ -38,6 +39,7 @@ def rodar_agentes_paralelo(
 
     def _rodar(secao, texto):
         fn = agentes_secoes._AGENTES[secao]
+        api_key, provider, modelo = get_ia_config(secao, google_key, openai_key)
         return secao, fn(texto, api_key, provider, modelo)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tarefas), 8)) as executor:

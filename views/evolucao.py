@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import date
 
 from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes, extrator_exames
+from modules.ia_config import get_ia_config
 from modules.parsers import parse_lab_deterministico, parse_controles_deterministico
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
 from utils import load_data, save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
@@ -19,43 +20,21 @@ except ImportError:
 OPENAI_API_KEY = carregar_chave_api("OPENAI_API_KEY", "OPENAI_API_KEY")
 GOOGLE_API_KEY = carregar_chave_api("GOOGLE_API_KEY", "GOOGLE_API_KEY")
 
-MODELOS_GEMINI = ["gemini-2.5-flash", "gemini-2.5-pro"]
-
-
-def _provider_completo() -> str:
-    return f"{provider} {modelo_escolhido}" if provider == "Google Gemini" else provider
-
-
 # ── Setup ──────────────────────────────────────────────────────────────────────
 ui.carregar_css()
 fichas.inicializar_estado()
 
-# ── Sidebar: configuração de IA ────────────────────────────────────────────────
+# ── Sidebar: status das chaves de API ─────────────────────────────────────────
 with st.sidebar:
     with st.popover("​", use_container_width=True):
-        provider = st.radio(
-            "Provedor:",
-            ["Google Gemini", "OpenAI GPT"],
-            index=0,
-            key="_ia_provider_radio",
-        )
-        if provider == "Google Gemini":
-            api_key = GOOGLE_API_KEY
-            modelo_escolhido = st.selectbox("Modelo:", MODELOS_GEMINI, index=0, key="_ia_modelo_gemini")
-            st.success(f"IA: Google — {modelo_escolhido}")
+        if GOOGLE_API_KEY and len(GOOGLE_API_KEY) > 10:
+            st.success(f"✅ Google: ...{GOOGLE_API_KEY[-8:]}")
         else:
-            api_key = OPENAI_API_KEY
-            modelo_escolhido = "gpt-4o"
-            st.success("IA: OpenAI — GPT-4o")
-
-        if api_key and len(api_key) > 10:
-            st.success(f"✅ API Key: ...{api_key[-8:]}")
+            st.error("❌ Google API Key não carregada!")
+        if OPENAI_API_KEY and len(OPENAI_API_KEY) > 10:
+            st.success(f"✅ OpenAI: ...{OPENAI_API_KEY[-8:]}")
         else:
-            st.error("❌ API Key não carregada!")
-
-st.session_state["_ia_api_key"]  = api_key
-st.session_state["_ia_provider"] = _provider_completo()
-st.session_state["_ia_modelo"]   = modelo_escolhido
+            st.error("❌ OpenAI API Key não carregada!")
 
 # ── Título ─────────────────────────────────────────────────────────────────────
 st.title("📝 Evolução Diária")
@@ -176,7 +155,7 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
             progresso.progress(concluidos / total, text=txt)
 
         n_ok, erros = fluxo.rodar_agentes_paralelo(
-            secoes, api_key, _provider_completo(), modelo_escolhido,
+            secoes, GOOGLE_API_KEY, OPENAI_API_KEY,
             on_progress=_on_progress,
         )
 
@@ -230,7 +209,7 @@ with st.container(border=True):
     extrair_btn = st.button("✨ Extrair Seções", type="primary", use_container_width=True)
 
     if extrair_btn:
-        if not api_key:
+        if not GOOGLE_API_KEY and not OPENAI_API_KEY:
             st.error("Sem chave API.")
         elif not texto_input:
             st.warning("Cole o texto do prontuário primeiro.")
@@ -240,11 +219,12 @@ with st.container(border=True):
                 st.error(f"🚫 {_msg}")
             else:
                 with st.spinner("Extraindo seções com IA..."):
+                    _ext_key, _ext_prov, _ext_mod = get_ia_config("ia_extrator", GOOGLE_API_KEY, OPENAI_API_KEY)
                     dados_notas = ia_extrator.extrair_dados_prontuario(
                         texto_bruto=texto_input,
-                        api_key=api_key,
-                        provider=_provider_completo(),
-                        modelo=modelo_escolhido,
+                        api_key=_ext_key,
+                        provider=_ext_prov,
+                        modelo=_ext_mod,
                     )
                     fluxo.atualizar_notas_ia(dados_notas)
                 st.toast("Seções extraídas com sucesso.", icon="✅")
@@ -280,7 +260,7 @@ if "_secoes_recortadas" in st.session_state:
                 disabled=(_com_texto == 0),
                 key="btn_aplicar_agentes",
             ):
-                if not api_key:
+                if not GOOGLE_API_KEY and not OPENAI_API_KEY:
                     st.error("Sem chave API.")
                 else:
                     _aplicar_agentes_paralelo(list(agentes_secoes._AGENTES.keys()))
@@ -405,8 +385,8 @@ if st.session_state.pop("_comparar_lab_pendente", False) or st.session_state.pop
 # ── Agente individual ──────────────────────────────────────────────────────────
 _agente_pendente = st.session_state.pop("_agente_pendente", None)
 if _agente_pendente:
-    if not api_key:
-        st.warning("⚠️ Configure a chave de API na barra lateral para usar o Completar Campos.")
+    if not GOOGLE_API_KEY and not OPENAI_API_KEY:
+        st.warning("⚠️ Configure as chaves de API para usar o Completar Campos.")
     elif _agente_pendente == "laboratoriais" and not st.session_state.get("laboratoriais_notas", "").strip():
         st.warning("⚠️ Cole os exames no campo de notas do Bloco 10 (Exames Laboratoriais) antes de clicar em Completar Campos.")
     else:
@@ -439,7 +419,7 @@ if st.session_state.pop("_lab_deterministico_pendente", False):
             st.warning("⚠️ Nenhum exame no formato esperado. Use: DD/MM/YYYY – Hb x | Ht x | ...")
 
 # ── Extrair Exames via PACER + Agente Lab ─────────────────────────────────────
-if st.session_state.pop("_lab_extrair_pendente", False) and api_key:
+if st.session_state.pop("_lab_extrair_pendente", False):
     texto_lab = st.session_state.get("laboratoriais_notas", "").strip()
     if not texto_lab:
         st.warning("Cole os exames no campo de notas do Bloco 10 primeiro.")
@@ -448,18 +428,20 @@ if st.session_state.pop("_lab_extrair_pendente", False) and api_key:
         if not _ok:
             st.error(f"🚫 {_msg}")
         else:
+            _pacer_key, _pacer_prov, _pacer_mod = get_ia_config("pacer_exames", GOOGLE_API_KEY, OPENAI_API_KEY)
             with st.spinner("Extraindo exames laboratoriais com IA..."):
                 resultado_pacer = extrator_exames.extrair_exames(
-                    texto_lab, api_key, _provider_completo(), modelo_escolhido
+                    texto_lab, _pacer_key, _pacer_prov, _pacer_mod
                 )
             if resultado_pacer.startswith("❌"):
                 st.error(resultado_pacer)
             elif not resultado_pacer.strip():
                 st.warning("Nenhum dado laboratorial extraído. Verifique o formato dos exames.")
             else:
+                _lab_key, _lab_prov, _lab_mod = get_ia_config("laboratoriais", GOOGLE_API_KEY, OPENAI_API_KEY)
                 with st.spinner("Aplicando dados aos campos..."):
                     dados_lab = agentes_secoes._AGENTES["laboratoriais"](
-                        resultado_pacer, api_key, _provider_completo(), modelo_escolhido
+                        resultado_pacer, _lab_key, _lab_prov, _lab_mod
                     )
                 if "_erro" in dados_lab:
                     st.error(f"Erro no agente: {dados_lab['_erro']}")
@@ -480,7 +462,7 @@ if st.session_state.pop("_completar_blocos_sistemas", False):
     fluxo.completar_sistemas_de_outros_blocos()
 
 # ── Extrair Prescrição via PACER ───────────────────────────────────────────────
-if st.session_state.pop("_prescricao_extrair_pendente", False) and api_key:
+if st.session_state.pop("_prescricao_extrair_pendente", False):
     texto_presc = st.session_state.get("prescricao_bruta", "").strip()
     if not texto_presc:
         st.warning("Cole a prescrição no campo do Bloco 14 primeiro.")
@@ -489,9 +471,10 @@ if st.session_state.pop("_prescricao_extrair_pendente", False) and api_key:
         if not _ok:
             st.error(f"🚫 {_msg}")
         else:
+            _presc_key, _presc_prov, _presc_mod = get_ia_config("prescricao", GOOGLE_API_KEY, OPENAI_API_KEY)
             with st.spinner("Formatando prescrição com IA..."):
                 resultado_presc = extrator_exames.extrair_prescricao(
-                    texto_presc, api_key, _provider_completo(), modelo_escolhido
+                    texto_presc, _presc_key, _presc_prov, _presc_mod
                 )
             if resultado_presc.startswith("❌"):
                 st.error(resultado_presc)
