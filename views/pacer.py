@@ -19,6 +19,11 @@ from modules.extrator_exames import (
     PROMPT_AGENTE_DIETA,
     PROMPT_AGENTE_MEDICACOES,
 )
+from modules import fichas as _fichas
+from modules.secoes import laboratoriais as _lab_sec
+from modules.secoes import controles as _ctrl_sec
+from modules.parsers import parse_lab_deterministico, parse_controles_deterministico
+from datetime import date as _date
 
 # ==============================================================================
 # 1. CONFIGURAÇÕES VISUAIS
@@ -1128,7 +1133,8 @@ if "lista_modelos_validos" not in st.session_state:
         "gemini-1.5-pro-002"             # Maior contexto
     ]
 
-st.header("📃 Pacer - Exames & Prescrição")
+st.header("🔬 Laboratoriais & Controles")
+_fichas.inicializar_estado()
 
 # Carrega chaves do .env (local) ou Streamlit Secrets (cloud)
 import os
@@ -1224,9 +1230,193 @@ if "usar_analise" not in st.session_state:
     st.session_state.usar_analise = False
 
 # Abas
-tab1, tab2 = st.tabs(["🧪 Exames", "💊 Prescrição"])
+tab_lab, tab_ctrl, tab_exames, tab_presc = st.tabs([
+    "🧪 Laboratoriais", "💧 Controles & BH", "📋 Exames PACER", "💊 Prescrição"
+])
 
-with tab1:
+# ==============================================================================
+# TAB: LABORATORIAIS
+# ==============================================================================
+with tab_lab:
+    st.subheader("🧪 Exames Laboratoriais")
+
+    st.text_area(
+        "Notas",
+        key="laboratoriais_notas",
+        placeholder="Cole neste campo a evolução de exames...",
+        label_visibility="collapsed",
+    )
+    st.write("")
+
+    _lb1, _lb2, _lb3, _lb4, _lb5 = st.columns(5)
+    with _lb1:
+        if st.button(
+            "Evolução Hoje", use_container_width=True, key="btn_evo_hoje_lab_ft",
+            help="Desloca resultados: Hoje→Ontem, Ontem→Anteontem, etc. Slot 1 fica vazio.",
+        ):
+            _lab_sec._deslocar_laboratoriais()
+            st.toast("✅ Resultados deslocados.", icon="✅")
+            st.rerun()
+    with _lb2:
+        if st.button(
+            "Parsing Exames", use_container_width=True, key="btn_parse_lab_ft",
+            help="Preenche deterministicamente. Use: DD/MM/YYYY – Hb x | Ht x | ...",
+        ):
+            _texto_lab = st.session_state.get("laboratoriais_notas", "").strip()
+            if _texto_lab:
+                _dados_lab = parse_lab_deterministico(_texto_lab, _date.today())
+                if _dados_lab:
+                    st.session_state.update(_dados_lab)
+                    st.toast(f"✅ {len(_dados_lab)} campos preenchidos.", icon="🧪")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Nenhum exame no formato esperado. Use: DD/MM/YYYY – Hb x | Ht x | ...")
+            else:
+                st.warning("Cole os exames no campo de notas acima.")
+    with _lb3:
+        st.button(
+            "Completar Campos (IA)", use_container_width=True, key="btn_ia_lab_ft",
+            disabled=True, help="Em desenvolvimento",
+        )
+    with _lb4:
+        st.button(
+            "Extrair Exames", use_container_width=True, key="btn_extrair_lab_ft",
+            disabled=True, help="Em desenvolvimento — use a aba Exames PACER para extração avançada",
+        )
+    with _lb5:
+        st.button(
+            "Comparar", use_container_width=True, key="btn_cmp_lab_ft",
+            disabled=True, help="Em desenvolvimento",
+        )
+
+    # Tabela principal: slots 1–4
+    _lab_sec._render_labs_table([1, 2, 3, 4])
+    _lab_sec._render_gas_extras([1, 2, 3, 4])
+
+    # Demais exames: slots 5–10
+    with st.expander("Demais exames", expanded=False):
+        _lab_sec._render_labs_table([5, 6, 7, 8, 9, 10])
+        _lab_sec._render_gas_extras([5, 6, 7, 8, 9, 10])
+
+
+# ==============================================================================
+# TAB: CONTROLES & BALANÇO HÍDRICO
+# ==============================================================================
+with tab_ctrl:
+    st.subheader("💧 Controles & Balanço Hídrico")
+
+    st.text_area(
+        "controles_notas",
+        key="controles_notas",
+        placeholder="Cole neste campo os controles do prontuário...",
+        label_visibility="collapsed",
+    )
+
+    st.markdown("""
+    <style>
+        input[id*="ctrl_hoje_data"], input[id*="ctrl_ontem_data"],
+        input[id*="ctrl_anteontem_data"], input[id*="ctrl_ant4_data"], input[id*="ctrl_ant5_data"] {
+            text-align: center;
+        }
+        input[id*="ctrl_hoje_data"]::placeholder, input[id*="ctrl_ontem_data"]::placeholder,
+        input[id*="ctrl_anteontem_data"]::placeholder, input[id*="ctrl_ant4_data"]::placeholder,
+        input[id*="ctrl_ant5_data"]::placeholder { text-align: center; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container(border=True):
+        _cc1, _cc2, _cc3, _cc4, _cc5 = st.columns([1, 1, 1, 1, 1])
+        with _cc1:
+            if st.button(
+                "Evolução Hoje", use_container_width=True, key="btn_evo_hoje_ctrl_ft",
+                help="Anteontem some; ontem→anteontem; hoje→ontem; hoje fica em branco.",
+            ):
+                _ctrl_sec._deslocar_dias()
+                st.toast("Evolução Hoje: hoje está em branco para novos dados.", icon="📅")
+                st.rerun()
+        with _cc2:
+            if st.button(
+                "Parsing Controles", use_container_width=True, key="btn_parse_ctrl_ft",
+                help="Preenche deterministicamente. Use: # Controles - 24h, > DD/MM, PAS: min - max...",
+            ):
+                _texto_ctrl = st.session_state.get("controles_notas", "").strip()
+                if _texto_ctrl:
+                    _dados_ctrl = parse_controles_deterministico(_texto_ctrl, _date.today())
+                    if _dados_ctrl:
+                        st.session_state.update(_dados_ctrl)
+                        st.toast(f"✅ {len(_dados_ctrl)} campos de controles preenchidos.", icon="📊")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Nenhum controle no formato esperado.")
+                else:
+                    st.warning("Cole os controles no campo de notas acima.")
+        with _cc3:
+            st.button(
+                "Completar Campos (IA)", use_container_width=True, key="btn_ia_ctrl_ft",
+                disabled=True, help="Em desenvolvimento",
+            )
+        with _cc4:
+            st.button(
+                "Comparar", use_container_width=True, key="btn_cmp_ctrl_ft",
+                disabled=True, help="Em desenvolvimento",
+            )
+        with _cc5:
+            st.pills(
+                "Período", ["24 horas", "12 horas"],
+                key="ctrl_periodo", label_visibility="collapsed",
+            )
+
+        # Cabeçalho de colunas
+        _ch = st.columns(_ctrl_sec._COLS_HEADER)
+        with _ch[0]:
+            st.markdown("**Parâmetro**")
+        for _ci, _dia in enumerate(_ctrl_sec._DIAS, start=1):
+            with _ch[_ci]:
+                st.markdown(f"**{_ctrl_sec._LABEL_DIA[_dia]}**")
+                st.text_input(
+                    f"data_{_dia}", key=f"ctrl_{_dia}_data",
+                    placeholder="dd/mm", label_visibility="collapsed",
+                )
+
+        # Linhas de parâmetros
+        for _chave, _label, _min_max in _ctrl_sec._PARAMS:
+            _cr = st.columns(_ctrl_sec._COLS_DATA)
+            with _cr[0]:
+                st.markdown(f"**{_label}**")
+            if _min_max:
+                for _ci, _dia in enumerate(_ctrl_sec._DIAS, start=1):
+                    with _cr[_ci]:
+                        _cmin, _cmax = st.columns(2)
+                        with _cmin:
+                            st.text_input(
+                                f"{_dia}_{_chave}_min", key=f"ctrl_{_dia}_{_chave}_min",
+                                placeholder="Mín", label_visibility="collapsed",
+                            )
+                        with _cmax:
+                            st.text_input(
+                                f"{_dia}_{_chave}_max", key=f"ctrl_{_dia}_{_chave}_max",
+                                placeholder="Máx", label_visibility="collapsed",
+                            )
+            else:
+                for _ci, _dia in enumerate(_ctrl_sec._DIAS, start=1):
+                    with _cr[_ci]:
+                        st.text_input(
+                            f"{_dia}_{_chave}", key=f"ctrl_{_dia}_{_chave}",
+                            placeholder="Valor", label_visibility="collapsed",
+                        )
+
+    st.text_input(
+        "Conduta",
+        key="ctrl_conduta",
+        placeholder="Escreva a conduta aqui...",
+        label_visibility="collapsed",
+    )
+
+
+# ==============================================================================
+# TAB: EXAMES PACER
+# ==============================================================================
+with tab_exames:
     st.subheader("🧪 Pacer - Exames Laboratoriais")
     
     # TODOS OS AGENTES SEMPRE ATIVOS (SEM OPÇÃO DE SELEÇÃO)
@@ -1301,7 +1491,7 @@ with tab1:
                 # Exames foram processados mas análise não apareceu em session_state
                 st.warning("⚠️ Análise clínica não foi gerada. Verifique o terminal para logs de debug.")
 
-with tab2:
+with tab_presc:
     st.subheader("💊 Pacer - Prescrição Médica")
     
     # COLUNAS DE INPUT/OUTPUT
