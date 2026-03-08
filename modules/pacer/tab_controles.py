@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from modules.secoes import controles as _ctrl_sec
 from modules.parsers.controles import parse_controles_dia, parse_controles_deterministico
-from modules.agentes_secoes.controles import preencher_controles_dia
+from modules.agentes_secoes.controles import preencher_controles_dia, preencher_controles
 from modules.ia_config import get_ia_config
 
 _CSS_DATAS = """
@@ -318,34 +318,63 @@ def render():
             if not api_key:
                 st.error("⚠️ Configure uma chave de API (OpenAI ou Google) nas configurações.")
             else:
-                def _ia_dia(dia):
+                _DIAS_SET = set(_ctrl_sec._DIAS)
+
+                def _ia_coluna(dia):
                     texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
-                    return dia, preencher_controles_dia(texto, dia, api_key, provider, modelo)
+                    tem_multiplos = (
+                        len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
+                    )
+                    if tem_multiplos:
+                        # Multi-bloco: IA distribui pelos slots em ordem de aparição
+                        dados = preencher_controles(texto, api_key, provider, modelo)
+                        return dia, dados, True
+                    else:
+                        dados = preencher_controles_dia(texto, dia, api_key, provider, modelo)
+                        return dia, dados, False
 
                 with st.spinner(
                     f"🤖 Extraindo {len(dias_com_texto)} coluna(s) via {provider} ({modelo})..."
                 ):
                     with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
-                        futures = {ex.submit(_ia_dia, d): d for d in dias_com_texto}
+                        futures = {ex.submit(_ia_coluna, d): d for d in dias_com_texto}
                         resultados = {}
                         for fut in as_completed(futures):
-                            dia, dados = fut.result(timeout=120)
-                            resultados[dia] = dados
+                            dia, dados, multi = fut.result(timeout=120)
+                            resultados[dia] = (dados, multi)
 
-                erros = [f"{d}: {r['_erro']}" for d, r in resultados.items() if r.get("_erro")]
+                erros = [
+                    f"{d}: {r[0]['_erro']}"
+                    for d, r in resultados.items() if r[0].get("_erro")
+                ]
                 if erros:
                     st.error("❌ Erros: " + " | ".join(erros))
 
                 n = 0
-                for dia, dados in resultados.items():
-                    campos_ia = {k: v for k, v in dados.items()
-                                 if k != "_erro" and v and v != ""}
-                    if campos_ia:
-                        _ctrl_sec._limpar_dia(dia)
+                for dia, (dados, multi) in resultados.items():
+                    if dados.get("_erro"):
+                        continue
+                    if multi:
+                        # Identifica quais dias foram preenchidos pela IA
+                        dias_multi = set()
+                        for k in dados:
+                            if k.startswith("ctrl_"):
+                                partes = k.split("_", 2)
+                                if len(partes) >= 2 and partes[1] in _DIAS_SET:
+                                    dias_multi.add(partes[1])
+                        for d in dias_multi:
+                            _ctrl_sec._limpar_dia(d)
                         for k, v in dados.items():
-                            if k != "_erro":
+                            _ctrl_sec._set_ss(k, v)
+                        n += len([v for v in dados.values() if v])
+                    else:
+                        campos_ia = {k: v for k, v in dados.items() if v}
+                        if campos_ia:
+                            _ctrl_sec._limpar_dia(dia)
+                            for k, v in dados.items():
                                 _ctrl_sec._set_ss(k, v)
-                        n += len(campos_ia)
+                            n += len(campos_ia)
+                    _ctrl_sec._set_ss(f"ctrl_{dia}_texto_entrada", "")
                 if n:
                     st.toast(
                         f"✅ IA preencheu {n} campos em {len(dias_com_texto)} coluna(s).",

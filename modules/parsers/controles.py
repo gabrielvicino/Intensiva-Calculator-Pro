@@ -13,7 +13,7 @@ Atribuição de slot (hoje / ontem / anteontem / ant4 / ant5):
      → 1º bloco com data → próximo slot disponível, e assim por diante
 """
 import re
-from datetime import datetime, date
+from datetime import datetime
 from typing import Optional
 
 
@@ -199,18 +199,8 @@ def parse_controles_deterministico(
         linhas = bloco.split("\n")[1:]
         valid_blocks.append((data_fmt, linhas))
 
-    # Ordena blocos com data: mais recente primeiro → hoje, ontem, anteontem...
-    # Blocos sem data ficam no final.
-    def _bloco_key(bloco):
-        data_fmt = bloco[0]
-        if not data_fmt:
-            return datetime.min.date()
-        try:
-            return datetime.strptime(data_fmt, "%d/%m/%Y").date()
-        except Exception:
-            return datetime.min.date()
-
-    valid_blocks.sort(key=_bloco_key, reverse=True)
+    # REGRA: ordem de aparição no texto = ordem dos slots (1º bloco → hoje, 2º → ontem…)
+    # A data é apenas armazenada no campo ctrl_{dia}_data, NÃO define o slot.
 
     # ── Atribuição de slots ───────────────────────────────────────────────────
     used_slots: set[str] = set()
