@@ -59,6 +59,18 @@ def _set_ss(key: str, value) -> None:
     st.session_state[key] = value
 
 
+def _limpar_dia(dia: str) -> None:
+    """Limpa todos os campos de controle de um dia (prepara para nova extração)."""
+    for chave, _, min_max, __, ___ in _PARAMS:
+        if min_max:
+            _set_ss(f"ctrl_{dia}_{chave}_min", "")
+            _set_ss(f"ctrl_{dia}_{chave}_max", "")
+        else:
+            _set_ss(f"ctrl_{dia}_{chave}", "")
+    _set_ss(f"ctrl_{dia}_data", "")
+    _set_ss(f"ctrl_{dia}_texto_entrada", "")
+
+
 def _deslocar_dias():
     """
     Desloca 10 slots: ant10 some | ant9→ant10 | … | hoje→ontem | hoje vazio.

@@ -270,13 +270,17 @@ def render():
                     resultados[dia] = dados
 
             n = 0
-            for dados in resultados.values():
-                for k, v in dados.items():
-                    if v:
+            algum_resultado = False
+            for dia, dados in resultados.items():
+                campos_encontrados = {k: v for k, v in dados.items() if v}
+                if campos_encontrados:
+                    algum_resultado = True
+                    _ctrl_sec._limpar_dia(dia)
+                    for k, v in dados.items():
                         _ctrl_sec._set_ss(k, v)
-                        n += 1
+                    n += len(campos_encontrados)
 
-            if n:
+            if algum_resultado:
                 st.toast(f"✅ {n} campos preenchidos.", icon="📊")
                 st.rerun()
             else:
@@ -316,11 +320,15 @@ def render():
                     st.error("❌ Erros: " + " | ".join(erros))
 
                 n = 0
-                for dados in resultados.values():
-                    for k, v in dados.items():
-                        if k != "_erro" and v and v != "":
-                            _ctrl_sec._set_ss(k, v)
-                            n += 1
+                for dia, dados in resultados.items():
+                    campos_ia = {k: v for k, v in dados.items()
+                                 if k != "_erro" and v and v != ""}
+                    if campos_ia:
+                        _ctrl_sec._limpar_dia(dia)
+                        for k, v in dados.items():
+                            if k != "_erro":
+                                _ctrl_sec._set_ss(k, v)
+                        n += len(campos_ia)
                 if n:
                     st.toast(
                         f"✅ IA preencheu {n} campos em {len(dias_com_texto)} coluna(s).",
