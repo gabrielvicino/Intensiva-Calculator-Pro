@@ -28,28 +28,30 @@ def _secao_culturas() -> list[str]:
         # Linha principal
         partes = [sitio]
         if data_coleta:
-            partes.append(f"coletada {data_coleta}")
+            partes.append(f"coletada em {data_coleta}")
         if data_resultado:
-            partes.append(f"resultado {data_resultado}")
+            partes.append(f"resultado dia {data_resultado}")
         linha_principal = "; ".join(partes)
 
         if status in ("Positivo com Antibiograma", "Positivo aguarda isolamento"):
-            detalhe_partes = [micro] if micro else []
+            # Patógeno e sensibilidade em linhas > separadas
+            detalhes = []
+            if micro:
+                detalhes.append(f"> {micro}")
             if status == "Positivo com Antibiograma" and sensib:
-                detalhe_partes.append(sensib)
+                detalhes.append(f"> {sensib}")
             elif status == "Positivo aguarda isolamento":
-                detalhe_partes.append("aguarda isolamento")
-            detalhe = f"> {'; '.join(detalhe_partes)}" if detalhe_partes else ""
-            positivas.append((linha_principal, detalhe))
+                detalhes.append("> aguarda isolamento")
+            positivas.append((linha_principal, detalhes))
 
         elif status == "Pendente negativo":
             partes_and = list(partes)
             if not data_resultado:
                 partes_and.append("Parcialmente negativa")
-            andamento.append(("; ".join(partes_and), ""))
+            andamento.append(("; ".join(partes_and), []))
 
         elif status == "Negativo":
-            negativas.append((linha_principal, ""))
+            negativas.append((linha_principal, []))
 
     if not positivas and not andamento and not negativas:
         return []
@@ -62,10 +64,12 @@ def _secao_culturas() -> list[str]:
         if corpo:
             corpo.append("")
         corpo.append(titulo)
-        for i, (linha, detalhe) in enumerate(itens, 1):
+        for i, (linha, detalhes) in enumerate(itens, 1):
             corpo.append(f"{i}- {linha}")
-            if detalhe:
-                corpo.append(detalhe)
+            if isinstance(detalhes, list):
+                corpo.extend(detalhes)
+            elif detalhes:
+                corpo.append(detalhes)
 
     _add_grupo("# Culturas Positivas",    positivas)
     _add_grupo("# Culturas em Andamento", andamento)

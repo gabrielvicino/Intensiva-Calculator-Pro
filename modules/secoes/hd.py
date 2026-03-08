@@ -72,8 +72,8 @@ def _render_linha(idx_display, id_real):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-2"></span>', unsafe_allow_html=True)
-    st.markdown("##### 2. Diagnósticos Atuais & Prévios")
+    st.markdown('<span id="sec-3"></span>', unsafe_allow_html=True)
+    st.markdown("##### 3. Diagnósticos Atuais & Prévios")
 
     st.text_area("Notas", key="hd_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")

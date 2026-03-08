@@ -36,9 +36,7 @@ def _secao_dispositivos() -> list[str]:
             retirados.append("; ".join(partes))
         else:
             if data_insercao:
-                partes.append(f"{data_insercao} - Atual")
-            else:
-                partes.append("Atual")
+                partes.append(data_insercao)
             ativos.append("; ".join(partes))
 
     if not ativos and not retirados:

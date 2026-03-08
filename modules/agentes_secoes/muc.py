@@ -39,8 +39,6 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 
 # --- INFORMAÇÕES GERAIS DA TERAPIA DOMICILIAR ---
 - adesao_global (string): EXATAMENTE "Uso Regular", "Uso Irregular" ou "Desconhecido". Uso Regular = paciente usa medicações conforme prescrito; Uso Irregular = não adere bem; Desconhecido = não há informação. Se ausente, "".
-- alergia (string): EXATAMENTE "Desconhecido", "Nega" ou "Presente". Desconhecido = não há informação; Nega = paciente nega alergias; Presente = há alergias. Se não mencionado, "".
-- alergia_obs (string): Quando alergia = "Presente", liste as alergias (ex: "Penicilina", "Dipirona"). Se ausente, "".
 
 # --- MEDICAÇÕES DE USO CONTÍNUO (MÁXIMO 20) ---
 # 1. NOMES DOS FÁRMACOS (Ordem do texto original. Apenas o princípio ativo)
@@ -112,8 +110,6 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 # EXEMPLO DE SAÍDA PERFEITA
 {
   "adesao_global": "Uso Regular",
-  "alergia": "Presente",
-  "alergia_obs": "Penicilina, Sulfa",
   "med_dom_1_nome": "Enalapril",
   "med_dom_2_nome": "Metformina",
   "med_dom_3_nome": "Glibenclamida",
@@ -198,9 +194,6 @@ def preencher_muc(texto, api_key, provider, modelo):
     else:
         resultado["muc_adesao_global"] = None if not v_adesao else "Desconhecido"
     # Alergia: Desconhecido, Nega, Presente + obs
-    v = _s("alergia")
-    resultado["muc_alergia"] = v if v in ("Desconhecido", "Nega", "Presente") else None
-    resultado["muc_alergia_obs"] = _s("alergia_obs")
 
     for i in range(1, 21):
         resultado[f"muc_{i}_nome"] = _s(f"med_dom_{i}_nome")

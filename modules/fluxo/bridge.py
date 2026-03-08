@@ -1,26 +1,112 @@
 """
-bridge.py -- copia de dados entre blocos: Lab/Ctrl/ATB/Culturas -> Sistemas (bloco 13).
+bridge.py — copia de dados entre blocos: Lab/Ctrl/ATB/Culturas → Sistemas (bloco 13).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  COMO ADICIONAR UM NOVO CAMPO AO BRIDGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ► Para Controles → Sistemas:
+      Edite APENAS modules/secoes/controles.py → _PARAMS
+      Coloque o padrão destino no campo bridge_sis da linha correspondente.
+      Exemplo: ("glic", "Glicemia", True, "Glic", "sis_metab_glic_{s}")
+      Nenhuma alteração é necessária aqui em bridge.py.
+
+  ► Para Laboratoriais → Sistemas:
+      Acrescente UMA linha em _BRIDGE_LAB abaixo:
+      ("sis_SISTEMA_CAMPO_{s}", "sufixo_lab", fn_transform)
+      Onde {s} = hoje | ult | antepen | ant4 | ant5
+            lab_{i}_{sufixo} com i = 1 (hoje) … 5 (ant5)
+
+  ► Disponíveis: _limpar, _limpar_leuco, _extrair_parenteses
+
+  ► Campos de Sistemas existentes: veja modules/secoes/sistemas/__init__.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 import streamlit as st
 from .state import _limpar, _limpar_leuco, _extrair_parenteses
+from modules.secoes.controles import _PARAMS as _CTRL_PARAMS
 
 
-def completar_sistemas_de_outros_blocos() -> None:
+# ── Mapeamento Lab → Sistemas ──────────────────────────────────────────────────
+# Cada linha: (padrão destino c/ {s},  sufixo lab_{i}_{aqui},  fn_transform)
+# Para adicionar: acrescente UMA linha aqui (veja cabeçalho do arquivo)
+_BRIDGE_LAB = [
+    # Renal
+    ("sis_renal_cr_{s}",    "cr",    _limpar),
+    ("sis_renal_ur_{s}",    "ur",    _limpar),
+    ("sis_renal_na_{s}",    "na",    _limpar),
+    ("sis_renal_k_{s}",     "k",     _limpar),
+    ("sis_renal_mg_{s}",    "mg",    _limpar),
+    ("sis_renal_fos_{s}",   "pi",    _limpar),
+    ("sis_renal_cai_{s}",   "cai",   _limpar),
+    # Infeccioso
+    ("sis_infec_pcr_{s}",   "pcr",   _limpar),
+    ("sis_infec_leuc_{s}",  "leuco", _limpar_leuco),
+    ("sis_infec_vhs_{s}",   "vhs",   _limpar),
+    # Hematológico
+    ("sis_hemato_hb_{s}",   "hb",    _limpar),
+    ("sis_hemato_plaq_{s}", "plaq",  _limpar),
+    ("sis_hemato_inr_{s}",  "tp",    _extrair_parenteses),
+    ("sis_hemato_ttpa_{s}", "ttpa",  _extrair_parenteses),
+    # Gastro / TGI
+    ("sis_gastro_tgo_{s}",  "tgo",   _limpar),
+    ("sis_gastro_tgp_{s}",  "tgp",   _limpar),
+    ("sis_gastro_fal_{s}",  "fal",   _limpar),
+    ("sis_gastro_ggt_{s}",  "ggt",   _limpar),
+    ("sis_gastro_bt_{s}",   "bt",    _limpar),
+    # Cardiovascular
+    ("sis_cardio_trop_{s}", "trop",  _limpar),
+    # Pele / Musculoesquelético
+    ("sis_pele_cpk_{s}",    "cpk",   _limpar),
+    # ── Adicione novos campos Lab → Sistemas aqui ─────────────────────────────
+    # Exemplo (descomentar quando campo sis_metab_glic_* existir no Bloco 13):
+    # ("sis_metab_glic_{s}", "glic", _limpar),
+]
+
+# ── Mapeamento Ctrl → Sistemas (auto-derivado de controles._PARAMS) ────────────
+# NÃO edite aqui. Edite controles._PARAMS campo bridge_sis.
+_BRIDGE_CTRL = [
+    (bridge_sis, chave, _limpar)
+    for chave, _, __, ___, bridge_sis in _CTRL_PARAMS
+    if bridge_sis is not None
+]
+
+# ── Slots: (sufixo_sis, dia_ctrl, idx_lab) ─────────────────────────────────────
+_SLOTS = [
+    ("hoje",    "hoje",      1),
+    ("ult",     "ontem",     2),
+    ("antepen", "anteontem", 3),
+    ("ant4",    "ant4",      4),
+    ("ant5",    "ant5",      5),
+]
+
+
+def _lac_do_dia(lab_idx: int) -> str:
+    """Retorna lactato da primeira gasometria disponível do dia (gas → gas2 → gas3)."""
+    return next(
+        (
+            _limpar(st.session_state.get(f"lab_{lab_idx}_{gn}_lac", ""))
+            for gn in ("gas", "gas2", "gas3")
+            if _limpar(st.session_state.get(f"lab_{lab_idx}_{gn}_lac", ""))
+        ),
+        "",
+    )
+
+
+def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
     """
-    Copia dados de Laboratoriais (bloco 10), Controles (bloco 11),
-    Antibioticos e Culturas para os campos sis_* do Bloco 13 (Sistemas).
+    Copia dados de Laboratoriais, Controles, Antibioticos e Culturas
+    para os campos sis_* do Bloco 13 (Sistemas).
 
-    Regra: so preenche se o campo de destino estiver vazio -- preserva dados manuais.
+    Regra: só preenche se o campo de destino estiver vazio — preserva dados manuais.
+
+    Para adicionar um novo mapeamento:
+      • Lab  → acrescente uma linha em _BRIDGE_LAB no topo deste arquivo
+      • Ctrl → acrescente uma linha em _BRIDGE_CTRL no topo deste arquivo
+
+    rerun=False: apenas preenche o staging sem chamar st.rerun() — usado quando o
+    chamador já gerencia o rerun (ex: handler do botão Evolução Diária em fichas.py).
     """
-    # Tuplas (sis_suf, ctrl_suf, lab_idx) para os 5 slots historicos
-    _SLOTS = [
-        ("hoje",    "hoje",       1),
-        ("ult",     "ontem",      2),
-        ("antepen", "anteontem",  3),
-        ("ant4",    "ant4",       4),
-        ("ant5",    "ant5",       5),
-    ]
-
     staging = st.session_state.get("_agent_staging", {})
     cnt = [0]
 
@@ -30,26 +116,26 @@ def completar_sistemas_de_outros_blocos() -> None:
             staging[sis_key] = val
             cnt[0] += 1
 
-    # 1. Controles -> Renal (campos fixos de hoje)
+    # 1. Campos fixos de Controles → Renal (apenas slot "hoje")
     _set("sis_renal_diurese", _limpar(st.session_state.get("ctrl_hoje_diurese", "")))
     _set("sis_renal_balanco",  _limpar(st.session_state.get("ctrl_hoje_balanco", "")))
 
-    # 2. Controles -> Renal (evolucao 5 slots)
-    for sis_suf, ctrl_suf, _ in _SLOTS:
-        _set(f"sis_renal_diu_{sis_suf}", _limpar(st.session_state.get(f"ctrl_{ctrl_suf}_diurese", "")))
-        _set(f"sis_renal_bh_{sis_suf}",  _limpar(st.session_state.get(f"ctrl_{ctrl_suf}_balanco", "")))
+    # 2. Mapeamento por slots: Lab + Ctrl → Sistemas
+    for sis_suf, ctrl_dia, lab_idx in _SLOTS:
+        for dest_pat, suf_lab, fn in _BRIDGE_LAB:
+            _set(
+                dest_pat.format(s=sis_suf),
+                fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", "")),
+            )
+        for dest_pat, suf_ctrl, fn in _BRIDGE_CTRL:
+            _set(
+                dest_pat.format(s=sis_suf),
+                fn(st.session_state.get(f"ctrl_{ctrl_dia}_{suf_ctrl}", "")),
+            )
+        # Lactato: caso especial — tenta gas, gas2, gas3 em ordem
+        _set(f"sis_cardio_lac_{sis_suf}", _lac_do_dia(lab_idx))
 
-    # 3. Laboratoriais -> Renal (Cr, Ur, Na, K, Mg, Fos, CaI -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_renal_cr_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_cr",  "")))
-        _set(f"sis_renal_ur_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_ur",  "")))
-        _set(f"sis_renal_na_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_na",  "")))
-        _set(f"sis_renal_k_{sis_suf}",   _limpar(st.session_state.get(f"lab_{lab_idx}_k",   "")))
-        _set(f"sis_renal_mg_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_mg",  "")))
-        _set(f"sis_renal_fos_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_pi",  "")))
-        _set(f"sis_renal_cai_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_cai", "")))
-
-    # 4. Antibioticos atuais -> Infeccioso (ate 3 ATBs com status "Atual")
+    # 3. Antibióticos atuais → Infeccioso (até 3 ATBs com status "Atual")
     ordem_atb = st.session_state.get("atb_ordem", list(range(1, 9)))
     atuais = [
         st.session_state.get(f"atb_{idx}_nome", "")
@@ -59,51 +145,15 @@ def completar_sistemas_de_outros_blocos() -> None:
     for i in range(1, 4):
         _set(f"sis_infec_atb_{i}", _limpar(atuais[i - 1] if i <= len(atuais) else ""))
 
-    # 5. Culturas -> Infeccioso (sitio e data de coleta, slots 1-4)
+    # 4. Culturas → Infeccioso (sítio e data de coleta, slots 1-4)
     for i in range(1, 5):
         _set(f"sis_infec_cult_{i}_sitio", _limpar(st.session_state.get(f"cult_{i}_sitio",       "")))
         _set(f"sis_infec_cult_{i}_data",  _limpar(st.session_state.get(f"cult_{i}_data_coleta", "")))
 
-    # 6. Laboratoriais -> Infeccioso (PCR, Leucocitos, VHS -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_infec_pcr_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_pcr",   "")))
-        _set(f"sis_infec_leuc_{sis_suf}", _limpar_leuco(st.session_state.get(f"lab_{lab_idx}_leuco", "")))
-        _set(f"sis_infec_vhs_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_vhs",   "")))
-
-    # 7. Laboratoriais -> Hematologico (Hb, Plaq, INR, TTPa -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_hemato_hb_{sis_suf}",   _limpar(st.session_state.get(f"lab_{lab_idx}_hb",   "")))
-        _set(f"sis_hemato_plaq_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_plaq", "")))
-        _set(f"sis_hemato_inr_{sis_suf}",  _extrair_parenteses(st.session_state.get(f"lab_{lab_idx}_tp",   "")))
-        _set(f"sis_hemato_ttpa_{sis_suf}", _extrair_parenteses(st.session_state.get(f"lab_{lab_idx}_ttpa", "")))
-
-    # 8. Laboratoriais -> Gastro/TGI (TGO, TGP, FAL, GGT, BT -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_gastro_tgo_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_tgo", "")))
-        _set(f"sis_gastro_tgp_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_tgp", "")))
-        _set(f"sis_gastro_fal_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_fal", "")))
-        _set(f"sis_gastro_ggt_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_ggt", "")))
-        _set(f"sis_gastro_bt_{sis_suf}",  _limpar(st.session_state.get(f"lab_{lab_idx}_bt",  "")))
-
-    # 9. Laboratoriais -> Cardiovascular (Troponina e Lactato -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_cardio_trop_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_trop", "")))
-        # Lactato: primeiro gas disponivel do dia (gas > gas2 > gas3)
-        lac = next(
-            (_limpar(st.session_state.get(f"lab_{lab_idx}_{gn}_lac", ""))
-             for gn in ("gas", "gas2", "gas3")
-             if _limpar(st.session_state.get(f"lab_{lab_idx}_{gn}_lac", ""))),
-            ""
-        )
-        _set(f"sis_cardio_lac_{sis_suf}", lac)
-
-    # 10. Laboratoriais -> Pele/Musculoesqueletico (CPK -- 5 slots)
-    for sis_suf, _, lab_idx in _SLOTS:
-        _set(f"sis_pele_cpk_{sis_suf}", _limpar(st.session_state.get(f"lab_{lab_idx}_cpk", "")))
-
     st.session_state["_agent_staging"] = staging
-    if cnt[0]:
-        st.toast(f"{cnt[0]} campos preenchidos a partir dos Blocos Anteriores!", icon="📋")
-    else:
-        st.warning("Nenhum valor encontrado nos blocos de origem. Preencha Controles, Lab, Antibioticos e Culturas primeiro.")
-    st.rerun()
+    if rerun:
+        if cnt[0]:
+            st.toast(f"{cnt[0]} campos preenchidos a partir dos Blocos Anteriores!", icon="📋")
+        else:
+            st.warning("Nenhum valor encontrado nos blocos de origem. Preencha Controles, Lab, Antibioticos e Culturas primeiro.")
+        st.rerun()

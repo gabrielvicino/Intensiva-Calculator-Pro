@@ -1,13 +1,13 @@
 ---
-description: Use ao modificar campos do Bloco 1 — Identificação & Scores (identificacao.py no secoes, gerador ou agentes_secoes)
+description: Use ao modificar campos do Bloco 1 — Identificação (identificacao.py no secoes, gerador ou agentes_secoes)
 globs: modules/secoes/identificacao.py, modules/gerador/identificacao.py, modules/agentes_secoes/identificacao.py
 alwaysApply: false
 ---
 
-# Bloco 1 — Identificação & Scores: Manual de Campos
+# Bloco 1 — Identificação: Manual de Campos
 
 > Bloco de campos únicos (sem slots numerados). Sem reordenação.
-> `sofa_atual` existe mas NÃO gera linha no prontuário — comportamento intencional.
+> Scores foram movidos para o **Bloco 2 — Scores Clínicos** (`secoes/scores.py`).
 
 ---
 
@@ -36,21 +36,16 @@ alwaysApply: false
 'di_hosp'              # ⚠️ DATA de admissão hospitalar (DD/MM/AAAA), NÃO dias
 'di_uti'               # ⚠️ DATA de admissão UTI (DD/MM/AAAA), NÃO dias
 'di_enf'               # ⚠️ DATA de admissão enfermaria (DD/MM/AAAA), NÃO dias
-'saps3'                # score SAPS3 (string, text_input)
-'sofa_adm'             # SOFA na admissão (int, number_input, padrão 0)
-'sofa_atual'           # SOFA atual (int, number_input) — existe na UI, NÃO gera linha no prontuário
-'mrs'                  # Modified Rankin Scale — selectbox: "0"–"6"
-'pps'                  # Palliative Performance Scale (text_input, ex: "80%")
-'cfs'                  # Clinical Frailty Scale — selectbox: "1 - Muito em forma" … "9 - Doente terminal"
+'alergias'             # alergias medicamentosas (string, text_input)
 'paliativo'            # bool checkbox — se True, adiciona "PACIENTE EM CUIDADOS PROPORCIONAIS"
 ```
 
 ### Tipo dos widgets na UI
 - `sexo` → `selectbox` com opções `["", "Masculino", "Feminino"]`
-- `mrs` → `selectbox` com opções `["", "0", "1", ..., "6"]` (dentro de expander "Outras Escalas")
-- `cfs` → `selectbox` com 9 opções textuais (dentro de expander "Outras Escalas")
-- `idade`, `sofa_adm`, `sofa_atual` → `number_input`
+- `idade` → `number_input`
 - `prontuario` → `text_input` com `disabled=True`
+- `alergias` → `text_input` (após as datas)
+- `paliativo` → `checkbox` (após alergias)
 
 ---
 
@@ -63,13 +58,12 @@ alwaysApply: false
   - `prontuario` usa `disabled=True` — manter padrão para campos somente-leitura
 
 ### 2. `modules/gerador/identificacao.py` → `_secao_identificacao()`
-- [ ] Decidir se o campo aparece no prontuário (pode ser só UI, como `sofa_atual`)
+- [ ] Decidir se o campo aparece no prontuário
 - [ ] Se aparecer: incluir na linha correspondente ou criar nova linha
 
 ### 3. `modules/agentes_secoes/identificacao.py`
 - [ ] **`_PROMPT_IDENTIFICACAO`**: adicionar em `<VARIAVEIS>` com tipo correto
 - [ ] **`preencher_identificacao()`**: converter tipo se necessário
-  - `int` → `str` (ex: `sofa_adm`)
   - null JSON → `""` para strings, `0` para int
 
 ---
@@ -79,31 +73,26 @@ alwaysApply: false
 ```
 # UTI ADULTO #
 
-# Identificação & Scores
+# Identificação
 Nome: João da Silva, 67 anos, Masculino
 Prontuário: 123456 | Leito: 206A
 Origem: PS/CC
 Equipe Titular: Clínica Médica
 Data Internação Hospitalar: 10/01/2025
 Data Internação UTI: 12/01/2025
-SAPS 3: 72
-SOFA admissão: 6
-PPS: 80%
-mRS prévio: 3
-CFS: 4 - Vulnerável
+Alergias: Penicilina, Dipirona
 PACIENTE EM CUIDADOS PROPORCIONAIS
 ```
 
 - `di_hosp/uti/enf` → "Data Internação Hospitalar/UTI/Enfermaria: {data}" (campo recebe DD/MM/AAAA)
-- `sofa_atual` → **não aparece no prontuário** (intencionalmente — só para controle interno)
-- `paliativo=True` → "PACIENTE EM CUIDADOS PROPORCIONAIS" (sem "À VIDA")
+- `alergias` → "Alergias: {valor}" — aparece após as datas de internação
+- `paliativo=True` → "PACIENTE EM CUIDADOS PROPORCIONAIS" (após alergias)
 
 ---
 
 ## Regras Especiais
 
-- `departamento` → `# {UPPER} #` + linha em branco antes do `# Identificação & Scores`
-- `sofa_atual` → existe em `get_campos()` e na UI, mas **intencionalmente não gera linha**
-- Ao adicionar novo campo, decidir explicitamente se entra no gerador
-- Agente converte: "M"/"Masc" → "Masculino"; "F"/"Fem" → "Feminino"; `sofa_adm`/`idade` → int; saps3 → str
+- `departamento` → `# {UPPER} #` + linha em branco antes do `# Identificação`
+- Scores (SAPS 3, SOFA, PPS, mRS, CFS) → **movidos para Bloco 2** (`secoes/scores.py`)
+- Agente converte: "M"/"Masc" → "Masculino"; "F"/"Fem" → "Feminino"; `idade` → int
 - Sem `_conduta`, sem reordenação, sem slots

@@ -92,8 +92,8 @@ def _render_linha(idx_display, id_real):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-8"></span>', unsafe_allow_html=True)
-    st.markdown("##### 8. Antibióticos")
+    st.markdown('<span id="sec-10"></span>', unsafe_allow_html=True)
+    st.markdown("##### 10. Antibióticos")
 
     st.text_area("Notas", key="antibioticos_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")

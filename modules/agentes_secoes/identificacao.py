@@ -39,12 +39,8 @@ Extraia exatamente as seguintes chaves JSON:
 - di_hosp (string): Data de internação hospitalar. Manter o formato original do texto (DD/MM/AAAA, MM/AAAA ou MM/AA). Se ausente, null.
 - di_uti (string): Data de entrada na UTI. Manter o formato original do texto. Se ausente, null.
 - di_enf (string): Data de entrada na enfermaria. Manter o formato original do texto. Se ausente, null.
-- saps3 (number): Valor do escore SAPS 3. Retornar apenas o valor numérico inteiro (ex: 55). Se ausente, null.
-- sofa_adm (number): Valor do escore SOFA na admissão. Retornar apenas o valor numérico inteiro (ex: 8). Se ausente, null.
-- sofa_atual (number): Valor do escore SOFA atual ou mais recente. Retornar apenas o valor numérico inteiro. Se ausente, null.
-- mrs (string): Valor da Escala de Rankin Modificada (mRS). Retornar apenas o número como string (ex: "2"). Se ausente, null.
-- pps (string): Valor do Palliative Performance Scale (PPS). Retornar o valor como string (ex: "80%", "80"). Se ausente, null.
-- cfs (string): Valor da Clinical Frailty Scale (Escala de Fragilidade Clínica). Retornar o valor como string (ex: "3", "5 - Levemente frágil"). Se ausente, null.
+- alergias_status (string): Status das alergias. EXATAMENTE "Desconhecido", "Nega" ou "Presente". "Nega" = paciente nega alergias; "Presente" = há alergias listadas; "Desconhecido" = não há informação. Se não mencionado, null.
+- alergias (string): Lista de alergias medicamentosas ou a substâncias (ex: "Penicilina, Dipirona"). Preencher apenas quando alergias_status = "Presente". Se ausente, null.
 - paliativo (boolean): O paciente está em cuidados paliativos, conforto ou sem medidas de ressuscitação? true se mencionado explicitamente, false se explicitamente negado, null se não mencionado.
 
 # EXEMPLO DE SAÍDA PERFEITA
@@ -61,12 +57,8 @@ Extraia exatamente as seguintes chaves JSON:
   "di_hosp": "20/02/2026",
   "di_uti": "21/02/2026",
   "di_enf": null,
-  "saps3": 72,
-  "sofa_adm": 10,
-  "sofa_atual": 6,
-  "mrs": "2",
-  "pps": "60%",
-  "cfs": "4 - Vulnerável",
+  "alergias_status": "Presente",
+  "alergias": "Penicilina",
   "paliativo": true
 }
 </VARIAVEIS>"""
@@ -74,20 +66,17 @@ Extraia exatamente as seguintes chaves JSON:
 def preencher_identificacao(texto, api_key, provider, modelo):
     r = _chamar_ia(_PROMPT_IDENTIFICACAO, texto, api_key, provider, modelo)
     r.pop("_erro", None)
-    # Campos numéricos inteiros: null/None → 0, converte string → int
-    for k in ["sofa_adm", "sofa_atual"]:
-        if k in r:
-            try: r[k] = int(r[k]) if r[k] not in (None, "", "null") else 0
-            except: r[k] = 0
+    # Campos numéricos inteiros
     if "idade" in r:
         try: r["idade"] = int(r["idade"]) if r["idade"] not in (None, "", "null") else 0
         except: r["idade"] = 0
-    # saps3: a IA retorna number, mas o widget é text_input → converte para string
-    if "saps3" in r:
-        r["saps3"] = str(int(r["saps3"])) if r["saps3"] not in (None, "", "null") else ""
-    # Campos string: null/None → "" (campos de texto do formulário esperam string)
+    # Campos string: null/None → ""
+    # alergias_status: validar que é uma das opções válidas
+    if "alergias_status" in r:
+        v = r.get("alergias_status")
+        r["alergias_status"] = v if v in ("Desconhecido", "Nega", "Presente") else None
     for k in ["nome", "sexo", "prontuario", "leito", "origem", "equipe", "departamento", "interconsultora",
-              "di_hosp", "di_uti", "di_enf", "mrs", "pps", "cfs"]:
+              "di_hosp", "di_uti", "di_enf", "alergias"]:
         if r.get(k) is None:
             r[k] = ""
     # Booleano paliativo: null/None → False

@@ -199,7 +199,7 @@ def _extrair_com_ia(api_key: str, modelo: str) -> None:
 
 def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
     """Renderiza a aba completa de Exames Laboratoriais."""
-    from utils import save_evolucao
+    from utils import save_evolucao, load_evolucao
     from modules import fichas
 
     st.subheader("🧪 Exames Laboratoriais")
@@ -211,6 +211,9 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
     st.write("")
 
     prontuario = st.session_state.get("prontuario", "").strip()
+
+    # Placeholder para mensagens de save — aparece acima do formulário
+    _msg_salvar = st.empty()
 
     # ── Form principal — sem rerender ao digitar ──────────────────────────────
     with st.form("form_laboratoriais_main"):
@@ -301,9 +304,21 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
         st.rerun()
 
     if btn_salvar:
-        dados = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        _msg_salvar.info("💾 Salvando...")
         with st.spinner("💾 Salvando..."):
+            # Carrega última versão salva para preservar seções fora do escopo desta aba
+            base = load_evolucao(prontuario) or {}
+            base.pop("_data_hora", None)
+            todas_chaves = fichas.get_todos_campos_keys()
+            # Campos lab_* vêm do session_state atual; todo o resto vem do último save
+            dados = {
+                k: (st.session_state.get(k) if k.startswith("lab_")
+                    else base.get(k, st.session_state.get(k)))
+                for k in todas_chaves
+            }
             ok = save_evolucao(prontuario, st.session_state.get("nome", "").strip(), dados)
         if ok:
-            st.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+            _msg_salvar.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+        else:
+            _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão.")
 

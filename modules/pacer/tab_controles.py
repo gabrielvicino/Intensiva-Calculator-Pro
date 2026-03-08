@@ -130,7 +130,7 @@ def _confirmar_novo_prontuario_ctrl() -> None:
 
 def render():
     """Renderiza a aba completa de Controles & Balanço Hídrico."""
-    from utils import save_evolucao
+    from utils import save_evolucao, load_evolucao
     from modules import fichas
 
     st.subheader("💧 Controles & Balanço Hídrico")
@@ -143,6 +143,9 @@ def render():
     st.markdown(_CSS_DATAS, unsafe_allow_html=True)
 
     prontuario = st.session_state.get("prontuario", "").strip()
+
+    # Placeholder para mensagens de save — aparece acima do formulário
+    _msg_salvar = st.empty()
 
     # ── Form principal — sem rerender ao digitar ──────────────────────────────
     with st.form("form_controles_main"):
@@ -213,7 +216,7 @@ def render():
             # ── parâmetros: renderiza TODOS para cada coluna ─────────────────
             for dc, dia in zip(day_cols, dias_list):
                 with dc:
-                    for chave, _label, min_max in _ctrl_sec._PARAMS:
+                    for chave, _label, min_max, *_ in _ctrl_sec._PARAMS:
                         lbl = _ctrl_sec._LABEL_CURTO.get(chave, chave)
                         if min_max:
                             cmin, cmax = st.columns(2)
@@ -325,9 +328,21 @@ def render():
                     st.rerun()
 
     if btn_salvar:
-        dados = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        _msg_salvar.info("💾 Salvando...")
         with st.spinner("💾 Salvando..."):
+            # Carrega última versão salva para preservar seções fora do escopo desta aba
+            base = load_evolucao(prontuario) or {}
+            base.pop("_data_hora", None)
+            todas_chaves = fichas.get_todos_campos_keys()
+            # Campos ctrl_* vêm do session_state atual; todo o resto vem do último save
+            dados = {
+                k: (st.session_state.get(k) if k.startswith("ctrl_")
+                    else base.get(k, st.session_state.get(k)))
+                for k in todas_chaves
+            }
             ok = save_evolucao(prontuario, st.session_state.get("nome", "").strip(), dados)
         if ok:
-            st.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+            _msg_salvar.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+        else:
+            _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão.")
 

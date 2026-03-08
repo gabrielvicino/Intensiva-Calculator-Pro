@@ -10,6 +10,14 @@ def _secao_evolucao_clinica() -> list[str]:
     if not texto:
         return []
 
+    # Remove linha de título colada pelo usuário (ex: "Evolução Clínica — 19/02/2026")
+    linhas_raw = texto.splitlines()
+    if linhas_raw and linhas_raw[0].strip().lower().startswith("evolução clínica"):
+        linhas_raw = linhas_raw[1:]
+    texto = "\n".join(linhas_raw).strip()
+    if not texto:
+        return []
+
     # Deduplica parágrafos idênticos
     paragrafos = texto.split("\n\n")
     vistos = []

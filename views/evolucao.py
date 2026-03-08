@@ -2,11 +2,8 @@ import streamlit as st
 import json
 import streamlit.components.v1 as components
 from pathlib import Path
-from datetime import date
-
-from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes, extrator_exames
+from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes
 from modules.ia_config import get_ia_config
-from modules.parsers import parse_lab_deterministico, parse_controles_deterministico
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
 from utils import load_data, save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
 
@@ -273,10 +270,6 @@ ui.render_guia_navegacao()
 
 with st.form("form_dados_clinicos"):
     fichas.render_formulario_completo()
-    st.write("")
-    submitted = st.form_submit_button(
-        "📋 Gerar Prontuário Completo", type="primary", use_container_width=True
-    )
 
 _render_condutas_reg()
 st.write("")
@@ -368,9 +361,6 @@ def _modal_comparar():
 # HANDLERS DE FLAGS (processados fora do form, após render)
 # ==============================================================================
 
-if submitted:
-    st.session_state.texto_final_gerado = gerador.gerar_texto_final()
-
 # ── Gerar Bloco individual ─────────────────────────────────────────────────────
 _gerar_bloco_pendente = st.session_state.pop("_gerar_bloco_pendente", None)
 if _gerar_bloco_pendente:
@@ -378,80 +368,13 @@ if _gerar_bloco_pendente:
     st.session_state["_bloco_secao_texto"] = gerador.gerar_secao(_gerar_bloco_pendente)
     _modal_gerar_bloco()
 
-# ── Comparar Labs + Controles ──────────────────────────────────────────────────
-if st.session_state.pop("_comparar_lab_pendente", False) or st.session_state.pop("_comparar_ctrl_pendente", False):
-    _modal_comparar_labs()
-
 # ── Agente individual ──────────────────────────────────────────────────────────
 _agente_pendente = st.session_state.pop("_agente_pendente", None)
 if _agente_pendente:
     if not GOOGLE_API_KEY and not OPENAI_API_KEY:
         st.warning("⚠️ Configure as chaves de API para usar o Completar Campos.")
-    elif _agente_pendente == "laboratoriais" and not st.session_state.get("laboratoriais_notas", "").strip():
-        st.warning("⚠️ Cole os exames no campo de notas do Bloco 10 (Exames Laboratoriais) antes de clicar em Completar Campos.")
     else:
         _aplicar_agentes_paralelo([_agente_pendente])
-
-# ── Parsing Controles (determinístico) ────────────────────────────────────────
-if st.session_state.pop("_ctrl_deterministico_pendente", False):
-    texto_ctrl = st.session_state.get("controles_notas", "").strip()
-    if not texto_ctrl:
-        st.warning("Cole os controles no campo de notas do Bloco 11 primeiro.")
-    else:
-        existing_dates = {
-            dia: st.session_state.get(f"ctrl_{dia}_data", "")
-            for dia in ["hoje", "ontem", "anteontem", "ant4", "ant5"]
-        }
-        dados = parse_controles_deterministico(texto_ctrl, existing_dates=existing_dates)
-        if dados:
-            st.toast(f"✅ {len(dados)} campos de controles preenchidos.", icon="📊")
-            _para_staging(dados)
-        else:
-            st.warning("⚠️ Nenhum controle no formato esperado. Use: # Controles - 24 horas, > DD/MM/YYYY, PAS: min - max...")
-
-# ── Parsing Laboratoriais (determinístico) ────────────────────────────────────
-if st.session_state.pop("_lab_deterministico_pendente", False):
-    texto_lab = st.session_state.get("laboratoriais_notas", "").strip()
-    if not texto_lab:
-        st.warning("Cole os exames no campo de notas do Bloco 10 primeiro.")
-    else:
-        dados = parse_lab_deterministico(texto_lab, data_hoje=date.today())
-        if dados:
-            st.toast(f"✅ {len(dados)} campos preenchidos (determinístico).", icon="🧪")
-            _para_staging(dados)
-        else:
-            st.warning("⚠️ Nenhum exame no formato esperado. Use: DD/MM/YYYY – Hb x | Ht x | ...")
-
-# ── Extrair Exames via PACER + Agente Lab ─────────────────────────────────────
-if st.session_state.pop("_lab_extrair_pendente", False):
-    texto_lab = st.session_state.get("laboratoriais_notas", "").strip()
-    if not texto_lab:
-        st.warning("Cole os exames no campo de notas do Bloco 10 primeiro.")
-    else:
-        _ok, _msg = verificar_rate_limit()
-        if not _ok:
-            st.error(f"🚫 {_msg}")
-        else:
-            _pacer_key, _pacer_prov, _pacer_mod = get_ia_config("pacer_exames", GOOGLE_API_KEY, OPENAI_API_KEY)
-            with st.spinner("Extraindo exames laboratoriais com IA..."):
-                resultado_pacer = extrator_exames.extrair_exames(
-                    texto_lab, _pacer_key, _pacer_prov, _pacer_mod
-                )
-            if resultado_pacer.startswith("❌"):
-                st.error(resultado_pacer)
-            elif not resultado_pacer.strip():
-                st.warning("Nenhum dado laboratorial extraído. Verifique o formato dos exames.")
-            else:
-                _lab_key, _lab_prov, _lab_mod = get_ia_config("laboratoriais", GOOGLE_API_KEY, OPENAI_API_KEY)
-                with st.spinner("Aplicando dados aos campos..."):
-                    dados_lab = agentes_secoes._AGENTES["laboratoriais"](
-                        resultado_pacer, _lab_key, _lab_prov, _lab_mod
-                    )
-                if "_erro" in dados_lab:
-                    st.error(f"Erro no agente: {dados_lab['_erro']}")
-                else:
-                    st.toast("Exames extraídos e aplicados.", icon="🧪")
-                    _para_staging(dados_lab)
 
 # ── Parsing Sistemas (determinístico) ─────────────────────────────────────────
 if st.session_state.pop("_sistemas_deterministico_pendente", False):
@@ -465,35 +388,34 @@ if st.session_state.pop("_sistemas_deterministico_pendente", False):
 if st.session_state.pop("_completar_blocos_sistemas", False):
     fluxo.completar_sistemas_de_outros_blocos()
 
-# ── Extrair Prescrição via PACER ───────────────────────────────────────────────
-if st.session_state.pop("_prescricao_extrair_pendente", False):
-    texto_presc = st.session_state.get("prescricao_bruta", "").strip()
-    if not texto_presc:
-        st.warning("Cole a prescrição no campo do Bloco 14 primeiro.")
-    else:
-        _ok, _msg = verificar_rate_limit()
-        if not _ok:
-            st.error(f"🚫 {_msg}")
-        else:
-            _presc_key, _presc_prov, _presc_mod = get_ia_config("prescricao", GOOGLE_API_KEY, OPENAI_API_KEY)
-            with st.spinner("Formatando prescrição com IA..."):
-                resultado_presc = extrator_exames.extrair_prescricao(
-                    texto_presc, _presc_key, _presc_prov, _presc_mod
-                )
-            if resultado_presc.startswith("❌"):
-                st.error(resultado_presc)
-            else:
-                st.toast("Prescrição formatada.", icon="💊")
-                _para_staging({"prescricao_formatada": resultado_presc})
 
 # ==============================================================================
 # BLOCO 3: PRONTUÁRIO COMPLETO
 # ==============================================================================
-c_head_1, c_head_2 = st.columns([3.5, 1.5], vertical_alignment="bottom")
-with c_head_1:
-    ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
-with c_head_2:
-    if st.button("📋 Copiar Texto", use_container_width=True, help="Copia o prontuário completo para a área de transferência"):
+ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
+
+if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_width=True):
+    _pront_gerar = st.session_state.get("prontuario", "").strip()
+    if _pront_gerar:
+        _dados_gerar = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        with st.spinner("💾 Salvando antes de gerar..."):
+            save_evolucao(_pront_gerar, st.session_state.get("nome", "").strip(), _dados_gerar)
+    st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
+    st.rerun()
+
+with st.container(border=True):
+    st.text_area(
+        "Final",
+        key="texto_final_gerado",
+        height=200,
+        label_visibility="collapsed",
+        placeholder="Clique em Prontuário Completo para gerar o texto.",
+    )
+
+_c_copy_esp, _c_copy_btn = st.columns([4, 1])
+with _c_copy_btn:
+    if st.button("📋 Copiar Texto", use_container_width=True,
+                 help="Copia o prontuário completo para a área de transferência"):
         texto = st.session_state.get("texto_final_gerado", "")
         if texto:
             components.html(
@@ -506,16 +428,6 @@ with c_head_2:
             st.toast("✅ Prontuário completo copiado para a área de transferência!", icon="📋")
         else:
             st.warning("Gere o prontuário primeiro (clique em **Prontuário Completo**).")
-    st.markdown('<div style="height: 12px"></div>', unsafe_allow_html=True)
-
-with st.container(border=True):
-    st.text_area(
-        "Final",
-        key="texto_final_gerado",
-        height=200,
-        label_visibility="collapsed",
-        placeholder="Clique em Prontuário Completo para gerar o texto.",
-    )
 
 # ==============================================================================
 # RODAPÉ

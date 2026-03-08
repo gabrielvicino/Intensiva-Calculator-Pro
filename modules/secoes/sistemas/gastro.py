@@ -6,7 +6,7 @@ def _campos():
     return {
         "sis_gastro_pocus": "", "sis_gastro_obs": "", "sis_gastro_conduta": "",
         "sis_gastro_exame_fisico": "Típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente",
-        "sis_gastro_ictericia_presente": None, "sis_gastro_ictericia_cruzes": "",
+        "sis_gastro_ictericia_presente": "Ausente", "sis_gastro_ictericia_cruzes": "",
         "sis_gastro_dieta_oral": "", "sis_gastro_dieta_enteral": "",
         "sis_gastro_dieta_enteral_vol": "", "sis_gastro_dieta_parenteral": "",
         "sis_gastro_dieta_parenteral_vol": "", "sis_gastro_meta_calorica": "",

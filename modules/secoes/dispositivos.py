@@ -70,8 +70,8 @@ def _render_linha(idx_display, id_real):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-6"></span>', unsafe_allow_html=True)
-    st.markdown("##### 6. Dispositivos Invasivos")
+    st.markdown('<span id="sec-8"></span>', unsafe_allow_html=True)
+    st.markdown("##### 8. Dispositivos Invasivos")
     
     st.text_area("Notas", key="dispositivos_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")

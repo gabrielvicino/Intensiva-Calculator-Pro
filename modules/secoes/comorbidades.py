@@ -34,8 +34,8 @@ def _render_linha(i):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-3"></span>', unsafe_allow_html=True)
-    st.markdown("##### 3. Comorbidades")
+    st.markdown('<span id="sec-4"></span>', unsafe_allow_html=True)
+    st.markdown("##### 4. Comorbidades")
     
     st.text_area("Notas", key="comorbidades_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")

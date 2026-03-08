@@ -1,0 +1,114 @@
+---
+description: Use ao modificar campos do Bloco 2 — Scores Clínicos (scores.py no secoes, gerador ou agentes_secoes)
+globs: modules/secoes/scores.py, modules/gerador/scores.py, modules/agentes_secoes/scores.py
+alwaysApply: false
+---
+
+# Bloco 2 — Scores Clínicos: Manual de Campos
+
+> Bloco de campos únicos (sem slots numerados). Projetado para receber novos scores no futuro.
+> O SOFA possui uma **janela deslizante** de 4 valores diários além do valor de admissão (fixo).
+
+---
+
+## Arquitetura
+
+- **UI**: `modules/secoes/scores.py` → `render()` + `_shift_sofa()`
+- **Campos**: `get_campos()` → todos únicos
+- **Agente IA**: `modules/agentes_secoes/scores.py` → `_PROMPT_SCORES` + `preencher_scores()`
+- **Determinístico**: `modules/gerador/scores.py` → `_secao_scores()`
+- **Handler shift SOFA**: `modules/fichas.py` → `render_formulario_completo()` (topo), via flag `_sofa_registrar_pendente` → chama `scores._shift_sofa()`
+
+---
+
+## Campos Existentes
+
+```python
+'scores_notas' # notas auxiliares — NÃO aparecem no prontuário
+'saps3'        # score SAPS 3 (string, text_input)
+'saps2'        # score SAPS 2 (string, text_input)
+'apache3'      # score APACHE 3 (string, text_input)
+'apache2'      # score APACHE 2 (string, text_input)
+'apache4'      # score APACHE 4 / APACHE IV (string, text_input)
+'sofa_adm'     # SOFA na admissão (int, number_input) — NUNCA é deslocado
+'sofa_d1'      # 1º slot da janela deslizante (int, padrão 0 = vazio)
+'sofa_d2'      # 2º slot
+'sofa_d3'      # 3º slot
+'sofa_d4'      # 4º slot (mais recente)
+'pps'          # Palliative Performance Scale (string, ex: "80%")
+'mrs'          # Modified Rankin Scale — selectbox: "0"–"6"
+'cfs'          # Clinical Frailty Scale — selectbox: "1 - Muito em forma" … "9 - Doente terminal"
+```
+
+### Layout da UI (dentro de `st.container(border=True)`)
+
+| Linha | Conteúdo | Colunas |
+|-------|----------|---------|
+| 1 | SAPS 3 \| SAPS 2 \| APACHE 3 \| APACHE 2 \| APACHE 4 | 5 iguais |
+| 2 | SOFA Admissão \| SOFA 1 \| SOFA 2 \| SOFA 3 \| SOFA 4 | 5 iguais (`number_input`) |
+| 3 | Botão "Novo SOFA" (esquerda, largura 1/5) | `columns([1, 4])` |
+| 4 | PPS \| mRS \| CFS | 3 iguais |
+
+- Antes do container: `scores_notas` (text_area) + botão "Completar Campos"
+
+---
+
+## Mecânica do SOFA Evolution
+
+### Janela deslizante (`sofa_d1..d4`)
+- `sofa_adm` é **fixo** — nunca entra no shift
+- Ao clicar "Novo SOFA":
+  - `sofa_d1` é descartado (mais antigo da janela)
+  - `sofa_d2 → sofa_d1`, `sofa_d3 → sofa_d2`, `sofa_d4 → sofa_d3`
+  - `sofa_d4` fica vazio (0) para o usuário digitar o novo valor
+- Handler em `fichas.render_formulario_completo()` via flag `_sofa_registrar_pendente` → chama `scores._shift_sofa()`
+
+### Saída determinística
+- Só `sofa_adm` preenchido: `SOFA Admissão: 5`
+- Com evolução: `SOFA Admissão: 5  EVOLUÇÃO DO SOFA: 5 → 6 → 10 → 12`
+
+---
+
+## Adicionar Novo Score
+
+### 1. `modules/secoes/scores.py`
+- [ ] **`get_campos()`**: adicionar campo com valor padrão
+- [ ] **`render()`**: adicionar widget na linha correspondente (ou nova linha)
+
+### 2. `modules/gerador/scores.py` → `_secao_scores()`
+- [ ] Incluir o campo na saída (só aparece se preenchido)
+
+### 3. `modules/agentes_secoes/scores.py`
+- [ ] **`_PROMPT_SCORES`**: adicionar em `<VARIAVEIS>` com tipo correto
+- [ ] **`preencher_scores()`**: converter tipo se necessário
+  - Scores textuais (SAPS, APACHE): IA retorna `number` → converter para `str`
+  - Scores numéricos (SOFA): IA retorna `number|null` → converter para `int`, `null → 0`
+
+---
+
+## Saída Determinística (como sai no prontuário)
+
+```
+# Scores Clínicos
+SAPS 3: 72  SAPS 2: 38
+APACHE 3: 60  APACHE 2: 18  APACHE 4: 55
+SOFA Admissão: 10  EVOLUÇÃO DO SOFA: 10 → 9 → 8 → 6
+PPS: 60%
+mRS prévio: 2
+CFS: 4 - Vulnerável
+```
+
+- Campos vazios/zero não geram linha
+- SAPS 3 e SAPS 2 ficam na mesma linha (separados por dois espaços)
+- APACHE 3, APACHE 2 e APACHE 4 ficam na mesma linha
+- SOFA sem evolução: apenas `SOFA Admissão: X`
+- SOFA com evolução: `SOFA Admissão: X  EVOLUÇÃO DO SOFA: X → Y → Z → W`
+
+---
+
+## Regras Especiais
+
+- `sofa_adm` nunca entra no shift — é o âncora histórico do SOFA
+- `saps3`, `saps2`, `apache3`, `apache2`, `apache4` → agente retorna `number`, widget é `text_input` → converter para string em `preencher_scores()`
+- `sofa_adm`, `sofa_d1..d4` → agente retorna `number|null`, widget é `number_input` → converter para int, `null → 0`
+- Sem `_conduta`, sem reordenação, sem slots

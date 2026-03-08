@@ -14,10 +14,12 @@ from ._base import (
 from .html import gerar_html_labs, gerar_html_controles
 
 from .identificacao import _secao_identificacao
+from .scores import _secao_scores
 from .diagnosticos import _secao_diagnosticos
 from .culturas import _secao_culturas
 from .dispositivos import _secao_dispositivos
 from .hmpa import _secao_hmpa
+from .intraoperatorio import _secao_intraoperatorio
 from .muc import _secao_muc
 from .comorbidades import _secao_comorbidades
 from .antibioticos import _secao_antibioticos
@@ -36,11 +38,13 @@ def _init_secao_map():
     global _SECAO_MAP
     _SECAO_MAP = {
         "identificacao":  _secao_identificacao,
+        "scores":         _secao_scores,
         "hd":             _secao_diagnosticos,
         "comorbidades":   _secao_comorbidades,
         "muc":            _secao_muc,
-        "hmpa":           _secao_hmpa,
-        "dispositivos":   _secao_dispositivos,
+        "hmpa":             _secao_hmpa,
+        "intraoperatorio":  _secao_intraoperatorio,
+        "dispositivos":     _secao_dispositivos,
         "culturas":       _secao_culturas,
         "antibioticos":   _secao_antibioticos,
         "complementares": _secao_complementares,
@@ -54,7 +58,10 @@ def _init_secao_map():
 
 
 def gerar_secao(key: str) -> str:
-    """Gera o texto de uma seção específica pelo seu identificador."""
+    """Gera o texto de uma seção específica pelo seu identificador.
+    Retorna string vazia se a flag inc_{key} estiver desativada."""
+    if not st.session_state.get(f"inc_{key}", True):
+        return ""
     if not _SECAO_MAP:
         _init_secao_map()
     fn = _SECAO_MAP.get(key)
@@ -283,26 +290,30 @@ def _build_html_table(headers: list, rows: list) -> str:
 def gerar_texto_final() -> str:
     """
     Monta o texto final do prontuário concatenando todas as seções.
-    Cada seção retorna uma lista de linhas; seções vazias são ignoradas.
+    Seções com inc_{key}=False são excluídas da saída (dados preservados).
     """
+    def _inc(key: str) -> bool:
+        return st.session_state.get(f"inc_{key}", True)
+
     secoes = []
 
-    secoes.append(_secao_identificacao())
-    secoes.append(_secao_diagnosticos())
-    secoes.append(_secao_comorbidades())
-    secoes.append(_secao_muc())
-    secoes.append(_secao_dispositivos())
-    secoes.append(_secao_culturas())
-    secoes.append(_secao_hmpa())
-
-    secoes.append(_secao_antibioticos())
-    secoes.append(_secao_complementares())
-    secoes.append(_secao_laboratoriais())
-    secoes.append(_secao_controles())
-    secoes.append(_secao_evolucao_clinica())
-    secoes.append(_secao_sistemas())
-    secoes.append(_secao_condutas())
-    secoes.append(_secao_prescricao())
+    if _inc("identificacao"):   secoes.append(_secao_identificacao())
+    if _inc("scores"):          secoes.append(_secao_scores())
+    if _inc("hd"):              secoes.append(_secao_diagnosticos())
+    if _inc("comorbidades"):    secoes.append(_secao_comorbidades())
+    if _inc("muc"):             secoes.append(_secao_muc())
+    if _inc("dispositivos"):    secoes.append(_secao_dispositivos())
+    if _inc("culturas"):        secoes.append(_secao_culturas())
+    if _inc("hmpa"):            secoes.append(_secao_hmpa())
+    if _inc("intraoperatorio"): secoes.append(_secao_intraoperatorio())
+    if _inc("antibioticos"):    secoes.append(_secao_antibioticos())
+    if _inc("complementares"):  secoes.append(_secao_complementares())
+    if _inc("laboratoriais"):   secoes.append(_secao_laboratoriais())
+    if _inc("controles"):       secoes.append(_secao_controles())
+    if _inc("evolucao"):        secoes.append(_secao_evolucao_clinica())
+    if _inc("sistemas"):        secoes.append(_secao_sistemas())
+    if _inc("condutas"):        secoes.append(_secao_condutas())
+    if _inc("prescricao"):      secoes.append(_secao_prescricao())
 
     blocos = []
     for s in secoes:

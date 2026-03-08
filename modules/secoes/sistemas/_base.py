@@ -2,14 +2,8 @@ import streamlit as st
 
 
 def _evo_header():
-    """Cabeçalho das colunas de evolução (5 slots)."""
-    _, lbl_c, v1, v2, v3, v4, v5 = st.columns([0.5, 1.5, 1, 1, 1, 1, 1])
-    with lbl_c: st.caption("Campo")
-    with v1:    st.caption("Hoje")
-    with v2:    st.caption("Ontem")
-    with v3:    st.caption("Anteontem")
-    with v4:    st.caption("4º")
-    with v5:    st.caption("5º")
+    """Cabeçalho das colunas de evolução — desabilitado."""
+    pass
 
 
 def _evo_row(label, prefix):

@@ -33,21 +33,8 @@ def _secao_muc() -> list[str]:
     corpo = ["# Medicações de Uso Contínuo"]
 
     adesao = _get("muc_adesao_global")
-    alergia = st.session_state.get("muc_alergia")
-    alergia_obs = _get("muc_alergia_obs")
-
-    # Adesão e alergia na mesma linha quando ambos existem
-    partes_muc = []
     if adesao:
-        partes_muc.append(adesao)  # Uso Regular / Uso Irregular / Desconhecido
-    if alergia == "Presente":
-        partes_muc.append(f"Alergias: {alergia_obs}" if alergia_obs else "Alergias: presente")
-    elif alergia == "Nega":
-        partes_muc.append("Nega alergias")
-    elif alergia == "Desconhecido":
-        partes_muc.append("Desconhece alergias")
-    if partes_muc:
-        corpo.append(" | ".join(partes_muc))
+        corpo.append(adesao)
 
     corpo += linhas
     return corpo

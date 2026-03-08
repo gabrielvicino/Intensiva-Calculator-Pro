@@ -170,10 +170,12 @@ def _normalizar_pills_state() -> None:
 
 # --- IMPORTAÇÃO DAS SEÇÕES ---
 from modules.secoes import identificacao      # 1
-from modules.secoes import hd                 # 2
+from modules.secoes import scores             # 2
+from modules.secoes import hd                 # 3
 from modules.secoes import comorbidades       # 3
 from modules.secoes import muc                # 4
-from modules.secoes import hmpa               # 5
+from modules.secoes import hmpa
+from modules.secoes import intraoperatorio               # 5
 from modules.secoes import dispositivos       # 6
 from modules.secoes import culturas           # 7
 from modules.secoes import antibioticos       # 8
@@ -189,10 +191,12 @@ def _campos_base() -> dict:
     """Retorna o dicionário com TODOS os campos do formulário e seus valores padrão."""
     campos = {}
     campos.update(identificacao.get_campos())
+    campos.update(scores.get_campos())
     campos.update(hd.get_campos())
     campos.update(comorbidades.get_campos())
     campos.update(muc.get_campos())
     campos.update(hmpa.get_campos())
+    campos.update(intraoperatorio.get_campos())
     campos.update(dispositivos.get_campos())
     campos.update(culturas.get_campos())
     campos.update(antibioticos.get_campos())
@@ -207,11 +211,29 @@ def _campos_base() -> dict:
         'texto_bruto_original': '',  # Bloco 1: texto colado antes do processamento
         'texto_final_gerado': '',    # Bloco 3: prontuário gerado pelo modelo
         # campos _notas preenchidos pelo ia_extrator
-        'identificacao_notas': '', 'hd_notas': '', 'comorbidades_notas': '',
+        'identificacao_notas': '', 'scores_notas': '', 'hd_notas': '', 'comorbidades_notas': '',
         'muc_notas': '', 'hmpa_texto': '', 'dispositivos_notas': '',
         'culturas_notas': '', 'antibioticos_notas': '', 'complementares_notas': '',
         'laboratoriais_notas': '', 'controles_notas': '', 'evolucao_notas': '',
         'sistemas_notas': '',
+        # flags de inclusão na saída deterministíca (True = incluir, padrão)
+        'inc_identificacao':   True,
+        'inc_scores':          True,
+        'inc_hd':              True,
+        'inc_comorbidades':    True,
+        'inc_muc':             True,
+        'inc_hmpa':            True,
+        'inc_intraoperatorio': True,
+        'inc_dispositivos':    True,
+        'inc_culturas':        True,
+        'inc_antibioticos':    True,
+        'inc_complementares':  True,
+        'inc_laboratoriais':   True,
+        'inc_controles':       True,
+        'inc_evolucao':        True,
+        'inc_sistemas':        True,
+        'inc_prescricao':      True,
+        'inc_condutas':        True,
     })
     return campos
 
@@ -321,6 +343,20 @@ def _btn_agente(secao_key: str):
     return _render
 
 
+def _btn_gerar_bloco_com_inc(secao_key: str):
+    """Renderiza checkbox 'Incluir na saída' + botão 'Gerar Bloco' na mesma linha."""
+    col_inc, col_btn = st.columns([1, 2])
+    with col_inc:
+        st.markdown('<div style="padding-top:6px"></div>', unsafe_allow_html=True)
+        st.checkbox(
+            "Incluir na saída",
+            key=f"inc_{secao_key}",
+            help="Quando desmarcado, esta seção não aparece no Prontuário Completo (dados preservados)",
+        )
+    with col_btn:
+        _btn_gerar_bloco(secao_key)
+
+
 _CSS_FORMULARIO = """<style>
     [data-testid="stExpander"] { border: none !important; box-shadow: none !important; background: transparent !important; }
     [data-testid="stExpander"] details { border-radius: 4px !important; border: 1px solid #f0f0f0 !important; background-color: #fafafa; box-shadow: none; margin-bottom: 8px !important; }
@@ -337,6 +373,20 @@ _CSS_FORMULARIO = """<style>
 
 
 def render_formulario_completo():
+    # ── Handler: registrar novo SOFA na janela deslizante ───────────────────
+    if st.session_state.pop("_sofa_registrar_pendente", False):
+        scores._shift_sofa()
+
+    # Aplica valores capturados pela Evolução Diária (bridge Bloco 10/11 → Bloco 13)
+    # Usa del+set para evitar StreamlitAPIException em chaves de widget já instanciadas
+    if "_evo_bridge_hoje" in st.session_state:
+        _bridge_vals = st.session_state.pop("_evo_bridge_hoje")
+        for _k, _v in _bridge_vals.items():
+            if _v:
+                if _k in st.session_state:
+                    del st.session_state[_k]
+                st.session_state[_k] = _v
+
     # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget
     if "_agent_staging" in st.session_state:
         staging = st.session_state.pop("_agent_staging")
@@ -358,19 +408,25 @@ def render_formulario_completo():
     # ==========================================
     with st.expander("Dados do Paciente", expanded=False):
         identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
-        _btn_gerar_bloco("identificacao")
+        _btn_gerar_bloco_com_inc("identificacao")
+        st.divider()
+        scores.render(_agent_btn_callback=_btn_agente("scores"))
+        _btn_gerar_bloco_com_inc("scores")
         st.divider()
         hd.render(_agent_btn_callback=_btn_agente("hd"))
-        _btn_gerar_bloco("hd")
+        _btn_gerar_bloco_com_inc("hd")
         st.divider()
         comorbidades.render(_agent_btn_callback=_btn_agente("comorbidades"))
-        _btn_gerar_bloco("comorbidades")
+        _btn_gerar_bloco_com_inc("comorbidades")
         st.divider()
         muc.render(_agent_btn_callback=_btn_agente("muc"))
-        _btn_gerar_bloco("muc")
+        _btn_gerar_bloco_com_inc("muc")
         st.divider()
         hmpa.render(_agent_btn_callback=_btn_agente("hmpa"))
-        _btn_gerar_bloco("hmpa")
+        _btn_gerar_bloco_com_inc("hmpa")
+        st.divider()
+        intraoperatorio.render()
+        _btn_gerar_bloco_com_inc("intraoperatorio")
 
     st.write("")
 
@@ -379,16 +435,16 @@ def render_formulario_completo():
     # ==========================================
     with st.expander("Evolução Horizontal", expanded=False):
         dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
-        _btn_gerar_bloco("dispositivos")
+        _btn_gerar_bloco_com_inc("dispositivos")
         st.divider()
         culturas.render(_agent_btn_callback=_btn_agente("culturas"))
-        _btn_gerar_bloco("culturas")
+        _btn_gerar_bloco_com_inc("culturas")
         st.divider()
         antibioticos.render(_agent_btn_callback=_btn_agente("antibioticos"))
-        _btn_gerar_bloco("antibioticos")
+        _btn_gerar_bloco_com_inc("antibioticos")
         st.divider()
         complementares.render(_agent_btn_callback=_btn_agente("complementares"))
-        _btn_gerar_bloco("complementares")
+        _btn_gerar_bloco_com_inc("complementares")
 
     st.write("")
 
@@ -401,34 +457,92 @@ def render_formulario_completo():
             "📅 Evolução Diária",
             key="_fsbtn_evo_hoje_global",
             use_container_width=True,
-            help="Desloca os slots de Laboratoriais, Controles e Sistemas (hoje→ontem→anteontem) e executa o Parsing dos três blocos.",
+            type="primary",
+            help="Desloca Labs, Controles e Sistemas (hoje→ontem→…). "
+                 "Os dados de hoje são carregados automaticamente no Bloco 13.",
         ):
+            from modules.fluxo.bridge import _SLOTS, _BRIDGE_LAB, _BRIDGE_CTRL, _lac_do_dia
+            from modules.fluxo.state import _limpar
+
+            # ── Captura valores de HOJE antes de qualquer deslocamento ──────────
+            # (lab_1/* e ctrl_hoje/* ainda têm os dados do dia atual)
+            _captura: dict = {}
+            for sis_suf, ctrl_dia, lab_idx in _SLOTS:
+                if sis_suf != "hoje":
+                    continue
+                for dest_pat, suf_lab, fn in _BRIDGE_LAB:
+                    val = fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", ""))
+                    if val:
+                        _captura[dest_pat.format(s=sis_suf)] = val
+                for dest_pat, suf_ctrl, fn in _BRIDGE_CTRL:
+                    val = fn(st.session_state.get(f"ctrl_{ctrl_dia}_{suf_ctrl}", ""))
+                    if val:
+                        _captura[dest_pat.format(s=sis_suf)] = val
+                lac = _lac_do_dia(lab_idx)
+                if lac:
+                    _captura[f"sis_cardio_lac_{sis_suf}"] = lac
+                # Campos fixos (diurese e balanço do dia)
+                for sis_key, ctrl_key in [
+                    ("sis_renal_diurese", "ctrl_hoje_diurese"),
+                    ("sis_renal_balanco",  "ctrl_hoje_balanco"),
+                ]:
+                    v = _limpar(st.session_state.get(ctrl_key, ""))
+                    if v:
+                        _captura[sis_key] = v
+
+            if _captura:
+                st.session_state["_evo_bridge_hoje"] = _captura
+
+            # ── Deslocamentos (ordem: sistemas → labs → controles) ──────────────
+            sistemas._deslocar_sistemas()
             laboratoriais._deslocar_laboratoriais()
             controles._deslocar_dias()
-            sistemas._deslocar_sistemas()
-            st.session_state["_lab_deterministico_pendente"]      = True
-            st.session_state["_ctrl_deterministico_pendente"]     = True
-            st.session_state["_sistemas_deterministico_pendente"] = True
-            st.toast("✅ Evolução Hoje aplicada em Labs, Controles e Sistemas — Parsing em andamento.", icon="📅")
+            st.toast("✅ Evolução Diária aplicada — Sistemas serão preenchidos.", icon="📅")
 
         st.divider()
-        laboratoriais.render(_agent_btn_callback=_btn_agente("laboratoriais"))
-        _btn_gerar_bloco("laboratoriais")
+
+        # ── 12. Análise Clínica ─────────────────────────────────────────────
+        from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
+        st.markdown("##### 📊 12. Análise Clínica")
+        st.markdown(
+            "<style>"
+            ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
+            "padding:14px 18px 8px;margin-bottom:10px;"
+            "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
+            ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
+            "display:block;margin-bottom:8px}"
+            ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
+        _html_labs, _html_ctrl = _gerar_html_cmp()
+        st.markdown(
+            "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
+            + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido. Acesse a aba Laboratoriais.</p>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
+            + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido. Acesse a aba Controles & BH.</p>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+
         st.divider()
-        controles.render(_agent_btn_callback=_btn_agente("controles"))
-        _btn_gerar_bloco("controles")
-        st.divider()
+        # ── 13. Evolução Clínica ────────────────────────────────────────────
         evolucao_clinica.render()
-        _btn_gerar_bloco("evolucao")
+        _btn_gerar_bloco_com_inc("evolucao")
         st.divider()
+        # ── 14. Evolução por Sistemas ───────────────────────────────────────
         sistemas.render(_agent_btn_callback=_btn_agente("sistemas"))
-        _btn_gerar_bloco("sistemas")
+        _btn_gerar_bloco_com_inc("sistemas")
         st.divider()
         prescricao.render()
-        _btn_gerar_bloco("prescricao")
+        _btn_gerar_bloco_com_inc("prescricao")
         st.divider()
         condutas.render()
-        _btn_gerar_bloco("condutas")
+        _btn_gerar_bloco_com_inc("condutas")
 
 
 def migrar_schema_legado(dados: dict) -> dict:

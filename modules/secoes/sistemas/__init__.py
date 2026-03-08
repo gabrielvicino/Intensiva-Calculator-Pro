@@ -69,13 +69,13 @@ def get_campos():
 
 def render(_agent_btn_callback=None):
     """Renderiza o bloco completo de Evolução por Sistemas."""
-    st.markdown('<span id="sec-13"></span>', unsafe_allow_html=True)
-    st.markdown("##### 13. Evolução por Sistemas")
+    st.markdown('<span id="sec-14"></span>', unsafe_allow_html=True)
+    st.markdown("##### 14. Evolução por Sistemas")
 
     st.text_area("Notas", key="sistemas_notas", height="content",
                  placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")
-    col_evo, col_parse, col_puxar, col_ag, _ = st.columns([1, 1, 1.5, 1, 5])
+    col_evo, col_puxar, col_ag, _ = st.columns([1, 1.5, 1, 6.5])
     with col_evo:
         evo_clicked = st.form_submit_button(
             "Evolução Hoje", key="btn_evolucao_hoje_sistemas",
@@ -85,13 +85,6 @@ def render(_agent_btn_callback=None):
         if evo_clicked:
             _deslocar_sistemas()
             st.toast("✅ Dados deslocados. Ontem → anteontem, hoje → ontem. Campos de hoje prontos para preenchimento.", icon="✅")
-    with col_parse:
-        if st.form_submit_button(
-            "Parsing Sistemas", key="btn_parse_sistemas",
-            use_container_width=True,
-            help="Preenche deterministicamente a partir do texto no campo de notas.",
-        ):
-            st.session_state["_sistemas_deterministico_pendente"] = True
     with col_puxar:
         if st.form_submit_button(
             "Completar Blocos Anteriores", key="btn_completar_blocos_sistemas",

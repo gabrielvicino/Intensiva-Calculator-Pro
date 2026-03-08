@@ -194,21 +194,22 @@ def render_header_secao(titulo: str, emoji: str, cor: str):
 
 # Mapa seção → (âncora, título completo) para o guia de navegação
 _GUIA_SECOES = [
-    (1, "Identificação & Scores"),
-    (2, "Diagnósticos Atuais & Prévios"),
-    (3, "Comorbidades"),
-    (4, "Medicações de Uso Contínuo"),
-    (5, "História da Moléstia Pregressa Atual"),
-    (6, "Dispositivos Invasivos"),
-    (7, "Culturas"),
-    (8, "Antibióticos"),
-    (9, "Exames Complementares"),
-    (10, "Exames Laboratoriais"),
-    (11, "Controles & Balanço Hídrico"),
-    (12, "Evolução Clínica"),
-    (13, "Evolução por Sistemas"),
-    (14, "Prescrição"),
-    (15, "Plano Terapêutico & Condutas"),
+    (1,  "Identificação"),
+    (2,  "Scores Clínicos"),
+    (3,  "Diagnósticos Atuais & Prévios"),
+    (4,  "Comorbidades"),
+    (5,  "Medicações de Uso Contínuo"),
+    (6,  "História da Moléstia Pregressa Atual"),
+    (7,  "Intraoperatório"),
+    (8,  "Dispositivos Invasivos"),
+    (9,  "Culturas"),
+    (10, "Antibióticos"),
+    (11, "Exames Complementares"),
+    (12, "Análise Clínica"),
+    (13, "Evolução Clínica"),
+    (14, "Evolução por Sistemas"),
+    (15, "Prescrição"),
+    (16, "Plano Terapêutico & Condutas"),
 ]
 
 

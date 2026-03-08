@@ -1,41 +1,42 @@
 import streamlit as st
 
-# Parâmetros: (chave, label, tem_min_max)
+# Parâmetros: (chave, label_completo, tem_min_max, label_curto, bridge_sis)
+# ─────────────────────────────────────────────────────────────────────────────
+# Para adicionar um novo campo de controle, acrescente UMA linha aqui:
+#   chave       → nome interno (usado em ctrl_{dia}_{chave})
+#   label       → texto completo exibido no prontuário / forms
+#   min_max     → True se tem campos Mín/Máx, False se é campo único
+#   label_curto → texto abreviado para a tabela (evita quebra de linha)
+#   bridge_sis  → padrão "sis_SISTEMA_CAMPO_{s}" ou None (sem bridge)
+#
+# Campos com bridge_sis preenchem automaticamente o Bloco 13 (Sistemas)
+# ao clicar em "Evolução Diária". Nenhuma outra alteração é necessária no bridge.
+# ─────────────────────────────────────────────────────────────────────────────
 _PARAMS = [
-    ("pas",     "Pressão Arterial Sistólica (mmHg)",   True),
-    ("pad",     "Pressão Arterial Diastólica (mmHg)",  True),
-    ("pam",     "Pressão Arterial Média (mmHg)",       True),
-    ("fc",      "Frequência Cardíaca (bpm)",           True),
-    ("fr",      "Frequência Respiratória (irpm)",      True),
-    ("sato2",   "Saturação de O₂ (%)",                 True),
-    ("temp",    "Temperatura (°C)",                    True),
-    ("glic",    "Glicemia (mg/dL)",                    True),
-    ("diurese",    "Diurese",                             False),
-    ("evacuacao",  "Evacuação",                           False),
-    ("balanco",    "Balanço Hídrico",                     False),
+    # chave        label_completo                             min_max  label_curto      bridge_sis
+    ("pas",      "Pressão Arterial Sistólica (mmHg)",   True,   "PAS (mmHg)",    None),
+    ("pad",      "Pressão Arterial Diastólica (mmHg)",  True,   "PAD (mmHg)",    None),
+    ("pam",      "Pressão Arterial Média (mmHg)",       True,   "PAM (mmHg)",    None),
+    ("fc",       "Frequência Cardíaca (bpm)",           True,   "FC (bpm)",      None),
+    ("fr",       "Frequência Respiratória (irpm)",      True,   "FR (irpm)",     None),
+    ("sato2",    "Saturação de O₂ (%)",                 True,   "SatO₂ (%)",     None),
+    ("temp",     "Temperatura (°C)",                    True,   "Temp (°C)",     None),
+    ("glic",     "Glicemia (mg/dL)",                    True,   "Glic (mg/dL)",  None),
+    ("diurese",  "Diurese",                             False,  "Diurese",       "sis_renal_diu_{s}"),
+    ("evacuacao","Evacuação",                           False,  "Evacuação",     None),
+    ("balanco",  "Balanço Hídrico",                     False,  "BH",            "sis_renal_bh_{s}"),
 ]
+
+# Auto-derivado de _PARAMS — não editar manualmente
+_LABEL_CURTO = {chave: curto for chave, _, __, curto, ___ in _PARAMS}
 
 _DIAS_MAIN = ["hoje", "ontem", "anteontem", "ant4"]
 _DIAS_EXP  = ["ant5", "ant6", "ant7", "ant8", "ant9", "ant10"]
 _DIAS      = _DIAS_MAIN + _DIAS_EXP   # todos os 10 dias
 
-_COLS_HEADER = [1.5, 1, 1, 1, 1, 1]   # label + 5 dias (para cada bloco)
-_COLS_DATA   = [1.5, 1, 1, 1, 1, 1]
+_COLS_HEADER = [1.5] + [1] * len(_DIAS_MAIN)   # label + dias principais
+_COLS_DATA   = [1.5] + [1] * len(_DIAS_MAIN)
 
-# Labels curtos usados na tabela (evitam quebra de linha → alinhamento correto)
-_LABEL_CURTO = {
-    "pas":      "PAS (mmHg)",
-    "pad":      "PAD (mmHg)",
-    "pam":      "PAM (mmHg)",
-    "fc":       "FC (bpm)",
-    "fr":       "FR (irpm)",
-    "sato2":    "SatO₂ (%)",
-    "temp":     "Temp (°C)",
-    "glic":     "Glic (mg/dL)",
-    "diurese":  "Diurese",
-    "evacuacao":"Evacuação",
-    "balanco":  "BH",
-}
 
 _LABEL_DIA = {
     "hoje":      "Hoje",
@@ -63,7 +64,7 @@ def _deslocar_dias():
     Desloca 10 slots: ant10 some | ant9→ant10 | … | hoje→ontem | hoje vazio.
     """
     ordem = ["ant10", "ant9", "ant8", "ant7", "ant6", "ant5", "ant4", "anteontem", "ontem", "hoje"]
-    for chave, _, min_max in _PARAMS:
+    for chave, _, min_max, __, ___ in _PARAMS:
         if min_max:
             for i in range(len(ordem) - 1):
                 dst, src = ordem[i], ordem[i + 1]
@@ -87,7 +88,7 @@ def get_campos():
     for dia in _DIAS:
         campos[f"ctrl_{dia}_texto_entrada"] = ""
         campos[f"ctrl_{dia}_data"] = ""
-        for chave, _, min_max in _PARAMS:
+        for chave, _, min_max, __, ___ in _PARAMS:
             if min_max:
                 campos[f"ctrl_{dia}_{chave}_min"] = ""
                 campos[f"ctrl_{dia}_{chave}_max"] = ""
@@ -97,8 +98,8 @@ def get_campos():
 
 
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-11"></span>', unsafe_allow_html=True)
-    st.markdown("##### 11. Controles & Balanço Hídrico")
+    st.markdown('<span id="sec-13"></span>', unsafe_allow_html=True)
+    st.markdown("##### 13. Controles & Balanço Hídrico")
 
     # Campo notas para extração da IA
     st.text_area(
@@ -158,24 +159,24 @@ def render(_agent_btn_callback=None):
                 label_visibility="collapsed",
             )
 
-        # ── Cabeçalho: 5 colunas (hoje | ontem | anteontem | 4º | 5º) ──────────
+        # ── Cabeçalho: label + dias principais ───────────────────────────────
         h = st.columns(_COLS_HEADER)
         with h[0]:
             st.markdown("**Parâmetro**")
-        for col_idx, dia in enumerate(_DIAS, start=1):
+        for col_idx, dia in enumerate(_DIAS_MAIN, start=1):
             with h[col_idx]:
                 st.markdown(f"**{_LABEL_DIA[dia]}**")
                 st.text_input(f"data_{dia}", key=f"ctrl_{dia}_data",
                               placeholder="dd/mm", label_visibility="collapsed")
 
-        # ── Linhas de parâmetros: 5 colunas ───────────────────────────────────
-        for chave, label, min_max in _PARAMS:
+        # ── Linhas de parâmetros ──────────────────────────────────────────────
+        for chave, label, min_max, *_ in _PARAMS:
             r = st.columns(_COLS_DATA)
             with r[0]:
                 st.markdown(f"**{label}**")
 
             if min_max:
-                for col_idx, dia in enumerate(_DIAS, start=1):
+                for col_idx, dia in enumerate(_DIAS_MAIN, start=1):
                     with r[col_idx]:
                         c_min, c_max = st.columns(2)
                         with c_min:
@@ -185,7 +186,7 @@ def render(_agent_btn_callback=None):
                             st.text_input(f"{dia}_{chave}_max", key=f"ctrl_{dia}_{chave}_max",
                                           placeholder="Máx", label_visibility="collapsed")
             else:
-                for col_idx, dia in enumerate(_DIAS, start=1):
+                for col_idx, dia in enumerate(_DIAS_MAIN, start=1):
                     with r[col_idx]:
                         st.text_input(f"{dia}_{chave}", key=f"ctrl_{dia}_{chave}",
                                       placeholder="Valor", label_visibility="collapsed")

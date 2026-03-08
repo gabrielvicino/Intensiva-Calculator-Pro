@@ -1,5 +1,15 @@
 import streamlit as st
 
+# ─────────────────────────────────────────────────────────────────────────────
+# COMO ADICIONAR UM NOVO CAMPO LABORATORIAL
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Adicione o sufixo em _LAB_SUFIXOS (para deslocamento automático).
+# 2. Adicione o campo em get_campos() com valor padrão ''.
+# 3. Adicione o widget em _render_labs_table() (use _row(label, sufixo)).
+# 4. Para que o campo vá para Sistemas (bridge): adicione em bridge.py → _BRIDGE_LAB.
+#    Exemplo: ("sis_metab_glic_{s}", "glic", _limpar)
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Sufixos dos campos lab_{i}_{suf} para deslocamento (Evolução Hoje)
 _LAB_SUFIXOS = [
     "data", "hb", "ht", "vcm", "hcm", "rdw", "leuco", "plaq",
@@ -346,8 +356,8 @@ def _render_gas_extras(slots: list):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-10"></span>', unsafe_allow_html=True)
-    st.markdown("##### 10. Exames Laboratoriais")
+    st.markdown('<span id="sec-12"></span>', unsafe_allow_html=True)
+    st.markdown("##### 12. Exames Laboratoriais")
 
     st.text_area("Notas", key="laboratoriais_notas", height="content",
                  placeholder="Cole neste campo a evolução...", label_visibility="collapsed")

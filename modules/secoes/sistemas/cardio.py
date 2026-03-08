@@ -8,7 +8,7 @@ def _campos():
         "sis_cardio_fc": "",
         "sis_cardio_exame_cardio": "2BNRF, não ausculto sopros significativos",
         "sis_cardio_cardioscopia": "", "sis_cardio_pam": "",
-        "sis_cardio_perfusao": None, "sis_cardio_tec": "",
+        "sis_cardio_perfusao": "Normal", "sis_cardio_tec": "< 3s",
         "sis_cardio_fluido_responsivo": None, "sis_cardio_fluido_tolerante": None,
         "sis_cardio_lac_ant5": "", "sis_cardio_lac_ant4": "", "sis_cardio_lac_antepen": "",
         "sis_cardio_lac_ult": "", "sis_cardio_lac_hoje": "", "sis_cardio_lac_show": False,

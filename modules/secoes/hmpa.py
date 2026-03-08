@@ -7,8 +7,8 @@ def get_campos():
     }
 
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-5"></span>', unsafe_allow_html=True)
-    st.markdown("##### 5. História da Moléstia Pregressa Atual")
+    st.markdown('<span id="sec-6"></span>', unsafe_allow_html=True)
+    st.markdown("##### 6. História da Moléstia Pregressa Atual")
 
     with st.container(border=True):
         st.caption("Texto extraído do prontuário")

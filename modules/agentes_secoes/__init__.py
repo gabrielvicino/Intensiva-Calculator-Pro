@@ -6,6 +6,7 @@ import streamlit as st
 from ._base import _chamar_ia, _REGRA_DATA
 
 from .identificacao import preencher_identificacao
+from .scores import preencher_scores
 from .hd import preencher_hd
 from .comorbidades import preencher_comorbidades
 from .muc import preencher_muc
@@ -21,6 +22,7 @@ from .controles import preencher_controles
 
 _AGENTES = {
     "identificacao":  preencher_identificacao,
+    "scores":         preencher_scores,
     "hd":             preencher_hd,
     "comorbidades":   preencher_comorbidades,
     "muc":            preencher_muc,
@@ -37,6 +39,7 @@ _AGENTES = {
 
 _NOTAS_MAP = {
     "identificacao":  "identificacao_notas",
+    "scores":         "scores_notas",
     "hd":             "hd_notas",
     "comorbidades":   "comorbidades_notas",
     "muc":            "muc_notas",
@@ -52,21 +55,23 @@ _NOTAS_MAP = {
 }
 
 NOMES_SECOES = {
-    "identificacao":  "1. Identificação",
-    "hd":             "2. Diagnósticos",
-    "comorbidades":   "3. Comorbidades",
-    "muc":            "4. MUC",
-    "hmpa":           "5. HMPA",
-    "dispositivos":   "6. Dispositivos",
-    "culturas":       "7. Culturas",
-    "antibioticos":   "8. Antibióticos",
-    "complementares": "9. Complementares",
-    "laboratoriais":  "10. Exames Laboratoriais",
-    "controles":      "11. Controles & Balanço",
-    "evolucao":       "12. Evolução Clínica",
-    "sistemas":       "13. Sistemas",
-    "condutas":       "14. Condutas",
-    "prescricao":     "15. Prescrição",
+    "identificacao":   "1. Identificação",
+    "scores":          "2. Scores Clínicos",
+    "hd":              "3. Diagnósticos",
+    "comorbidades":    "4. Comorbidades",
+    "muc":             "5. MUC",
+    "hmpa":            "6. HMPA",
+    "intraoperatorio": "7. Intraoperatório",
+    "dispositivos":    "8. Dispositivos",
+    "culturas":        "9. Culturas",
+    "antibioticos":    "10. Antibióticos",
+    "complementares":  "11. Complementares",
+    "laboratoriais":   "12. Exames Laboratoriais",
+    "controles":       "12. Controles & Balanço",
+    "evolucao":        "13. Evolução Clínica",
+    "sistemas":        "14. Sistemas",
+    "condutas":        "15. Condutas",
+    "prescricao":      "16. Prescrição",
 }
 
 

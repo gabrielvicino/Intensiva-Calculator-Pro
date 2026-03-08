@@ -1,14 +1,10 @@
 import streamlit as st
 
 # 1. Definição das Variáveis
-_OPCOES_ALERGIA = ["Desconhecido", "Nega", "Presente"]
-
 def get_campos():
     campos = {
         'muc_notas': '',
         'muc_adesao_global': None,
-        'muc_alergia': None,
-        'muc_alergia_obs': '',
     }
     for i in range(1, 21):
         campos.update({
@@ -69,8 +65,8 @@ def _render_linha(idx_display, id_real):
 
 # 2. Renderização Principal
 def render(_agent_btn_callback=None):
-    st.markdown('<span id="sec-4"></span>', unsafe_allow_html=True)
-    st.markdown("##### 4. Medicações de Uso Contínuo")
+    st.markdown('<span id="sec-5"></span>', unsafe_allow_html=True)
+    st.markdown("##### 5. Medicações de Uso Contínuo")
     
     st.text_area("Notas", key="muc_notas", height="content", placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")
@@ -88,20 +84,6 @@ def render(_agent_btn_callback=None):
             ["Uso Regular", "Uso Irregular", "Desconhecido"],
             key="muc_adesao_global",
             label_visibility="collapsed"
-        )
-        st.markdown("**Alergia**")
-        st.pills(
-            "Alergia",
-            _OPCOES_ALERGIA,
-            key="muc_alergia",
-            default=None,
-            label_visibility="collapsed",
-        )
-        st.text_input(
-            "Obs Alergia",
-            key="muc_alergia_obs",
-            placeholder="Ex.: Penicilina, Dipirona...",
-            label_visibility="collapsed",
         )
     
     st.write("")

@@ -25,8 +25,8 @@ def coletar_condutas_agregadas() -> list[str]:
 
 def render(_agent_btn_callback=None):
     """Renderiza a seção 15 dentro do st.form (campo de condutas + botão registrar)."""
-    st.markdown('<span id="sec-15"></span>', unsafe_allow_html=True)
-    st.markdown("##### 15. Plano Terapêutico & Condutas")
+    st.markdown('<span id="sec-16"></span>', unsafe_allow_html=True)
+    st.markdown("##### 16. Plano Terapêutico & Condutas")
 
     with st.container(border=True):
         # Campo principal de condutas (vai para o prontuário gerado)

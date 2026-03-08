@@ -6,11 +6,11 @@ def _campos():
     return {
         "sis_pele_pocus": "", "sis_pele_obs": "", "sis_pele_conduta": "",
         "sis_pele_edema": None, "sis_pele_edema_cruzes": "",
-        "sis_pele_lpp": None,
+        "sis_pele_lpp": "Não",
         "sis_pele_lpp_local_1": "", "sis_pele_lpp_grau_1": "",
         "sis_pele_lpp_local_2": "", "sis_pele_lpp_grau_2": "",
         "sis_pele_lpp_local_3": "", "sis_pele_lpp_grau_3": "",
-        "sis_pele_polineuropatia": None,
+        "sis_pele_polineuropatia": "Não",
         "sis_pele_cpk_ant5": "", "sis_pele_cpk_ant4": "", "sis_pele_cpk_antepen": "",
         "sis_pele_cpk_ult": "", "sis_pele_cpk_hoje": "", "sis_pele_cpk_show": False,
     }

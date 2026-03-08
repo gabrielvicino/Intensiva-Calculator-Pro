@@ -146,10 +146,14 @@ def _secao_sistemas() -> list[str]:
             linha_sed += f"; Meta Rass {m}"
         neuro.append(linha_sed)
 
+    _VALORES_VAZIOS = {"", "none", "nenhum", "não", "nao", "-"}
     bnm_med = _s("sis_neuro_bloqueador_med")
     bnm_dose = _s("sis_neuro_bloqueador_dose")
-    if bnm_med or bnm_dose:
-        neuro.append(f"Bloqueador Neuromuscular: {bnm_med} {bnm_dose}".strip())
+    bnm_med_ok = bnm_med and str(bnm_med).lower().strip() not in _VALORES_VAZIOS
+    bnm_dose_ok = bnm_dose and str(bnm_dose).lower().strip() not in _VALORES_VAZIOS
+    if bnm_med_ok or bnm_dose_ok:
+        partes_bnm = [p for p in [bnm_med if bnm_med_ok else "", bnm_dose if bnm_dose_ok else ""] if p]
+        neuro.append(f"Bloqueador Neuromuscular: {' '.join(partes_bnm)}")
 
     df = _s("sis_neuro_deficits_focais")
     df_ausente = st.session_state.get("sis_neuro_deficits_ausente") in ("Ausente", True)
