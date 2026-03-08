@@ -8,9 +8,9 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from modules.secoes import controles as _ctrl_sec
-from modules.parsers.controles import parse_controles_dia, parse_controles_deterministico
+from modules.parsers.controles import parse_controles_dia as _parse_det_dia
+from modules.parsers.controles import parse_controles_deterministico as _parse_det_multi
 from modules.agentes_secoes.controles import preencher_controles_dia, preencher_controles
-from modules.ia_config import get_ia_config
 
 _CSS_DATAS = """
 <style>
@@ -128,7 +128,7 @@ def _confirmar_novo_prontuario_ctrl() -> None:
                 st.rerun()
 
 
-def render():
+def render(api_key: str = "", modelo: str = "gpt-4o"):
     """Renderiza a aba completa de Controles & Balanço Hídrico."""
     from utils import save_evolucao, load_evolucao
     from modules import fichas
@@ -144,12 +144,19 @@ def render():
 
     prontuario = st.session_state.get("prontuario", "").strip()
 
-    # Placeholder para mensagens de save — aparece acima do formulário
+    # Placeholder de avisos — fica no TOPO, antes do formulário
+    _msg_avisos = st.empty()
+    if "_ctrl_avisos" in st.session_state:
+        with _msg_avisos.container():
+            for aviso in st.session_state.pop("_ctrl_avisos"):
+                st.warning(aviso)
+
+    # Placeholder para mensagens de save — acima do formulário
     _msg_salvar = st.empty()
 
     # ── Form principal — sem rerender ao digitar ──────────────────────────────
     with st.form("form_controles_main"):
-        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             btn_evo = st.form_submit_button(
                 "Evolução Hoje", use_container_width=True,
@@ -159,15 +166,10 @@ def render():
             btn_ia = st.form_submit_button(
                 "Extrair Controles", use_container_width=True,
                 type="primary",
-                help="Usa GPT-4o para extrair vitais, diurese e BH do texto de cada coluna "
-                     "em qualquer formato, preenchendo os campos automaticamente.",
+                help="Usa IA para extrair vitais, diurese e BH do texto de cada coluna. "
+                     "Cole múltiplos dias no mesmo campo — a IA distribui automaticamente.",
             )
         with c3:
-            btn_parse = st.form_submit_button(
-                "Parsing Controles", use_container_width=True,
-                help="Preenche deterministicamente. Use: # Controles - 24h, > DD/MM/YYYY, PAS: min - max...",
-            )
-        with c4:
             btn_salvar = st.form_submit_button(
                 "💾 Salvar no Prontuário", use_container_width=True,
                 type="primary", disabled=not prontuario,
@@ -239,9 +241,33 @@ def render():
         # Dias principais (hoje → 4º dia)
         _render_ctrl_block(_ctrl_sec._DIAS_MAIN)
 
+        # Botões de apagar dia — dias principais
+        st.divider()
+        _clr_cols_main = st.columns(len(_ctrl_sec._DIAS_MAIN))
+        for _col, _dia in zip(_clr_cols_main, _ctrl_sec._DIAS_MAIN):
+            with _col:
+                _label = _ctrl_sec._LABEL_DIA.get(_dia, _dia)
+                if st.form_submit_button(
+                    f"Apagar controles {_label.lower()}", use_container_width=True,
+                    help=f"Apaga todos os dados de controles de '{_label}'",
+                ):
+                    st.session_state[f"_ctrl_clear_{_dia}"] = True
+
         # Dias extras (5º → 10º) em expander
         with st.expander("Demais dias (5º ao 10º)", expanded=False):
             _render_ctrl_block(_ctrl_sec._DIAS_EXP)
+
+            # Botões de apagar dia — dias extras
+            st.divider()
+            _clr_cols_exp = st.columns(len(_ctrl_sec._DIAS_EXP))
+            for _col, _dia in zip(_clr_cols_exp, _ctrl_sec._DIAS_EXP):
+                with _col:
+                    _label = _ctrl_sec._LABEL_DIA.get(_dia, _dia)
+                    if st.form_submit_button(
+                        f"Apagar {_label.lower()}", use_container_width=True,
+                        help=f"Apaga todos os dados de '{_label}'",
+                    ):
+                        st.session_state[f"_ctrl_clear_{_dia}"] = True
 
     # ── Handlers (fora do form, após submissão) ───────────────────────────────
     if btn_evo:
@@ -249,55 +275,13 @@ def render():
         st.toast("Evolução Hoje: hoje está em branco para novos dados.", icon="📅")
         st.rerun()
 
-    if btn_parse:
-        dias_com_texto = [
-            d for d in _ctrl_sec._DIAS
-            if (st.session_state.get(f"ctrl_{d}_texto_entrada") or "").strip()
-        ]
-        if not dias_com_texto:
-            st.warning("Cole o texto de controles nos campos de cada coluna antes de parsear.")
-        else:
-            _DIAS_SET = set(_ctrl_sec._DIAS)
-            resultados_final: dict[str, str] = {}
-            dias_afetados: set[str] = set()
-            dias_com_texto_processados: list[str] = []
-
-            for dia in dias_com_texto:
-                texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
-                tem_multiplos = len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
-
-                if tem_multiplos:
-                    # Multi-bloco: distribui em ordem de aparição (1º bloco → Hoje, ...)
-                    dados = parse_controles_deterministico(texto)
-                    for k in dados:
-                        if k.startswith("ctrl_"):
-                            partes = k.split("_", 2)
-                            if len(partes) >= 2 and partes[1] in _DIAS_SET:
-                                dias_afetados.add(partes[1])
-                    resultados_final.update(dados)
-                else:
-                    # Bloco único: tudo vai para a coluna onde foi colado
-                    dados = parse_controles_dia(texto, dia)
-                    campos = {k: v for k, v in dados.items() if v}
-                    if campos:
-                        dias_afetados.add(dia)
-                        resultados_final.update(dados)
-
-                dias_com_texto_processados.append(dia)
-
-            n = len([v for v in resultados_final.values() if v])
-            if n:
-                for d in dias_afetados:
-                    _ctrl_sec._limpar_dia(d)
-                for k, v in resultados_final.items():
-                    _ctrl_sec._set_ss(k, v)
-                # Garante que text_areas das colunas coladas sejam esvaziadas
-                for d in dias_com_texto_processados:
-                    _ctrl_sec._set_ss(f"ctrl_{d}_texto_entrada", "")
-                st.toast(f"✅ {n} campos preenchidos.", icon="📊")
-                st.rerun()
-            else:
-                st.warning("⚠️ Nenhum valor reconhecido no formato esperado.")
+    # Handlers de apagar dia
+    for _dia in _ctrl_sec._DIAS:
+        if st.session_state.pop(f"_ctrl_clear_{_dia}", False):
+            _ctrl_sec._limpar_dia(_dia)
+            _label = _ctrl_sec._LABEL_DIA.get(_dia, _dia)
+            st.toast(f"🗑️ Controles {_label} apagados.", icon="🗑️")
+            st.rerun()
 
     if btn_ia:
         dias_com_texto = [
@@ -305,78 +289,71 @@ def render():
             if (st.session_state.get(f"ctrl_{d}_texto_entrada") or "").strip()
         ]
         if not dias_com_texto:
-            st.warning("Cole o texto de controles nos campos de cada coluna antes de usar a IA.")
+            st.session_state["_ctrl_avisos"] = ["⚠️ Cole o texto nos campos de cada coluna antes de extrair."]
+            st.rerun()
         else:
-            google_key = st.session_state.get("google_api_key", "")
-            openai_key = st.session_state.get("openai_api_key", "")
-            api_key, provider, modelo = get_ia_config("controles", google_key, openai_key)
+            _provider = "OpenAI GPT"
 
-            if not api_key:
-                st.error("⚠️ Configure uma chave de API (OpenAI ou Google) nas configurações.")
-            else:
-                _DIAS_SET = set(_ctrl_sec._DIAS)
+            # Lê textos ANTES de spawnar threads (session_state não é thread-safe)
+            textos_ctrl = {
+                d: (st.session_state.get(f"ctrl_{d}_texto_entrada") or "").strip()
+                for d in dias_com_texto
+            }
 
-                def _ia_coluna(dia):
-                    texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
-                    tem_multiplos = (
-                        len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
-                    )
+            def _extrair_coluna(dia):
+                texto = textos_ctrl[dia]
+                tem_multiplos = (
+                    len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
+                )
+
+                # ── 1ª tentativa: parser determinístico (sem API, instantâneo) ──
+                if tem_multiplos:
+                    dados = _parse_det_multi(texto)
+                else:
+                    dados = _parse_det_dia(texto, dia)
+
+                n_det = len([v for v in dados.values() if v and str(v).strip()])
+
+                # ── Fallback IA: só se regex extraiu 0 campos E há chave de API ──
+                if n_det == 0 and api_key:
                     if tem_multiplos:
-                        # Multi-bloco: IA distribui pelos slots em ordem de aparição
-                        dados = preencher_controles(texto, api_key, provider, modelo)
-                        return dia, dados, True
+                        dados = preencher_controles(texto, api_key, _provider, modelo)
                     else:
-                        dados = preencher_controles_dia(texto, dia, api_key, provider, modelo)
-                        return dia, dados, False
+                        dados = preencher_controles_dia(texto, dia, api_key, _provider, modelo)
 
-                with st.spinner(
-                    f"🤖 Extraindo {len(dias_com_texto)} coluna(s) via {provider} ({modelo})..."
-                ):
-                    with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
-                        futures = {ex.submit(_ia_coluna, d): d for d in dias_com_texto}
-                        resultados = {}
-                        for fut in as_completed(futures):
-                            dia, dados, multi = fut.result(timeout=120)
-                            resultados[dia] = (dados, multi)
+                return dia, dados, tem_multiplos
 
-                erros = [
-                    f"{d}: {r[0]['_erro']}"
-                    for d, r in resultados.items() if r[0].get("_erro")
-                ]
-                if erros:
-                    st.error("❌ Erros: " + " | ".join(erros))
+            with _msg_avisos.container():
+                st.info(f"⚡ Extraindo {len(dias_com_texto)} coluna(s)...")
+            with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
+                futures = {ex.submit(_extrair_coluna, d): d for d in dias_com_texto}
+                resultados = {}
+                for fut in as_completed(futures):
+                    dia, dados, multi = fut.result(timeout=120)
+                    resultados[dia] = (dados, multi)
+            _msg_avisos.empty()
 
-                n = 0
-                for dia, (dados, multi) in resultados.items():
-                    if dados.get("_erro"):
-                        continue
-                    if multi:
-                        # Identifica quais dias foram preenchidos pela IA
-                        dias_multi = set()
-                        for k in dados:
-                            if k.startswith("ctrl_"):
-                                partes = k.split("_", 2)
-                                if len(partes) >= 2 and partes[1] in _DIAS_SET:
-                                    dias_multi.add(partes[1])
-                        for d in dias_multi:
-                            _ctrl_sec._limpar_dia(d)
-                        for k, v in dados.items():
-                            _ctrl_sec._set_ss(k, v)
-                        n += len([v for v in dados.values() if v])
-                    else:
-                        campos_ia = {k: v for k, v in dados.items() if v}
-                        if campos_ia:
-                            _ctrl_sec._limpar_dia(dia)
-                            for k, v in dados.items():
-                                _ctrl_sec._set_ss(k, v)
-                            n += len(campos_ia)
-                    _ctrl_sec._set_ss(f"ctrl_{dia}_texto_entrada", "")
-                if n:
-                    st.toast(
-                        f"✅ IA preencheu {n} campos em {len(dias_com_texto)} coluna(s).",
-                        icon="🤖",
-                    )
-                    st.rerun()
+            erros = [
+                f"{d}: {r[0]['_erro']}"
+                for d, r in resultados.items() if r[0].get("_erro")
+            ]
+            if erros:
+                st.session_state["_ctrl_avisos"] = [f"❌ {' | '.join(erros)}"]
+
+            n = 0
+            for dia, (dados, multi) in resultados.items():
+                if dados.get("_erro"):
+                    continue
+                for k, v in dados.items():
+                    if v and str(v).strip():
+                        _ctrl_sec._set_ss(k, v)
+                        n += 1
+                # Limpa campo de texto de entrada após extração bem-sucedida
+                _ctrl_sec._set_ss(f"ctrl_{dia}_texto_entrada", "")
+
+            if n:
+                st.toast(f"✅ {n} campos preenchidos em {len(dias_com_texto)} coluna(s).", icon="⚡")
+            st.rerun()
 
     if btn_salvar:
         _msg_salvar.info("💾 Salvando...")

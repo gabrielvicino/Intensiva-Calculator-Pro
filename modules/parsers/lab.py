@@ -327,8 +327,8 @@ def parse_lab_exames_dia(texto: str, slot: int) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _norm(v: str) -> str:
-    """Normaliza valor numérico: troca vírgula por ponto e remove espaços."""
-    return v.strip().replace(",", ".")
+    """Preserva o valor original sem converter vírgulas (formato BR)."""
+    return v.strip()
 
 
 def _parse_simples(texto: str, mapa: dict[str, str]) -> dict[str, str]:
@@ -365,13 +365,13 @@ _MAPA_HEMATO_RENAL = {
     "Mg": "mg", "Pi": "pi", "CaT": "cat", "Cai": "cai",
 }
 
-# Mapeamento agente coagulacao → chaves lab
-# O agente retorna: PCR 89 | TP 14,2s (1,22) | TTPa 69,1s (2,49) | Trop 0,01 | CPK 150 | CK-MB 12
-# _parse_simples captura até '(' → pega só "14,2s" para TP, sem o RNI
+# Mapeamento agente coagulacao → chaves lab (TP/TTPa: string completa com parênteses)
 _MAPA_COAG = {
-    "PCR": "pcr", "Trop": "trop", "CPK": "cpk", "CK-MB": "cpk_mb",
-    "TP": "tp", "TTPa": "ttpa",
+    "PCR": "pcr", "VHS": "vhs", "Lac sérico": "lac", "BNP": "bnp",
+    "Trop": "trop", "CPK": "cpk", "CK-MB": "cpk_mb", "Fibrin": "fbrn",
 }
+# Campos que devem capturar o valor COMPLETO incluindo parênteses (TP, TTPa)
+_MAPA_COAG_FULL = {"TP": "tp", "TTPa": "ttpa"}
 
 
 def _parse_hepatico(texto: str) -> dict[str, str]:
@@ -402,6 +402,11 @@ def _parse_hepatico(texto: str) -> dict[str, str]:
         m_bt2 = re.match(r"(?i)BT\s+([\d,\.]+)", tok)
         if m_bt2:
             out["bt"] = _norm(m_bt2.group(1))
+            continue
+        # LDH
+        m_ldh = re.match(r"(?i)LDH\s+([\d,\.]+)", tok)
+        if m_ldh:
+            out["ldh"] = _norm(m_ldh.group(1))
             continue
         for sigla, chave in mapa.items():
             if re.match(rf"(?i){re.escape(sigla)}\s+", tok):
@@ -572,31 +577,70 @@ def parse_agentes_para_slot(resultados: dict[str, Optional[str]], slot: int) -> 
 
     pfx = f"lab_{slot}_"
 
-    # Hematologia + Renal
-    hemato = _parse_simples(resultados.get("hematologia_renal") or "", _MAPA_HEMATO_RENAL)
+    # ── Hematologia + Renal ───────────────────────────────────────────────────
+    txt_hemato = resultados.get("hematologia_renal") or ""
+    hemato = _parse_simples(txt_hemato, _MAPA_HEMATO_RENAL)
     _merge({pfx + k: v for k, v in hemato.items()})
 
-    # Hepático
+    # Leuco: separar total do diferencial
+    # Formato agente: "Leuco 20.150 (Bast 2% / Seg 73% / Linf 18% / Mon 5% / Eos 1% / Bas 0%)"
+    m_leuco = re.search(r"Leuco\s+([\d.,]+)\s*(?:\(([^)]*)\))?", txt_hemato, re.IGNORECASE)
+    if m_leuco:
+        out[f"{pfx}leuco"] = m_leuco.group(1).strip()
+        dif_str = m_leuco.group(2) or ""
+        # Ordem importa: padrões mais longos antes dos mais curtos
+        _DIF_MAP = [
+            (r"Blast\w*\s*([\d,\.]+)%?",   "leuco_bla"),   # Blast / Blastos
+            (r"Miel?\w*\s*([\d,\.]+)%?",   "leuco_mie"),   # Mie / Miel / Mielocito
+            (r"Meta\w*\s*([\d,\.]+)%?",    "leuco_meta"),  # Meta / Metamielocito
+            (r"Bast\w*\s*([\d,\.]+)%?",    "leuco_bast"),  # Bast / Bastonete
+            (r"Seg\w*\s*([\d,\.]+)%?",     "leuco_seg"),   # Seg / Segmentado
+            (r"Linf\w*\s*([\d,\.]+)%?",    "leuco_linf"),  # Linf / Linfocito
+            (r"Mon\w*\s*([\d,\.]+)%?",     "leuco_mon"),   # Mon / Monocito
+            (r"Eos\w*\s*([\d,\.]+)%?",     "leuco_eos"),   # Eos / Eosinofilo
+            (r"Bas\b\s*([\d,\.]+)%?",      "leuco_bas"),   # Bas (basofilo — \b impede capturar Bast)
+        ]
+        for pat, campo in _DIF_MAP:
+            md = re.search(pat, dif_str, re.IGNORECASE)
+            if md:
+                out[f"{pfx}{campo}"] = md.group(1).strip() + "%"
+
+    # ── Hepático (inclui LDH via _parse_hepatico) ─────────────────────────────
     hepatico = _parse_hepatico(resultados.get("hepatico") or "")
     _merge({pfx + k: v for k, v in hepatico.items()})
 
-    # Coagulação (inclui PCR, Trop, CPK, CK-MB, TP, TTPa)
-    coag = _parse_simples(resultados.get("coagulacao") or "", _MAPA_COAG)
+    # ── Coagulação (PCR, VHS, Trop, CPK, CK-MB, Fibrin, BNP, Lac sérico) ────
+    txt_coag = resultados.get("coagulacao") or ""
+    coag = _parse_simples(txt_coag, _MAPA_COAG)
     _merge({pfx + k: v for k, v in coag.items()})
 
-    # Urina
+    # TP e TTPa: captura string completa incluindo parênteses
+    for sigla, campo in _MAPA_COAG_FULL.items():
+        m_full = re.search(
+            rf"(?<![A-Za-z]){re.escape(sigla)}\s+(.+?)(?:\s*\||\s*$)",
+            txt_coag, re.IGNORECASE,
+        )
+        if m_full:
+            val = m_full.group(1).strip().rstrip("|").strip()
+            if val:
+                out[f"{pfx}{campo}"] = val
+
+    # ── Urina ─────────────────────────────────────────────────────────────────
     urina = _parse_urina(resultados.get("urina") or "")
     _merge({pfx + k: v for k, v in urina.items()})
 
-    # Gasometria (chaves já incluem lab_{slot}_)
+    # ── Gasometria ────────────────────────────────────────────────────────────
     gas = _parse_gasometria(resultados.get("gasometria") or "", slot)
     _merge(gas)
 
-    # nao_transcritos retorna apenas NOMES de exames (sem valores) → ignorado
+    # ── Não Transcritos → campo outros ───────────────────────────────────────
+    nao_trans = (resultados.get("nao_transcritos") or "").strip()
+    if nao_trans and nao_trans.upper() not in ("VAZIO", ""):
+        out[f"{pfx}outros"] = nao_trans
 
-    # Data de coleta (7º agente) — sinaliza para tab_laboratoriais
+    # ── Data de coleta ────────────────────────────────────────────────────────
     data_coleta = (resultados.get("data_coleta") or "").strip()
     if data_coleta and data_coleta.upper() != "VAZIO":
-        out[f"_data_coleta_slot_{slot}"] = data_coleta
+        out[f"{pfx}data"] = data_coleta
 
     return out

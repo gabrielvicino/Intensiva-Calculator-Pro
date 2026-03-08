@@ -12,10 +12,13 @@ import streamlit as st
 
 # Sufixos dos campos lab_{i}_{suf} para deslocamento (Evolução Hoje)
 _LAB_SUFIXOS = [
-    "data", "hb", "ht", "vcm", "hcm", "rdw", "leuco", "plaq",
+    "data", "hb", "ht", "vcm", "hcm", "rdw",
+    "leuco", "leuco_bla", "leuco_mie", "leuco_meta",
+    "leuco_bast", "leuco_seg", "leuco_linf", "leuco_mon", "leuco_eos", "leuco_bas",
+    "plaq",
     "cr", "ur", "na", "k", "mg", "pi", "cat", "cai",
-    "tgp", "tgo", "fal", "ggt", "bt", "bd", "prot_tot", "alb", "amil", "lipas",
-    "cpk", "cpk_mb", "bnp", "trop", "pcr", "vhs", "tp", "ttpa",
+    "tgp", "tgo", "fal", "ggt", "bt", "bd", "prot_tot", "alb", "ldh", "amil", "lipas",
+    "cpk", "cpk_mb", "bnp", "trop", "pcr", "vhs", "lac", "tp", "ttpa", "fbrn",
     "ur_dens", "ur_le", "ur_nit", "ur_leu", "ur_hm", "ur_prot", "ur_cet", "ur_glic",
     # Gasometria 1
     "gas_tipo", "gas_hora",
@@ -82,6 +85,16 @@ def _deslocar_laboratoriais():
     _limpar(1)
 
 
+def limpar_slot(slot: int) -> None:
+    """Apaga todos os campos de um slot laboratorial específico."""
+    for suf in _LAB_SUFIXOS:
+        key = f"lab_{slot}_{suf}"
+        if suf in _GAS_TIPO_SUFIXOS:
+            _set_ss(key, None)
+        else:
+            _set_ss(key, "")
+
+
 # 1. Definição das Variáveis (10 Slots de Data)
 def get_campos():
     campos = {'laboratoriais_notas': ''}
@@ -91,8 +104,12 @@ def get_campos():
             f'lab_{i}_data': '',
             
             # Linha 1: Hemato
-            f'lab_{i}_hb': '', f'lab_{i}_ht': '', f'lab_{i}_vcm': '', f'lab_{i}_hcm': '', 
-            f'lab_{i}_rdw': '', f'lab_{i}_leuco': '', f'lab_{i}_plaq': '',
+            f'lab_{i}_hb': '', f'lab_{i}_ht': '', f'lab_{i}_vcm': '', f'lab_{i}_hcm': '',
+            f'lab_{i}_rdw': '', f'lab_{i}_leuco': '',
+            f'lab_{i}_leuco_bla': '', f'lab_{i}_leuco_mie': '', f'lab_{i}_leuco_meta': '',
+            f'lab_{i}_leuco_bast': '', f'lab_{i}_leuco_seg': '', f'lab_{i}_leuco_linf': '',
+            f'lab_{i}_leuco_mon': '', f'lab_{i}_leuco_eos': '', f'lab_{i}_leuco_bas': '',
+            f'lab_{i}_plaq': '',
             
             # Linha 2: Renal/Eletrolitos
             f'lab_{i}_cr': '', f'lab_{i}_ur': '', f'lab_{i}_na': '', f'lab_{i}_k': '', 
@@ -101,12 +118,12 @@ def get_campos():
             # Linha 3: Hepático/Panc
             f'lab_{i}_tgp': '', f'lab_{i}_tgo': '', f'lab_{i}_fal': '', f'lab_{i}_ggt': '',
             f'lab_{i}_bt': '', f'lab_{i}_bd': '', f'lab_{i}_prot_tot': '',
-            f'lab_{i}_alb': '', f'lab_{i}_amil': '', f'lab_{i}_lipas': '',
+            f'lab_{i}_alb': '', f'lab_{i}_ldh': '', f'lab_{i}_amil': '', f'lab_{i}_lipas': '',
             
             # Linha 4: Cardio/Coag/Inflam
             f'lab_{i}_cpk': '', f'lab_{i}_cpk_mb': '', f'lab_{i}_bnp': '',
-            f'lab_{i}_trop': '', f'lab_{i}_pcr': '', f'lab_{i}_vhs': '',
-            f'lab_{i}_tp': '', f'lab_{i}_ttpa': '',
+            f'lab_{i}_trop': '', f'lab_{i}_pcr': '', f'lab_{i}_vhs': '', f'lab_{i}_lac': '',
+            f'lab_{i}_tp': '', f'lab_{i}_ttpa': '', f'lab_{i}_fbrn': '',
             
             # Linha 5: Urina
             f'lab_{i}_ur_dens': '', f'lab_{i}_ur_le': '', f'lab_{i}_ur_nit': '', f'lab_{i}_ur_leu': '',
@@ -173,7 +190,7 @@ def _render_day_headers(slots: list):
             )
 
 
-def _render_labs_table(slots: list, show_header: bool = True):
+def _render_labs_table(slots: list, show_header: bool = True, show_conduta: bool = True):
     """
     Layout vertical: linhas = parâmetros, colunas = dias.
 
@@ -234,12 +251,18 @@ def _render_labs_table(slots: list, show_header: bool = True):
     _row("Ht",   "ht")
     _row("VCM",  "vcm")
     _row("HCM",  "hcm")
-    _row("RDW",  "rdw")
-    for dc, slot in zip(day_cols, slots):
-        with dc:
-            st.text_input("Leuco (Dif)", key=f"lab_{slot}_leuco",
-                          label_visibility=_lv(slot), placeholder="Total (Seg/Bast)")
-    _row("Plaq", "plaq")
+    _row("RDW",    "rdw")
+    _row("Leuco",  "leuco")
+    _row("Blastos","leuco_bla",  "0%")
+    _row("Mielos", "leuco_mie",  "0%")
+    _row("Metas",  "leuco_meta", "0%")
+    _row("Bast",   "leuco_bast", "0%")
+    _row("Seg",    "leuco_seg",  "0%")
+    _row("Linf",   "leuco_linf", "0%")
+    _row("Mon",    "leuco_mon",  "0%")
+    _row("Eos",    "leuco_eos",  "0%")
+    _row("Bas",    "leuco_bas",  "0%")
+    _row("Plaq",   "plaq")
 
     # ── Renal / Eletrólitos ──────────────────────────────────────
     _sec("Renal / Eletrólitos")
@@ -262,6 +285,7 @@ def _render_labs_table(slots: list, show_header: bool = True):
     _row("BD",       "bd")
     _row("Prot Tot", "prot_tot")
     _row("Alb",      "alb")
+    _row("LDH",      "ldh")
     _row("Amil",     "amil")
     _row("Lipas",    "lipas")
 
@@ -273,8 +297,10 @@ def _render_labs_table(slots: list, show_header: bool = True):
     _row("Trop",   "trop")
     _row("PCR",    "pcr")
     _row("VHS",    "vhs")
+    _row("Lac sérico", "lac")
     _row("TP",     "tp")
     _row("TTPa",   "ttpa")
+    _row("Fibrin", "fbrn")
 
     # ── Gasometria 1 ─────────────────────────────────────────────
     _sec("Gasometria")
@@ -309,11 +335,12 @@ def _render_labs_table(slots: list, show_header: bool = True):
     # ── Outros & Conduta ─────────────────────────────────────────
     _sec("Outros")
     _row("Não Transcritos", "outros", "Culturas, níveis séricos...")
-    for dc, slot in zip(day_cols, slots):
-        with dc:
-            st.text_input("Conduta", key=f"lab_{slot}_conduta",
-                          label_visibility="collapsed",
-                          placeholder="Escreva a conduta aqui...")
+    if show_conduta:
+        for dc, slot in zip(day_cols, slots):
+            with dc:
+                st.text_input("Conduta", key=f"lab_{slot}_conduta",
+                              label_visibility="collapsed",
+                              placeholder="Escreva a conduta aqui...")
 
 
 def _render_gas_extras(slots: list):
@@ -403,10 +430,10 @@ def render(_agent_btn_callback=None):
             st.session_state["_comparar_lab_pendente"] = True
 
     # ── Tabela principal: slots 1–4 ──────────────────────────────
-    _render_labs_table([1, 2, 3, 4])
+    _render_labs_table([1, 2, 3, 4], show_conduta=False)
     _render_gas_extras([1, 2, 3, 4])
 
     # ── Demais exames: slots 5–10 ────────────────────────────────
     with st.expander("Demais exames", expanded=False):
-        _render_labs_table([5, 6, 7, 8, 9, 10])
+        _render_labs_table([5, 6, 7, 8, 9, 10], show_conduta=False)
         _render_gas_extras([5, 6, 7, 8, 9, 10])

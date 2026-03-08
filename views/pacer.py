@@ -8,6 +8,7 @@ from modules.pacer import (
     tab_laboratoriais,
     tab_controles,
     tab_prescricao,
+    tab_debug_agentes,
 )
 
 # ==============================================================================
@@ -88,18 +89,19 @@ api_key = OPENAI_API_KEY
 # ==============================================================================
 st.header("🔬 Laboratoriais & Controles")
 
-tab_lab, tab_ctrl, tab_presc, tab_cmp = st.tabs([
+tab_lab, tab_ctrl, tab_presc, tab_cmp, tab_dbg = st.tabs([
     "🧪 Laboratoriais",
     "💧 Controles & BH",
     "💊 Prescrição",
     "📊 Análise Clínica",
+    "🔍 Debug Agentes",
 ])
 
 with tab_lab:
     tab_laboratoriais.render(api_key, modelo_escolhido)
 
 with tab_ctrl:
-    tab_controles.render()
+    tab_controles.render(api_key, modelo_escolhido)
 
 with tab_cmp:
     from modules.gerador.html import gerar_html_comparativo
@@ -137,5 +139,8 @@ with tab_cmp:
 
 with tab_presc:
     tab_prescricao.render(motor_escolhido, api_key, modelo_escolhido)
+
+with tab_dbg:
+    tab_debug_agentes.render(api_key, modelo_escolhido)
 
 mostrar_rodape()

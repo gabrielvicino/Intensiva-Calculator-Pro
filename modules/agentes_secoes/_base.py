@@ -38,7 +38,8 @@ _REGRA_DATA = """
 """
 
 
-def _chamar_ia(prompt_system: str, texto: str, api_key: str, provider: str, modelo: str) -> dict:
+def _chamar_ia(prompt_system: str, texto: str, api_key: str, provider: str, modelo: str,
+               max_tokens: int = 8192) -> dict:
     """Helper: envia texto para a IA e retorna JSON parseado."""
     prompt_system = prompt_system + _REGRA_DATA
     try:
@@ -50,7 +51,8 @@ def _chamar_ia(prompt_system: str, texto: str, api_key: str, provider: str, mode
                     {"role": "system", "content": prompt_system},
                     {"role": "user",   "content": f"TEXTO DA SEÇÃO:\n\n{texto}"}
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
+                max_tokens=max_tokens,
             )
             return json.loads(resp.choices[0].message.content)
         else:

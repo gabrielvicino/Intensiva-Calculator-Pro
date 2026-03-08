@@ -29,13 +29,17 @@ def gerar_html_labs() -> str:
 
     _P_NUM  = _re2.compile(r"^([0-9.,]+)")
     _P_COAG = _re2.compile(r"^([0-9.,]+[s%]?)")
+    # (label, sufixo_novo, regex_fallback_no_leuco_legado)
     _DIFFS  = [
-        ("Seg(%)",  _re2.compile(r"Seg\s*([0-9]+)",  _re2.I)),
-        ("Bast(%)", _re2.compile(r"Bast\s*([0-9]+)", _re2.I)),
-        ("Linf(%)", _re2.compile(r"Linf\s*([0-9]+)", _re2.I)),
-        ("Mon(%)",  _re2.compile(r"Mon\s*([0-9]+)",  _re2.I)),
-        ("Eos(%)",  _re2.compile(r"Eos\s*([0-9]+)",  _re2.I)),
-        ("Bas(%)",  _re2.compile(r"Bas\s*([0-9]+)",  _re2.I)),
+        ("Blastos", "leuco_bla",  None),
+        ("Mielos",  "leuco_mie",  None),
+        ("Metas",   "leuco_meta", None),
+        ("Bast(%)", "leuco_bast", _re2.compile(r"Bast\s*([0-9]+)",  _re2.I)),
+        ("Seg(%)",  "leuco_seg",  _re2.compile(r"Seg\s*([0-9]+)",   _re2.I)),
+        ("Linf(%)", "leuco_linf", _re2.compile(r"Linf\s*([0-9]+)",  _re2.I)),
+        ("Mon(%)",  "leuco_mon",  _re2.compile(r"Mon\s*([0-9]+)",   _re2.I)),
+        ("Eos(%)",  "leuco_eos",  _re2.compile(r"Eos\s*([0-9]+)",   _re2.I)),
+        ("Bas(%)",  "leuco_bas",  _re2.compile(r"Bas\s*([0-9]+)",   _re2.I)),
     ]
 
     def _v(i, campo):
@@ -87,11 +91,19 @@ def gerar_html_labs() -> str:
         _add(lbl, k)
 
     leuco_raw = [_v(i, "leuco") for i in SLOTS]
-    leuco_tot = [(_P_NUM.match(r) or type("", (), {"group": lambda s, x: r})()).group(1) or r
-                 for r in leuco_raw]
+    leuco_tot = [(_P_NUM.match(r) and _P_NUM.match(r).group(1)) or r or "-" for r in leuco_raw]
     _add_row("Leuco", leuco_tot)
-    for dlbl, dpat in _DIFFS:
-        dv = [(dpat.search(r) and dpat.search(r).group(1) + "%") or "-" for r in leuco_raw]
+    for dlbl, dsuf, dpat in _DIFFS:
+        dv = []
+        for i, r in zip(SLOTS, leuco_raw):
+            new_val = _v(i, dsuf)
+            if new_val and new_val not in ("-", ""):
+                dv.append(new_val.rstrip("%") + "%")
+            elif dpat and r:
+                m = dpat.search(r)
+                dv.append(m.group(1) + "%" if m else "-")
+            else:
+                dv.append("-")
         _add_row(dlbl, dv)
     _add("Plaq", "plaq")
 
@@ -107,19 +119,20 @@ def gerar_html_labs() -> str:
     for lbl, k in [("TGO","tgo"),("TGP","tgp"),("FAL","fal"),("GGT","ggt")]:
         _add(lbl, k)
     _add("BT","bt"); _add("BD","bd")
-    for lbl, k in [("ProtTot","prot_tot"),("Alb","alb"),
+    for lbl, k in [("ProtTot","prot_tot"),("Alb","alb"),("LDH","ldh"),
                    ("Amil","amil"),("Lipas","lipas")]:
         _add(lbl, k)
 
     _sep("Cardio / Inflamação")
     for lbl, k in [("CPK","cpk"),("CPK-MB","cpk_mb"),("BNP","bnp"),
-                   ("Trop","trop"),("PCR","pcr"),("VHS","vhs")]:
+                   ("Trop","trop"),("PCR","pcr"),("VHS","vhs"),("Lac sérico","lac")]:
         _add(lbl, k)
 
     _sep("Coagulação")
     for lbl, key in [("TP","tp"), ("TTPa","ttpa")]:
         v = [(_P_COAG.match(r) and _P_COAG.match(r).group(1)) or r for r in _vals(key)]
         _add_row(lbl, v)
+    _add("Fibrin", "fbrn")
 
     _sep("Gasometria")
     for lbl, k in [("Hora","gas_hora"),("Tipo","gas_tipo"),
@@ -135,6 +148,9 @@ def gerar_html_labs() -> str:
                    ("Leuco(U)","ur_leu"),("Hem","ur_hm"),("Prot(U)","ur_prot"),
                    ("Cet","ur_cet"),("Glic(U)","ur_glic")]:
         _add(lbl, k)
+
+    _sep("Não Transcritos")
+    _add("Outros", "outros")
 
     if not any(not is_sep for _, _, is_sep in rows):
         return ""
@@ -291,13 +307,17 @@ def gerar_html_comparativo() -> tuple[str, str]:
     # ── 4. Linhas de labs ─────────────────────────────────────────────────────
     _P_NUM  = _re2.compile(r"^([0-9.,]+)")
     _P_COAG = _re2.compile(r"^([0-9.,]+[s%]?)")
+    # (label, sufixo_novo, regex_fallback_no_leuco_legado)
     _DIFFS  = [
-        ("Seg(%)",  _re2.compile(r"Seg\s*([0-9]+)",  _re2.I)),
-        ("Bast(%)", _re2.compile(r"Bast\s*([0-9]+)", _re2.I)),
-        ("Linf(%)", _re2.compile(r"Linf\s*([0-9]+)", _re2.I)),
-        ("Mon(%)",  _re2.compile(r"Mon\s*([0-9]+)",  _re2.I)),
-        ("Eos(%)",  _re2.compile(r"Eos\s*([0-9]+)",  _re2.I)),
-        ("Bas(%)",  _re2.compile(r"Bas\s*([0-9]+)",  _re2.I)),
+        ("Blastos", "leuco_bla",  None),
+        ("Mielos",  "leuco_mie",  None),
+        ("Metas",   "leuco_meta", None),
+        ("Bast(%)", "leuco_bast", _re2.compile(r"Bast\s*([0-9]+)",  _re2.I)),
+        ("Seg(%)",  "leuco_seg",  _re2.compile(r"Seg\s*([0-9]+)",   _re2.I)),
+        ("Linf(%)", "leuco_linf", _re2.compile(r"Linf\s*([0-9]+)",  _re2.I)),
+        ("Mon(%)",  "leuco_mon",  _re2.compile(r"Mon\s*([0-9]+)",   _re2.I)),
+        ("Eos(%)",  "leuco_eos",  _re2.compile(r"Eos\s*([0-9]+)",   _re2.I)),
+        ("Bas(%)",  "leuco_bas",  _re2.compile(r"Bas\s*([0-9]+)",   _re2.I)),
     ]
 
     def _vl(slot, campo):
@@ -325,10 +345,19 @@ def gerar_html_comparativo() -> tuple[str, str]:
     _add_l_row("Ht (%)", ht)
     for lbl, k in [("VCM","vcm"),("HCM","hcm"),("RDW","rdw")]: _add_l(lbl, k)
     leuco_raw = [_vl(s, "leuco") for s in lab_slots]
-    leuco_tot = [(_P_NUM.match(r) and _P_NUM.match(r).group(1)) or r for r in leuco_raw]
+    leuco_tot = [(_P_NUM.match(r) and _P_NUM.match(r).group(1)) or r or "-" for r in leuco_raw]
     _add_l_row("Leuco", leuco_tot)
-    for dlbl, dpat in _DIFFS:
-        dv = [(dpat.search(r) and dpat.search(r).group(1)+"%") or "-" for r in leuco_raw]
+    for dlbl, dsuf, dpat in _DIFFS:
+        dv = []
+        for s, r in zip(lab_slots, leuco_raw):
+            new_val = _vl(s, dsuf)
+            if new_val and new_val not in ("-", ""):
+                dv.append(new_val.rstrip("%") + "%")
+            elif dpat and r:
+                m = dpat.search(r)
+                dv.append(m.group(1) + "%" if m else "-")
+            else:
+                dv.append("-")
         _add_l_row(dlbl, dv)
     _add_l("Plaq", "plaq")
     _sep_l_set("Renal"); _add_l("Cr","cr"); _add_l("Ur","ur")
@@ -338,16 +367,17 @@ def gerar_html_comparativo() -> tuple[str, str]:
     _sep_l_set("Hepático")
     for lbl, k in [("TGO","tgo"),("TGP","tgp"),("FAL","fal"),("GGT","ggt")]: _add_l(lbl, k)
     _add_l("BT","bt"); _add_l("BD","bd")
-    for lbl, k in [("ProtTot","prot_tot"),("Alb","alb"),
+    for lbl, k in [("ProtTot","prot_tot"),("Alb","alb"),("LDH","ldh"),
                    ("Amil","amil"),("Lipas","lipas")]: _add_l(lbl, k)
     _sep_l_set("Cardio / Inflamação")
     for lbl, k in [("CPK","cpk"),("CPK-MB","cpk_mb"),("BNP","bnp"),
-                   ("Trop","trop"),("PCR","pcr"),("VHS","vhs")]: _add_l(lbl, k)
+                   ("Trop","trop"),("PCR","pcr"),("VHS","vhs"),("Lac sérico","lac")]: _add_l(lbl, k)
     _sep_l_set("Coagulação")
     for lbl, key in [("TP","tp"),("TTPa","ttpa")]:
         v = [(_P_COAG.match(_vl(s,key)) and _P_COAG.match(_vl(s,key)).group(1))
              or _vl(s,key) or "-" for s in lab_slots]
         _add_l_row(lbl, v)
+    _add_l("Fibrin", "fbrn")
     _sep_l_set("Gasometria")
     for lbl, k in [("Hora","gas_hora"),("Tipo","gas_tipo"),
                    ("pH","gas_ph"),("pCO2","gas_pco2"),("Bic","gas_hco3"),
@@ -360,6 +390,7 @@ def gerar_html_comparativo() -> tuple[str, str]:
     for lbl, k in [("Dens","ur_dens"),("L.Est","ur_le"),("Nit","ur_nit"),
                    ("Leuco(U)","ur_leu"),("Hem","ur_hm"),("Prot(U)","ur_prot"),
                    ("Cet","ur_cet"),("Glic(U)","ur_glic")]: _add_l(lbl, k)
+    _sep_l_set("Não Transcritos"); _add_l("Outros", "outros")
 
     html_labs = _build_html_table(lab_headers, lab_rows, "60vh") if any(
         not s for _, _, s in lab_rows) else ""

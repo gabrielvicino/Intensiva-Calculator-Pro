@@ -98,7 +98,8 @@ Retorne APENAS os itens que possuem valor numérico, separados por " | ".
 2. Ht (Inteiro + %)
 3. [CONDICIONAL]: Se Hb < 9,0 inclua: VCM | HCM | RDW. (Se Hb >= 9,0, ignore estes 3).
 4. Leuco (Se <500, converta ex: 0,4->400)
-5. Fórmula (Bast X% / Seg Y% / Linf Z% / Mon W% / Eos K% / Bas H%). Use barras "/" internas.
+5. Fórmula do Leuco (use apenas os que existirem, com barras "/" internas):
+   Blast X% / Mie X% / Meta X% / Bast X% / Seg X% / Linf X% / Mon X% / Eos X% / Bas X%
 6. Plaq
 7. Cr (1 casa decimal)
 8. Ur (Inteiro)
@@ -110,7 +111,7 @@ Retorne APENAS os itens que possuem valor numérico, separados por " | ".
 14. Cai (2 casas decimais)
 
 # EXEMPLO DE SAÍDA (TEMPLATE)
-Hb 8,0 | Ht 24% | VCM 82 | HCM 27 | RDW 15 | Leuco 12.500 (Bast 2% / Seg 68% / Linf 20% / Mon 6% / Eos 4% / Bas 0%) | Plaq 150.000 | Cr 1,2 | Ur 45 | Na 138 | K 4,0 | Mg 1,8 | Pi 3,5 | CaT 8,9 | Cai 1,01
+Hb 8,0 | Ht 24% | VCM 82 | HCM 27 | RDW 15 | Leuco 12.500 (Blast 0% / Mie 0% / Meta 1% / Bast 2% / Seg 68% / Linf 20% / Mon 6% / Eos 4% / Bas 0%) | Plaq 150.000 | Cr 1,2 | Ur 45 | Na 138 | K 4,0 | Mg 1,8 | Pi 3,5 | CaT 8,9 | Cai 1,01
 
 # FORMATO DE RESPOSTA
 - Apenas a string de dados ou VAZIO. Sem markdown.
@@ -119,29 +120,30 @@ Hb 8,0 | Ht 24% | VCM 82 | HCM 27 | RDW 15 | Leuco 12.500 (Bast 2% / Seg 68% / L
 {{TEXTO_INPUT}}"""
 
 _PROMPT_HEPATICO = """# ATUE COMO
-Especialista em Gastroenterologia.
+Especialista em Gastroenterologia e Bioquímica.
 
 # TAREFA
 Extraia os dados abaixo. Se o dado não existir, PULE para o próximo.
 Não deixe espaços vazios ou pipes extras.
 
 # ORDEM DE PREFERÊNCIA
-1. TGP
-2. TGO
-3. FAL
-4. GGT
+1. TGP (Alanina Aminotransferase / ALT)
+2. TGO (Aspartato Aminotransferase / AST)
+3. FAL (Fosfatase Alcalina)
+4. GGT (Gama GT)
 5. BT (Se houver direta: BT X,X (Y,Y))
 6. Prot Tot
-7. Alb
-8. Amil
-9. Lipas
+7. Alb (Albumina)
+8. LDH (Lactato Desidrogenase)
+9. Amil (Amilase)
+10. Lipas (Lipase)
 
 # REGRAS DE LIMPEZA
 - Retorne apenas o que tiver valor.
-- Exemplo: Se só tem TGP e Amilase, retorne: "TGP 32 | Amil 65".
+- Exemplo: Se só tem TGP e LDH, retorne: "TGP 32 | LDH 280".
 
 # EXEMPLO DE SAÍDA (TEMPLATE)
-TGP 32 | TGO 35 | FAL 80 | GGT 45 | BT 1,0 (0,3) | Prot Tot 6,5 | Alb 3,8 | Amil 65 | Lipas 40
+TGP 32 | TGO 35 | FAL 80 | GGT 45 | BT 1,0 (0,3) | Prot Tot 6,5 | Alb 3,8 | LDH 280 | Amil 65 | Lipas 40
 
 # FORMATO DE RESPOSTA
 - Apenas a string de dados ou VAZIO. Sem markdown.
@@ -150,34 +152,37 @@ TGP 32 | TGO 35 | FAL 80 | GGT 45 | BT 1,0 (0,3) | Prot Tot 6,5 | Alb 3,8 | Amil
 {{TEXTO_INPUT}}"""
 
 _PROMPT_COAGULACAO = """# ATUE COMO
-Especialista em Marcadores Críticos.
+Especialista em Marcadores Críticos e Coagulação.
 
 # TAREFA
 Extraia apenas os marcadores presentes no texto.
 
 # LISTA ALVO
-1. PCR (inteiro, sem casas decimais)
-2. CPK (inteiro, sem casas decimais)
-3. CK-MB (inteiro, sem casas decimais)
-4. Trop (2 casas decimais)
-5. TP (com RNI entre parênteses) - SEMPRE 1 casa decimal
-6. TTPa (com Relação entre parênteses) - SEMPRE 1 casa decimal
+1. PCR (Proteína C Reativa — inteiro, sem casas decimais)
+2. VHS (Velocidade de hemossedimentação — inteiro)
+3. CPK (inteiro, sem casas decimais)
+4. CK-MB (inteiro, sem casas decimais)
+5. BNP ou NT-proBNP (inteiro)
+6. Trop (Troponina — 2 casas decimais)
+7. TP (com atividade % e RNI entre parênteses) - SEMPRE 1 casa decimal
+8. TTPa (com Relação entre parênteses) - SEMPRE 1 casa decimal
+9. Fibrin (Fibrinogênio — inteiro)
+10. Lac sérico (Lactato SÉRICO — não gasometria; 1 casa decimal)
 
 # REGRAS DE PRECISÃO NUMÉRICA (RIGOROSO)
-- PCR, CPK, CK-MB: INTEIROS (Ex: 89, 150, 12)
+- PCR, VHS, CPK, CK-MB, BNP, Fibrin: INTEIROS (Ex: 89, 150, 12)
 - Trop: 2 casas decimais (Ex: 0,01)
-- TP: SEMPRE 1 casa decimal (Ex: 14,2s) - Sigla: "TP" (NÃO "TP Ativ")
-- TTPa: SEMPRE 1 casa decimal (Ex: 69,1s)
-- RNI/Relação: 2 casas decimais entre parênteses (Ex: (1,22))
+- TP: formato "Xs (Ativ Y% / RNI Z,ZZ)". Exemplo: "TP 19,7s (Ativ 48% / RNI 1,52)"
+- TTPa: formato "Xs (R: Z,ZZ)". Exemplo: "TTPa 33,1s (R: 1,18)"
+- Lac sérico: apenas se for lactato de sangue venoso/arterial POR FORA da gasometria. Ex: "Lac sérico 2,1"
 
 # REGRA DE OURO (ANTI-ALUCINAÇÃO)
-- Se o texto menciona "CPK" mas não traz o resultado numérico, NÃO inclua "CPK" na saída.
-- Proibido saídas como: "CPK | CK-MB".
-- Correto: "PCR 12 | Trop 0,01".
+- Se o texto menciona um exame mas não traz resultado numérico, NÃO inclua na saída.
+- Lac sérico: NÃO extrair se o lactato vier exclusivamente dentro da gasometria (pO2, pH, etc).
 
 # EXEMPLOS DE SAÍDA (TEMPLATES)
-Exemplo 1: PCR 89 | TP 14,2s (1,22) | TTPa 69,1s (2,49)
-Exemplo 2: PCR 12 | CPK 150 | CK-MB 12 | Trop 0,01 | TP 14,2s (1,10) | TTPa 30,0s (1,00)
+Exemplo 1: PCR 89 | TP 19,7s (Ativ 48% / RNI 1,52) | TTPa 33,1s (R: 1,18)
+Exemplo 2: PCR 12 | VHS 45 | CPK 150 | CK-MB 12 | Trop 0,01 | Fibrin 320 | BNP 450 | TP 14,2s (Ativ 80% / RNI 1,10) | TTPa 30,0s (R: 1,00)
 
 # FORMATO DE RESPOSTA
 - Apenas a string de dados ou VAZIO. Sem markdown.
@@ -574,6 +579,41 @@ def extrair_exames(texto: str, api_key: str, provider: str, modelo: str) -> str:
         linhas_saida.append(f"Não Transcritos: {nao_trans}")
 
     return "\n".join(linhas_saida)
+
+
+# ==============================================================================
+# rodar_agentes_exame() — expõe os agentes especializados como dict
+# Para uso pelo tab_laboratoriais (preenchimento de campos)
+# ==============================================================================
+
+def rodar_agentes_exame(texto: str, api_key: str, provider: str, modelo: str) -> dict[str, str]:
+    """
+    Roda os 6 agentes especializados em paralelo e retorna dict {agente_id: texto}.
+    Inclui: hematologia_renal, hepatico, coagulacao, urina, gasometria, nao_transcritos.
+    Usado por tab_laboratoriais para preenchimento campo a campo via parse_agentes_para_slot.
+    """
+    if not texto or not api_key:
+        return {}
+
+    resultados: dict[str, str] = {}
+
+    def _worker(agente_id: str):
+        prompt = _AGENTES_EXAMES_PROMPTS[agente_id]
+        r = _chamar_ia(provider, api_key, modelo, prompt, texto)
+        if r and "❌" not in r and "⚠️" not in r:
+            r_limpo = r.strip().rstrip(".,:;!? ")
+            if r_limpo and r_limpo.upper() != "VAZIO":
+                return agente_id, r_limpo
+        return agente_id, None
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(_worker, aid): aid for aid in _AGENTES_EXAMES_ORDEM}
+        for future in as_completed(futures):
+            aid, resultado = future.result(timeout=60)
+            if resultado:
+                resultados[aid] = resultado
+
+    return resultados
 
 
 # ==============================================================================

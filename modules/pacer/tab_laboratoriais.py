@@ -7,8 +7,8 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from modules.secoes import laboratoriais as _lab_sec
-from modules.pacer.pdf_extractor import processar_texto_slot
-from modules.parsers.lab import parse_lab_exames_dia
+from modules.pacer.pdf_extractor import _chamar_agente, _AGENTES
+from modules.parsers.lab import parse_agentes_para_slot
 from datetime import date as _date
 
 
@@ -134,13 +134,16 @@ def _render_texto_entrada(slots: list) -> None:
 
 
 # ==============================================================================
-# Extração via IA — todos os slots simultaneamente
+# Extração via IA — 7 agentes especializados + parser determinístico
 # ==============================================================================
 
-def _extrair_com_ia(api_key: str, modelo: str) -> None:
+def _extrair_com_ia(api_key: str, modelo: str, placeholder=None) -> None:
     """
-    Varre todos os slots (1–10), coleta os que têm texto e processa
-    SIMULTANEAMENTE. Cada slot roda seus 7 agentes PACER em paralelo.
+    Para cada slot com texto:
+      1. Roda os 7 agentes especializados em paralelo (hematologia, hepático,
+         coagulação, urina, gasometria, não transcritos) — mesmos do debug tab.
+      2. Mapeia o texto estruturado para campos via parse_agentes_para_slot.
+    placeholder: st.empty() no topo da página para mostrar o spinner lá.
     """
     slots_com_texto = [
         s for s in range(1, 11)
@@ -148,56 +151,72 @@ def _extrair_com_ia(api_key: str, modelo: str) -> None:
     ]
 
     if not slots_com_texto:
-        st.warning("⚠️ Cole o texto do laudo nos campos acima antes de extrair.")
+        st.session_state["_lab_avisos"] = ["⚠️ Cole o texto do laudo nos campos acima antes de extrair."]
         return
 
-    entradas = {
-        s: {
-            "texto":      st.session_state.get(f"lab_{s}_texto_entrada", "").strip(),
-            "data_atual": st.session_state.get(f"lab_{s}_data", ""),
-        }
+    # Lê textos ANTES de spawnar threads (session_state não é thread-safe)
+    textos = {
+        s: (st.session_state.get(f"lab_{s}_texto_entrada") or "").strip()
         for s in slots_com_texto
     }
 
-    resultados_slots: dict[int, tuple[dict, int]] = {}
+    resultados_slots: dict[int, tuple[dict, int, str]] = {}
 
     def _processar(slot: int):
-        e = entradas[slot]
-        return slot, processar_texto_slot(
-            slot, e["texto"], api_key, "OpenAI GPT", modelo, e["data_atual"]
-        )
+        texto = textos[slot]
+        # Mesmos 7 agentes usados pelo debug tab — confirmados funcionando
+        resultados_agentes: dict[str, str | None] = {}
 
-    with st.spinner(f"🔬 Extraindo {len(slots_com_texto)} laudo(s) simultaneamente..."):
-        with ThreadPoolExecutor(max_workers=len(slots_com_texto)) as executor:
-            futures = {executor.submit(_processar, s): s for s in slots_com_texto}
-            for future in as_completed(futures):
-                slot, resultado = future.result(timeout=120)
-                resultados_slots[slot] = resultado
+        def _worker(nome: str, prompt: str):
+            saida = _chamar_agente(prompt, texto, api_key, modelo, "OpenAI GPT")
+            return nome, saida
 
-    total_campos = 0
+        with ThreadPoolExecutor(max_workers=7) as ex:
+            futures = {ex.submit(_worker, n, p): n for n, p in _AGENTES.items()}
+            for f in as_completed(futures):
+                nome, saida = f.result(timeout=90)
+                resultados_agentes[nome] = saida
+
+        if not any(v for v in resultados_agentes.values()):
+            return slot, ({}, 0, "Nenhuma resposta dos agentes. Verifique a chave de API.")
+
+        campos = parse_agentes_para_slot(resultados_agentes, slot)
+        n = len([v for v in campos.values()
+                 if v and str(v).strip() and not str(v).startswith("_")])
+        return slot, (campos, n, "")
+
+    if placeholder is not None:
+        with placeholder.container():
+            st.info(f"🔬 Extraindo {len(slots_com_texto)} laudo(s) com IA...")
+    with ThreadPoolExecutor(max_workers=len(slots_com_texto)) as executor:
+        futures = {executor.submit(_processar, s): s for s in slots_com_texto}
+        for future in as_completed(futures):
+            slot, resultado = future.result(timeout=120)
+            resultados_slots[slot] = resultado
+    if placeholder is not None:
+        placeholder.empty()
+
     erros = []
     pending_campos: dict = {}
     pending_clear: list = []
 
     for slot in slots_com_texto:
         titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
-        campos, n = resultados_slots.get(slot, ({}, 0))
+        campos, n, erro_msg = resultados_slots.get(slot, ({}, 0, "sem retorno"))
         if n > 0:
             pending_campos.update(campos)
             pending_clear.append(slot)
-            total_campos += n
             st.toast(f"✅ {titulo}: {n} campos preenchidos", icon="🧪")
         else:
-            erros.append(f"{titulo}: nenhum campo extraído")
+            detalhe = f" — {erro_msg}" if erro_msg else ""
+            erros.append(f"{titulo}: nenhum campo extraído{detalhe}")
 
-    # Armazena para aplicar no próximo rerun, antes dos widgets serem renderizados
     if pending_campos:
         st.session_state["_lab_pending_update"] = pending_campos
         st.session_state["_lab_pending_clear"] = pending_clear
 
     if erros:
-        for erro in erros:
-            st.warning(f"⚠️ {erro}")
+        st.session_state["_lab_avisos"] = [f"⚠️ {erro}" for erro in erros]
 
 
 # ==============================================================================
@@ -209,17 +228,17 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
     from utils import save_evolucao, load_evolucao
     from modules import fichas
 
-    # Aplica resultados pendentes de extração IA/parsing ANTES de renderizar widgets
+    # Aplica resultados pendentes de extração IA/parsing ANTES de renderizar widgets.
+    # Preserva dados já preenchidos: sobrescreve só com valores não-vazios.
     if "_lab_pending_update" in st.session_state:
         pending_update = st.session_state.pop("_lab_pending_update")
         pending_clear_slots = st.session_state.pop("_lab_pending_clear", [])
-        # Limpa TODOS os campos do slot antes de aplicar os novos valores
-        for slot in pending_clear_slots:
-            for suf in _lab_sec._LAB_SUFIXOS:
-                st.session_state[f"lab_{slot}_{suf}"] = ""
-            st.session_state[f"lab_{slot}_texto_entrada"] = ""
         for k, v in pending_update.items():
-            st.session_state[k] = v
+            if v is not None and str(v).strip() != "":
+                st.session_state[k] = v
+        # Limpa apenas os campos de texto de entrada (laudos colados)
+        for slot in pending_clear_slots:
+            st.session_state[f"lab_{slot}_texto_entrada"] = ""
 
     st.subheader("🧪 Exames Laboratoriais")
 
@@ -231,12 +250,19 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
 
     prontuario = st.session_state.get("prontuario", "").strip()
 
-    # Placeholder para mensagens de save — aparece acima do formulário
+    # Placeholder de avisos — fica no TOPO, antes do formulário
+    _msg_avisos = st.empty()
+    if "_lab_avisos" in st.session_state:
+        with _msg_avisos.container():
+            for aviso in st.session_state.pop("_lab_avisos"):
+                st.warning(aviso)
+
+    # Placeholder para mensagens de save — acima do formulário
     _msg_salvar = st.empty()
 
     # ── Form principal — sem rerender ao digitar ──────────────────────────────
     with st.form("form_laboratoriais_main"):
-        b1, b2, b3, b4 = st.columns(4)
+        b1, b2, b3 = st.columns(3)
         with b1:
             btn_evo = st.form_submit_button(
                 "Evolução Hoje", use_container_width=True,
@@ -250,15 +276,6 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
                 disabled=not api_key,
             )
         with b3:
-            btn_parse = st.form_submit_button(
-                "Parsing Exames", use_container_width=True,
-                help=(
-                    "Extrai exames do texto colado em cada coluna.\n"
-                    "Formato: DD/MM/YYYY – Hb 8,2 | Ht 25% | Cr 1,3 | ...\n"
-                    "Linhas de continuação e gasometria (Gas Ven/Art ...) são reconhecidas automaticamente."
-                ),
-            )
-        with b4:
             btn_salvar = st.form_submit_button(
                 "💾 Salvar no Prontuário", use_container_width=True,
                 type="primary", disabled=not prontuario,
@@ -268,15 +285,47 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
         # Tabela principal: slots 1–4
         _lab_sec._render_day_headers([1, 2, 3, 4])
         _render_texto_entrada([1, 2, 3, 4])
-        _lab_sec._render_labs_table([1, 2, 3, 4], show_header=False)
+        _lab_sec._render_labs_table([1, 2, 3, 4], show_header=False, show_conduta=False)
         _lab_sec._render_gas_extras([1, 2, 3, 4])
+
+        # Botões de apagar coluna — slots 1–4
+        st.divider()
+        _clr1, _clr2, _clr3, _clr4 = st.columns(4)
+        for _col, _slot in zip((_clr1, _clr2, _clr3, _clr4), (1, 2, 3, 4)):
+            with _col:
+                _titulo = _TITULOS_SLOT.get(_slot, f"Slot #{_slot}")
+                if st.form_submit_button(
+                    f"Apagar exames {_titulo.lower()}", use_container_width=True,
+                    help=f"Apaga todos os dados da coluna '{_titulo}'",
+                ):
+                    st.session_state[f"_lab_clear_slot_{_slot}"] = True
 
         # Demais exames: slots 5–10
         with st.expander("Demais exames", expanded=False):
             _lab_sec._render_day_headers([5, 6, 7, 8, 9, 10])
             _render_texto_entrada([5, 6, 7, 8, 9, 10])
-            _lab_sec._render_labs_table([5, 6, 7, 8, 9, 10], show_header=False)
+            _lab_sec._render_labs_table([5, 6, 7, 8, 9, 10], show_header=False, show_conduta=False)
             _lab_sec._render_gas_extras([5, 6, 7, 8, 9, 10])
+
+            # Botões de apagar coluna — slots 5–10
+            st.divider()
+            _clr_cols = st.columns(6)
+            for _col, _slot in zip(_clr_cols, (5, 6, 7, 8, 9, 10)):
+                with _col:
+                    _titulo = _TITULOS_SLOT.get(_slot, f"Slot #{_slot}")
+                    if st.form_submit_button(
+                        f"Apagar exames {_titulo.lower()}", use_container_width=True,
+                        help=f"Apaga todos os dados da coluna '{_titulo}'",
+                    ):
+                        st.session_state[f"_lab_clear_slot_{_slot}"] = True
+
+    # ── Handlers de apagar coluna (antes de outros handlers para rerun imediato) ─
+    for _slot in range(1, 11):
+        if st.session_state.pop(f"_lab_clear_slot_{_slot}", False):
+            _lab_sec.limpar_slot(_slot)
+            _titulo = _TITULOS_SLOT.get(_slot, f"Slot #{_slot}")
+            st.toast(f"🗑️ {_titulo} apagado.", icon="🗑️")
+            st.rerun()
 
     # ── Handlers (fora do form, após submissão) ───────────────────────────────
     if btn_evo:
@@ -284,46 +333,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
         st.toast("✅ Resultados deslocados.", icon="✅")
         st.rerun()
 
-    if btn_parse:
-        slots_com_texto = [
-            s for s in range(1, 11)
-            if (st.session_state.get(f"lab_{s}_texto_entrada") or "").strip()
-        ]
-        if not slots_com_texto:
-            st.warning("⚠️ Cole o laudo nos campos de texto de cada coluna antes de parsear.")
-        else:
-            def _parse_slot(slot: int):
-                texto = st.session_state.get(f"lab_{slot}_texto_entrada", "").strip()
-                return slot, parse_lab_exames_dia(texto, slot)
-
-            with st.spinner(f"🔬 Parseando {len(slots_com_texto)} coluna(s)..."):
-                with ThreadPoolExecutor(max_workers=len(slots_com_texto)) as ex:
-                    futures = {ex.submit(_parse_slot, s): s for s in slots_com_texto}
-                    resultados = {}
-                    for fut in as_completed(futures):
-                        slot, dados = fut.result()
-                        resultados[slot] = dados
-
-            total = 0
-            pending_parse: dict = {}
-            pending_parse_clear: list = []
-            for slot, dados in resultados.items():
-                n = len([v for v in dados.values() if v])
-                titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
-                if n:
-                    pending_parse.update(dados)
-                    pending_parse_clear.append(slot)
-                    total += n
-                    st.toast(f"✅ {titulo}: {n} campos preenchidos", icon="🧪")
-                else:
-                    st.warning(f"⚠️ {titulo}: nenhum valor reconhecido. Verifique o formato.")
-            if total:
-                st.session_state["_lab_pending_update"] = pending_parse
-                st.session_state["_lab_pending_clear"] = pending_parse_clear
-                st.rerun()
-
     if btn_extrair:
-        _extrair_com_ia(api_key, modelo)
+        _extrair_com_ia(api_key, modelo, placeholder=_msg_avisos)
         st.rerun()
 
     if btn_salvar:

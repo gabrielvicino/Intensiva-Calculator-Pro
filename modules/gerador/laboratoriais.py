@@ -21,16 +21,16 @@ def _secao_laboratoriais() -> list[str]:
 
     _MAIN = [
         ("Hb",    "hb"),    ("Ht",    "ht"),    ("VCM",  "vcm"),
-        ("HCM",   "hcm"),   ("RDW",   "rdw"),   ("Leuco","leuco"),
+        ("HCM",   "hcm"),   ("RDW",   "rdw"),   ("Leuco","__leuco_dif__"),
         ("Plaq",  "plaq"),  ("Cr",    "cr"),     ("Ur",   "ur"),
         ("Na",    "na"),    ("K",     "k"),      ("Mg",   "mg"),
         ("Pi",    "pi"),    ("CaT",   "cat"),    ("CaI",  "cai"),
         ("TGO",   "tgo"),   ("TGP",   "tgp"),   ("FAL",  "fal"),
         ("GGT",   "ggt"),   ("BT",    "__bt_bd__"), ("Prot Tot", "prot_tot"),
-        ("Amil",  "amil"),  ("Lipas", "lipas"),  ("Alb",  "alb"),
+        ("Amil",  "amil"),  ("Lipas", "lipas"),  ("Alb",  "alb"),   ("LDH",  "ldh"),
         ("CPK",   "cpk"),   ("CPK-MB","cpk_mb"), ("BNP",  "bnp"),
-        ("Trop",  "trop"),  ("PCR",   "pcr"),    ("VHS",  "vhs"),
-        ("TP",    "tp"),    ("TTPa",  "ttpa"),
+        ("Trop",  "trop"),  ("PCR",   "pcr"),    ("VHS",  "vhs"),    ("Lac sérico","lac"),
+        ("TP",    "tp"),    ("TTPa",  "ttpa"),   ("Fibrin","fbrn"),
     ]
     _GAS_CAMPOS = [
         ("pH",    "ph"),  ("pCO2", "pco2"), ("Bic",  "hco3"),
@@ -126,9 +126,28 @@ def _secao_laboratoriais() -> list[str]:
         data   = _v(i, "data")
         outros = _v(i, "outros")
 
+        _DIF_CAMPOS = [
+            ("Blastos","leuco_bla"), ("Mielos","leuco_mie"), ("Metas","leuco_meta"),
+            ("Bast","leuco_bast"),   ("Seg","leuco_seg"),    ("Linf","leuco_linf"),
+            ("Mon","leuco_mon"),     ("Eos","leuco_eos"),    ("Bas","leuco_bas"),
+        ]
+
         main_parts = []
         for _lbl, _k in _MAIN:
-            if _k == "__bt_bd__":
+            if _k == "__leuco_dif__":
+                leuco_v = _v(i, "leuco")
+                if not leuco_v:
+                    continue
+                if "(" in leuco_v:
+                    # formato legado: já contém diferencial embutido
+                    main_parts.append(f"Leuco {leuco_v}")
+                else:
+                    dif_parts = [f"{dl} {_v(i, ds)}" for dl, ds in _DIF_CAMPOS if _v(i, ds)]
+                    if dif_parts:
+                        main_parts.append(f"Leuco {leuco_v} ({' / '.join(dif_parts)})")
+                    else:
+                        main_parts.append(f"Leuco {leuco_v}")
+            elif _k == "__bt_bd__":
                 bt_v = _v(i, "bt")
                 bd_v = _v(i, "bd")
                 if bt_v:
