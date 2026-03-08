@@ -199,6 +199,19 @@ def parse_controles_deterministico(
         linhas = bloco.split("\n")[1:]
         valid_blocks.append((data_fmt, linhas))
 
+    # Ordena blocos com data: mais recente primeiro → hoje, ontem, anteontem...
+    # Blocos sem data ficam no final.
+    def _bloco_key(bloco):
+        data_fmt = bloco[0]
+        if not data_fmt:
+            return datetime.min.date()
+        try:
+            return datetime.strptime(data_fmt, "%d/%m/%Y").date()
+        except Exception:
+            return datetime.min.date()
+
+    valid_blocks.sort(key=_bloco_key, reverse=True)
+
     # ── Atribuição de slots ───────────────────────────────────────────────────
     used_slots: set[str] = set()
     fallback_idx = 0   # próximo slot disponível na ordem padrão

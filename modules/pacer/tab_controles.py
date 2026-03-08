@@ -3,11 +3,12 @@
 # Renderiza a aba "💧 Controles & BH" da página Laboratoriais & Controles.
 # ==============================================================================
 
+import re
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from modules.secoes import controles as _ctrl_sec
-from modules.parsers.controles import parse_controles_dia
+from modules.parsers.controles import parse_controles_dia, parse_controles_deterministico
 from modules.agentes_secoes.controles import preencher_controles_dia
 from modules.ia_config import get_ia_config
 
@@ -256,31 +257,47 @@ def render():
         if not dias_com_texto:
             st.warning("Cole o texto de controles nos campos de cada coluna antes de parsear.")
         else:
-            # Sempre usa parse_controles_dia por coluna — respeita em qual coluna
-            # o texto foi colado e suporta todos os formatos (simples e # Controles).
-            def _parse_dia(dia):
+            _DIAS_SET = set(_ctrl_sec._DIAS)
+            resultados_final: dict[str, str] = {}
+            dias_afetados: set[str] = set()
+            dias_com_texto_processados: list[str] = []
+
+            for dia in dias_com_texto:
                 texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
-                return dia, parse_controles_dia(texto, dia)
+                tem_multiplos = len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
 
-            resultados = {}
-            with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
-                futures = {ex.submit(_parse_dia, d): d for d in dias_com_texto}
-                for fut in as_completed(futures):
-                    dia, dados = fut.result()
-                    resultados[dia] = dados
+                if tem_multiplos:
+                    # Multi-bloco: distribui pelos dias corretos com base nas datas
+                    existing_dates = {
+                        d: st.session_state.get(f"ctrl_{d}_data", "")
+                        for d in _ctrl_sec._DIAS
+                    }
+                    dados = parse_controles_deterministico(texto, existing_dates=existing_dates)
+                    for k in dados:
+                        if k.startswith("ctrl_"):
+                            partes = k.split("_", 2)
+                            if len(partes) >= 2 and partes[1] in _DIAS_SET:
+                                dias_afetados.add(partes[1])
+                    resultados_final.update(dados)
+                else:
+                    # Bloco único: tudo vai para a coluna onde foi colado
+                    dados = parse_controles_dia(texto, dia)
+                    campos = {k: v for k, v in dados.items() if v}
+                    if campos:
+                        dias_afetados.add(dia)
+                        resultados_final.update(dados)
 
-            n = 0
-            algum_resultado = False
-            for dia, dados in resultados.items():
-                campos_encontrados = {k: v for k, v in dados.items() if v}
-                if campos_encontrados:
-                    algum_resultado = True
-                    _ctrl_sec._limpar_dia(dia)
-                    for k, v in dados.items():
-                        _ctrl_sec._set_ss(k, v)
-                    n += len(campos_encontrados)
+                dias_com_texto_processados.append(dia)
 
-            if algum_resultado:
+            n = len([v for v in resultados_final.values() if v])
+            if n:
+                for d in dias_afetados:
+                    _ctrl_sec._limpar_dia(d)
+                for k, v in resultados_final.items():
+                    _ctrl_sec._set_ss(k, v)
+                # Garante que text_areas das colunas coladas sejam esvaziadas
+                for d in dias_com_texto_processados:
+                    _ctrl_sec._set_ss(f"ctrl_{d}_texto_entrada", "")
                 st.toast(f"✅ {n} campos preenchidos.", icon="📊")
                 st.rerun()
             else:
