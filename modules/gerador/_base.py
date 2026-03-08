@@ -100,6 +100,11 @@ def _obs_para_linhas(obs: str, excluir_conduta: bool = False) -> list[str]:
             continue
         if excluir_conduta and linha.lower().startswith("conduta:"):
             continue
+        # Remove marcadores de lista ("- " ou "• ") que precedem o texto
+        if linha.startswith("- "):
+            linha = linha[2:].strip()
+        elif linha.startswith("• "):
+            linha = linha[2:].strip()
         linha = _caps_obs_linha(linha)
         linhas.append(f"> {linha}")
     return linhas

@@ -38,8 +38,8 @@ def _secao_identificacao() -> list[str]:
         corpo.append(f"Origem: {origem}")
 
     # 5. Equipe Titular e Interconsultora (linhas separadas)
-    equipe = _get("equipe")
-    interconsultora = _get("interconsultora")
+    equipe = _sigla_upper(_get("equipe"))
+    interconsultora = _sigla_upper(_get("interconsultora"))
     if equipe:
         corpo.append(f"Equipe Titular: {equipe}")
     if interconsultora:

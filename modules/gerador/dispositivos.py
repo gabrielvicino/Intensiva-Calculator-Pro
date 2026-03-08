@@ -21,7 +21,7 @@ def _secao_dispositivos() -> list[str]:
             continue
 
         status        = _get(f"disp_{id_real}_status")
-        local         = _get(f"disp_{id_real}_local")
+        local         = _sigla_upper(_get(f"disp_{id_real}_local"))
         data_insercao = _get(f"disp_{id_real}_data_insercao")
         data_retirada = _get(f"disp_{id_real}_data_retirada")
 

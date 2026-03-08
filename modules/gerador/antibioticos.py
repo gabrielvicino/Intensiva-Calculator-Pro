@@ -78,15 +78,19 @@ def _secao_antibioticos() -> list[str]:
 
     atuais = []
     previos = []
+    n_atuais = 0
+    n_previos = 0
     for idx in ordem:
         status = _get(f"atb_{idx}_status")
         if status == "Atual":
-            linhas = _linhas_atual(len(atuais) + 1, idx)
+            linhas = _linhas_atual(n_atuais + 1, idx)
             if linhas:
+                n_atuais += 1
                 atuais.extend(linhas)
         elif status == "Prévio":
-            linhas = _linhas_previo(len(previos) + 1, idx)
+            linhas = _linhas_previo(n_previos + 1, idx)
             if linhas:
+                n_previos += 1
                 previos.extend(linhas)
 
     if not atuais and not previos:
