@@ -564,6 +564,21 @@ def render_formulario_completo():
             unsafe_allow_html=True,
         )
 
+        # ── Incluir Laboratoriais e Controles na saída ──────────────────────
+        _c_inc_l, _c_inc_c = st.columns(2)
+        with _c_inc_l:
+            st.checkbox(
+                "Incluir Laboratoriais na saída",
+                key="inc_laboratoriais",
+                help="Quando desmarcado, a seção Laboratoriais não aparece no Prontuário Completo",
+            )
+        with _c_inc_c:
+            st.checkbox(
+                "Incluir Controles & BH na saída",
+                key="inc_controles",
+                help="Quando desmarcado, a seção Controles & BH não aparece no Prontuário Completo",
+            )
+
         st.divider()
         # ── 13. Evolução Clínica ────────────────────────────────────────────
         evolucao_clinica.render()
@@ -578,6 +593,15 @@ def render_formulario_completo():
         st.divider()
         condutas.render()
         _btn_gerar_bloco_com_inc("condutas")
+
+        st.divider()
+        if st.form_submit_button(
+            "📋 Gerar Prontuário Completo",
+            type="primary",
+            use_container_width=True,
+            help="Salva o formulário (incluindo checkboxes de evolução) e gera o prontuário completo",
+        ):
+            st.session_state["_gerar_prontuario_pendente"] = True
 
 
 def migrar_schema_legado(dados: dict) -> dict:

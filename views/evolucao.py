@@ -408,6 +408,16 @@ if st.session_state.pop("_sistemas_deterministico_pendente", False):
 if st.session_state.pop("_completar_blocos_sistemas", False):
     fluxo.completar_sistemas_de_outros_blocos()
 
+# ── Gerar Prontuário via form_submit_button (comita checkboxes _show) ─────────
+if st.session_state.pop("_gerar_prontuario_pendente", False):
+    _pront_gerar2 = st.session_state.get("prontuario", "").strip()
+    if _pront_gerar2:
+        _dados_gerar2 = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        with st.spinner("💾 Salvando antes de gerar..."):
+            save_evolucao(_pront_gerar2, st.session_state.get("nome", "").strip(), _dados_gerar2)
+    st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
+    st.rerun()
+
 
 # ==============================================================================
 # BLOCO 3: PRONTUÁRIO COMPLETO

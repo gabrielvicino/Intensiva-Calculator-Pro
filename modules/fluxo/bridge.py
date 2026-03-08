@@ -153,6 +153,19 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
         _set(f"sis_infec_cult_{i}_sitio", _limpar(st.session_state.get(f"cult_{i}_sitio",       "")))
         _set(f"sis_infec_cult_{i}_data",  _limpar(st.session_state.get(f"cult_{i}_data_coleta", "")))
 
+    # Auto-ativa _show=True para todos os prefixos de evolução que foram preenchidos.
+    # Isso garante que as linhas de evolução apareçam na saída sem precisar marcar
+    # manualmente cada checkbox dentro do formulário.
+    import re as _re_bridge
+    _prefixos_evo: set = set()
+    for _sk, _sv in list(staging.items()):
+        if _sv:
+            _m = _re_bridge.match(r"^(sis_\w+)_(hoje|ult|antepen|ant4|ant5)$", _sk)
+            if _m:
+                _prefixos_evo.add(_m.group(1))
+    for _pref in _prefixos_evo:
+        staging[f"{_pref}_show"] = True
+
     st.session_state["_agent_staging"] = staging
     if rerun:
         if cnt[0]:
