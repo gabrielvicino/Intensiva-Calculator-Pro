@@ -176,17 +176,24 @@ def _extrair_com_ia(api_key: str, modelo: str) -> None:
 
     total_campos = 0
     erros = []
+    pending_campos: dict = {}
+    pending_clear: list = []
 
     for slot in slots_com_texto:
         titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
         campos, n = resultados_slots.get(slot, ({}, 0))
         if n > 0:
-            st.session_state.update(campos)
-            st.session_state[f"lab_{slot}_texto_entrada"] = ""
+            pending_campos.update(campos)
+            pending_clear.append(slot)
             total_campos += n
             st.toast(f"✅ {titulo}: {n} campos preenchidos", icon="🧪")
         else:
             erros.append(f"{titulo}: nenhum campo extraído")
+
+    # Armazena para aplicar no próximo rerun, antes dos widgets serem renderizados
+    if pending_campos:
+        st.session_state["_lab_pending_update"] = pending_campos
+        st.session_state["_lab_pending_clear"] = pending_clear
 
     if erros:
         for erro in erros:
@@ -201,6 +208,13 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
     """Renderiza a aba completa de Exames Laboratoriais."""
     from utils import save_evolucao, load_evolucao
     from modules import fichas
+
+    # Aplica resultados pendentes de extração IA/parsing ANTES de renderizar widgets
+    if "_lab_pending_update" in st.session_state:
+        for k, v in st.session_state.pop("_lab_pending_update").items():
+            st.session_state[k] = v
+        for slot in st.session_state.pop("_lab_pending_clear", []):
+            st.session_state[f"lab_{slot}_texto_entrada"] = ""
 
     st.subheader("🧪 Exames Laboratoriais")
 
@@ -286,17 +300,21 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
                         resultados[slot] = dados
 
             total = 0
+            pending_parse: dict = {}
+            pending_parse_clear: list = []
             for slot, dados in resultados.items():
                 n = len([v for v in dados.values() if v])
+                titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
                 if n:
-                    st.session_state.update(dados)
+                    pending_parse.update(dados)
+                    pending_parse_clear.append(slot)
                     total += n
-                    titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
                     st.toast(f"✅ {titulo}: {n} campos preenchidos", icon="🧪")
                 else:
-                    titulo = _TITULOS_SLOT.get(slot, f"Slot #{slot}")
                     st.warning(f"⚠️ {titulo}: nenhum valor reconhecido. Verifique o formato.")
             if total:
+                st.session_state["_lab_pending_update"] = pending_parse
+                st.session_state["_lab_pending_clear"] = pending_parse_clear
                 st.rerun()
 
     if btn_extrair:
