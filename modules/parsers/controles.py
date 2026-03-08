@@ -150,25 +150,16 @@ def parse_controles_dia(texto: str, dia: str) -> dict:
 
 def parse_controles_deterministico(
     texto: str,
-    data_hoje: Optional[date] = None,
+    data_hoje: Optional[datetime] = None,
     existing_dates: Optional[dict] = None,
 ) -> dict[str, str]:
     """
-    Parseia texto de controles no formato padronizado.
+    Parseia texto de controles com múltiplos blocos.
 
-    Atribuição de slot:
-      1. Match por data: se existing_dates contém a data do bloco em algum slot, usa esse slot.
-      2. Fallback por ordem: 1º bloco sem match → próximo slot disponível (hoje, ontem, …).
-
-    Args:
-        texto:          Texto colado pelo usuário.
-        data_hoje:      Não usado (mantido por compatibilidade de assinatura).
-        existing_dates: Dict {dia: "DD/MM" | "DD/MM/YYYY"} com datas já nos slots
-                        (ex.: {"hoje": "07/03/2026", "ontem": "06/03"}).
-                        Usado para priorizar match por data configurada.
-
-    Returns:
-        Dict para session_state: ctrl_{dia}_{campo} = valor.
+    REGRA ÚNICA: ordem de aparição no texto = ordem dos slots.
+      1º bloco → hoje | 2º → ontem | 3º → anteontem | ...
+    A data dentro de cada bloco é apenas armazenada em ctrl_{dia}_data.
+    Ela NÃO influencia qual slot recebe o bloco.
     """
     resultado: dict[str, str] = {}
 
@@ -179,7 +170,7 @@ def parse_controles_deterministico(
     if m_periodo:
         resultado["ctrl_periodo"] = f"{m_periodo.group(1)} horas"
 
-    # ── Coleta os blocos válidos (aqueles que têm ">" data) ──────────────────
+    # ── Coleta os blocos válidos (aqueles que têm linha "> DD/MM/YYYY") ───────
     raw_blocos = re.split(
         r"(?=^\s*>\s*\d{1,2}/\d{1,2}/\d{2,4})",
         texto,
@@ -195,48 +186,19 @@ def parse_controles_deterministico(
         m_data = re.match(r"^>\s*(\d{1,2}/\d{1,2}/\d{2,4})\s*$", primeira)
         if not m_data:
             continue
-        data_fmt = _parse_data_br(m_data.group(1))   # "DD/MM/YYYY" ou None
+        data_fmt = _parse_data_br(m_data.group(1))
         linhas = bloco.split("\n")[1:]
         valid_blocks.append((data_fmt, linhas))
 
-    # REGRA: ordem de aparição no texto = ordem dos slots (1º bloco → hoje, 2º → ontem…)
-    # A data é apenas armazenada no campo ctrl_{dia}_data, NÃO define o slot.
+    # ── Atribuição: 1º bloco → _DIAS_ORDEM[0] (hoje), 2º → ontem, etc. ───────
+    for idx, (data_fmt, linhas) in enumerate(valid_blocks):
+        if idx >= len(_DIAS_ORDEM):
+            break
+        dia = _DIAS_ORDEM[idx]
 
-    # ── Atribuição de slots ───────────────────────────────────────────────────
-    used_slots: set[str] = set()
-    fallback_idx = 0   # próximo slot disponível na ordem padrão
-
-    for data_fmt, linhas in valid_blocks:
-        dia: str | None = None
-
-        # Prioridade 1 — match por data configurada pelo usuário
-        if existing_dates and data_fmt:
-            for slot in _DIAS_ORDEM:
-                if slot in used_slots:
-                    continue
-                slot_data = (existing_dates.get(slot) or "").strip()
-                if _datas_coincidem(slot_data, data_fmt):
-                    dia = slot
-                    break
-
-        # Fallback — próximo slot disponível na ordem
-        if dia is None:
-            while fallback_idx < len(_DIAS_ORDEM) and _DIAS_ORDEM[fallback_idx] in used_slots:
-                fallback_idx += 1
-            if fallback_idx < len(_DIAS_ORDEM):
-                dia = _DIAS_ORDEM[fallback_idx]
-                fallback_idx += 1
-
-        if dia is None:
-            continue
-
-        used_slots.add(dia)
-
-        # Grava a data completa no slot
         if data_fmt:
             resultado[f"ctrl_{dia}_data"] = data_fmt
 
-        # Processa linhas do bloco
         for ln in linhas:
             ln = ln.strip()
             if not ln:

@@ -267,12 +267,8 @@ def render():
                 tem_multiplos = len(re.findall(r"#\s*Controles", texto, re.IGNORECASE)) > 1
 
                 if tem_multiplos:
-                    # Multi-bloco: distribui pelos dias corretos com base nas datas
-                    existing_dates = {
-                        d: st.session_state.get(f"ctrl_{d}_data", "")
-                        for d in _ctrl_sec._DIAS
-                    }
-                    dados = parse_controles_deterministico(texto, existing_dates=existing_dates)
+                    # Multi-bloco: distribui em ordem de aparição (1º bloco → Hoje, ...)
+                    dados = parse_controles_deterministico(texto)
                     for k in dados:
                         if k.startswith("ctrl_"):
                             partes = k.split("_", 2)
