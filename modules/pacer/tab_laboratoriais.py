@@ -211,10 +211,15 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
 
     # Aplica resultados pendentes de extração IA/parsing ANTES de renderizar widgets
     if "_lab_pending_update" in st.session_state:
-        for k, v in st.session_state.pop("_lab_pending_update").items():
-            st.session_state[k] = v
-        for slot in st.session_state.pop("_lab_pending_clear", []):
+        pending_update = st.session_state.pop("_lab_pending_update")
+        pending_clear_slots = st.session_state.pop("_lab_pending_clear", [])
+        # Limpa TODOS os campos do slot antes de aplicar os novos valores
+        for slot in pending_clear_slots:
+            for suf in _lab_sec._LAB_SUFIXOS:
+                st.session_state[f"lab_{slot}_{suf}"] = ""
             st.session_state[f"lab_{slot}_texto_entrada"] = ""
+        for k, v in pending_update.items():
+            st.session_state[k] = v
 
     st.subheader("🧪 Exames Laboratoriais")
 
