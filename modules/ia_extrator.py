@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from datetime import date
 from openai import OpenAI
 from google import genai as _genai_new
@@ -189,36 +190,47 @@ def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "Op
         f"Extraia os dados do seguinte prontuário médico:\n\n{texto_bruto}"
     )
 
-    try:
-        if "OpenAI" in provider or "GPT" in provider:
-            modelo_openai = modelo if modelo.startswith("gpt") else "gpt-4o"
-            client = OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model=modelo_openai,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": msg_usuario},
-                ],
-                response_format={"type": "json_object"},
-            )
-            return json.loads(response.choices[0].message.content)
+    for attempt in range(3):
+        try:
+            if "OpenAI" in provider or "GPT" in provider:
+                modelo_openai = modelo if modelo.startswith("gpt") else "gpt-4o"
+                client = OpenAI(api_key=api_key)
+                response = client.chat.completions.create(
+                    model=modelo_openai,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": msg_usuario},
+                    ],
+                    response_format={"type": "json_object"},
+                )
+                return json.loads(response.choices[0].message.content)
 
-        else:
-            # Google Gemini — fallback para gemini-2.5-pro se modelo inválido
-            _modelo = modelo if modelo.startswith("gemini") else "gemini-2.5-pro"
-            client = _genai_new.Client(api_key=api_key)
-            response = client.models.generate_content(
-                model=_modelo,
-                contents=msg_usuario,
-                config=_genai_types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.0,
-                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
-                ),
-            )
-            return _extrair_json_robusto(response.text or "")
+            else:
+                # Google Gemini — fallback
+                # gemini-2.5-pro não aceita thinking_budget=0; gemini-2.5-flash aceita
+                _modelo = modelo if modelo.startswith("gemini") else "gemini-2.0-flash"
+                client = _genai_new.Client(api_key=api_key)
+                cfg_kwargs: dict = {
+                    "system_instruction": SYSTEM_PROMPT,
+                    "temperature": 0.0,
+                }
+                if "2.5-flash" in _modelo:
+                    cfg_kwargs["thinking_config"] = _genai_types.ThinkingConfig(thinking_budget=0)
+                response = client.models.generate_content(
+                    model=_modelo,
+                    contents=msg_usuario,
+                    config=_genai_types.GenerateContentConfig(**cfg_kwargs),
+                )
+                return _extrair_json_robusto(response.text or "")
 
-    except json.JSONDecodeError as e:
-        return {"_erro": f"JSON inválido retornado pela IA: {e}"}
-    except Exception as e:
-        return {"_erro": str(e)}
+        except json.JSONDecodeError as e:
+            return {"_erro": f"JSON inválido retornado pela IA: {e}"}
+        except Exception as e:
+            err_str = str(e)
+            is_rate_limit = "429" in err_str or "rate_limit" in err_str.lower()
+            if is_rate_limit and attempt < 2:
+                time.sleep(20 * (attempt + 1))   # 20 s, depois 40 s
+                continue
+            return {"_erro": err_str}
+
+    return {"_erro": "Rate limit: máximo de tentativas atingido"}

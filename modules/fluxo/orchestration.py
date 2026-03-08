@@ -42,7 +42,7 @@ def rodar_agentes_paralelo(
         api_key, provider, modelo = get_ia_config(secao, google_key, openai_key)
         return secao, fn(texto, api_key, provider, modelo)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tarefas), 8)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tarefas), 4)) as executor:
         futures = {executor.submit(_rodar, s, t): s for s, t in tarefas}
         for future in concurrent.futures.as_completed(futures):
             concluidos += 1

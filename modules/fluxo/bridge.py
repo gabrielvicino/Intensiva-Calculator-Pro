@@ -113,8 +113,9 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
     cnt = [0]
 
     def _set(sis_key: str, val: str) -> None:
-        dest = st.session_state.get(sis_key, "") or ""
-        if val and not str(dest).strip():
+        # Sempre sobrescreve quando a fonte tem valor — o usuário clicou
+        # explicitamente em "Completar Blocos Anteriores" para sincronizar.
+        if val:
             staging[sis_key] = val
             cnt[0] += 1
 
