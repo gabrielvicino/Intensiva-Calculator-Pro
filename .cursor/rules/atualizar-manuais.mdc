@@ -19,7 +19,7 @@ Verificar e atualizar os **3 locais obrigatórios** (regra `novos-campos.mdc`):
 
 E adicionalmente verificar:
 
-- [ ] Se o campo novo tem correspondente no **Bloco 13 (Sistemas)** → atualizar mapeamento em `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
+- [ ] Se o campo novo tem correspondente no **Bloco 13 (Sistemas)** → atualizar mapeamento em `modules/fluxo/bridge.py` → `completar_sistemas_de_outros_blocos()`
 - [ ] Se é campo de **evolução 5 slots** → atualizar `_CAMPOS_ANTE_ONTEM_HOJE` em `sistemas.py`
 - [ ] Se é **conduta** (`*_conduta`) → aparece automaticamente no Bloco 14, não precisa alterar `condutas.py`
 
@@ -81,7 +81,7 @@ Se alterar qualquer coisa no fluxo principal da página:
 
 ## 6. Alteração em parsers (`modules/parsers/`)
 
-> **Arquitetura:** parsers ficam em `modules/parsers/` (pacote). `parsers/lab.py`, `parsers/controles.py`, `parsers/sistemas.py`. Os arquivos `parser_lab.py`, `parser_controles.py`, `parser_sistemas.py` na raiz de `modules/` são shims de compatibilidade — edite sempre os arquivos dentro de `modules/parsers/`.
+> **Arquitetura:** parsers ficam em `modules/parsers/` (pacote): `parsers/lab.py`, `parsers/controles.py`, `parsers/sistemas.py`.
 
 - [ ] Se adicionar novo campo reconhecido no `_SIGLAS_CAMPOS` (`parsers/lab.py`) → atualizar manual-bloco10
 - [ ] Se alterar formato esperado de entrada → atualizar manual da página (seção "Parsers")

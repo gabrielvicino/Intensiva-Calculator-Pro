@@ -29,6 +29,13 @@ _LAB_SUFIXOS = [
 _GAS_TIPO_SUFIXOS = {"gas_tipo", "gas2_tipo", "gas3_tipo"}
 
 
+def _set_ss(key: str, value) -> None:
+    """Define session_state liberando antes qualquer widget vinculado à chave."""
+    if key in st.session_state:
+        del st.session_state[key]
+    st.session_state[key] = value
+
+
 def _deslocar_laboratoriais():
     """
     Desloca os resultados por data: Hoje→vazio, Ontem→Hoje, Anteontem→Ontem, Anteontem→4 dias atrás.
@@ -40,17 +47,17 @@ def _deslocar_laboratoriais():
             key_dest = f"lab_{dest}_{suf}"
             val = st.session_state.get(key_orig)
             if suf in _GAS_TIPO_SUFIXOS:
-                st.session_state[key_dest] = val if val in (None, "Arterial", "Venosa", "Pareada") else None
+                _set_ss(key_dest, val if val in (None, "Arterial", "Venosa", "Pareada") else None)
             else:
-                st.session_state[key_dest] = val if val is not None else ""
+                _set_ss(key_dest, val if val is not None else "")
 
     def _limpar(slot: int):
         for suf in _LAB_SUFIXOS:
             key = f"lab_{slot}_{suf}"
             if suf in _GAS_TIPO_SUFIXOS:
-                st.session_state[key] = None
+                _set_ss(key, None)
             else:
-                st.session_state[key] = ""
+                _set_ss(key, "")
 
     # Ordem reversa para não sobrescrever antes de ler
     # 9→10, 8→9, 7→8, 6→7, 5→6 (demais exames)
@@ -136,10 +143,27 @@ _SEC_STYLE = (
     'font-size:0.73rem;font-weight:700;color:#1565c0;'
     'text-transform:uppercase;letter-spacing:.06em;'
     'border-top:1px solid #dee2e6;margin-top:4px;padding:4px 0 2px 0;'
+    'line-height:1.2;height:1.6em;display:block;'
 )
 
 
-def _render_labs_table(slots: list):
+_COL_WIDTHS_FN = lambda slots: [1] * len(slots)
+
+
+def _render_day_headers(slots: list):
+    """Renderiza apenas a linha de cabeçalho (Hoje / Ontem / etc.)."""
+    cols = st.columns(_COL_WIDTHS_FN(slots))
+    for dc, slot in zip(cols, slots):
+        titulo = _SLOT_TITULOS.get(slot, f"Exame #{slot}")
+        with dc:
+            st.markdown(
+                f'<div style="text-align:center;font-size:0.82rem;font-weight:700;'
+                f'color:#1a73e8;padding-bottom:2px;">{titulo}</div>',
+                unsafe_allow_html=True,
+            )
+
+
+def _render_labs_table(slots: list, show_header: bool = True):
     """
     Layout vertical: linhas = parâmetros, colunas = dias.
 
@@ -147,9 +171,9 @@ def _render_labs_table(slots: list):
     • As demais usam label_visibility="hidden": o label fica invisível mas ocupa o
       mesmo espaço → alinhamento perfeito sem depender de alturas fixas em px.
     • Tab desce dentro de cada coluna (DOM order: col1 completa → col2 → ...).
+    • show_header=False pula o cabeçalho (usado quando renderizado separadamente).
     """
-    # Primeira coluna levemente mais larga (comporta labels visíveis)
-    col_widths = [1.3] + [1] * (len(slots) - 1)
+    col_widths = _COL_WIDTHS_FN(slots)
     cols = st.columns(col_widths)
     day_cols = list(cols)
     first = slots[0]
@@ -176,18 +200,22 @@ def _render_labs_table(slots: list):
                 _tipo_key = f"lab_{slot}_{gprefix}_tipo"
                 if st.session_state.get(_tipo_key) not in (None, "Arterial", "Venosa", "Pareada"):
                     st.session_state[_tipo_key] = None
-                st.pills(f"T{gn}s{slot}", ["Arterial", "Venosa", "Pareada"],
-                         key=_tipo_key, label_visibility=_lv(slot))
+                st.selectbox(label, ["Arterial", "Venosa", "Pareada"],
+                             index=None, key=_tipo_key,
+                             placeholder="Tipo...",
+                             label_visibility=_lv(slot))
 
-    # ── Cabeçalho de dia + Data ──────────────────────────────────
-    for dc, slot in zip(day_cols, slots):
-        titulo = _SLOT_TITULOS.get(slot, f"Exame #{slot}")
-        with dc:
-            st.markdown(
-                f'<div style="text-align:center;font-size:0.82rem;font-weight:700;'
-                f'color:#1a73e8;padding-bottom:2px;">{titulo}</div>',
-                unsafe_allow_html=True,
-            )
+    # ── Cabeçalho de dia (opcional) ───────────────────────────────
+    if show_header:
+        for dc, slot in zip(day_cols, slots):
+            titulo = _SLOT_TITULOS.get(slot, f"Exame #{slot}")
+            with dc:
+                st.markdown(
+                    f'<div style="text-align:center;font-size:0.82rem;font-weight:700;'
+                    f'color:#1a73e8;padding-bottom:2px;">{titulo}</div>',
+                    unsafe_allow_html=True,
+                )
+
     _row("Data", "data", "DD/MM/AAAA")
 
     # ── Hematologia ──────────────────────────────────────────────
@@ -296,8 +324,10 @@ def _render_gas_extras(slots: list):
                         st.text_input("Hora", key=f"lab_{slot}_{gp}_hora",
                                       placeholder="16h", label_visibility="collapsed")
                     with _c_tipo:
-                        st.pills(f"T{gn}s{slot}", ["Arterial", "Venosa", "Pareada"],
-                                 key=_tipo_key, label_visibility="collapsed")
+                        st.selectbox("Tipo", ["Arterial", "Venosa", "Pareada"],
+                                     index=None, key=_tipo_key,
+                                     placeholder="Tipo...",
+                                     label_visibility="collapsed")
                     kv = f"lab_{slot}_{gp}v_pco2"
                     ks = f"lab_{slot}_{gp}_svo2"
                     for lbl, suf in [

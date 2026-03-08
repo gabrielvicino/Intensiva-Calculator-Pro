@@ -43,3 +43,6 @@ Thumbs.db
 *.bak
 *.swp
 *~
+
+# Saídas geradas na raiz (prontuários de teste, etc.)
+/*.txt

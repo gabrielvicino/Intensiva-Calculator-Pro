@@ -1,6 +1,6 @@
 ---
-description: Use ao modificar campos do Bloco 10 — Exames Laboratoriais (laboratoriais.py no secoes, gerador ou agentes_secoes; parser_lab.py)
-globs: modules/secoes/laboratoriais.py, modules/gerador/laboratoriais.py, modules/agentes_secoes/laboratoriais.py, modules/parser_lab.py
+description: Use ao modificar campos do Bloco 10 — Exames Laboratoriais (laboratoriais.py no secoes, gerador ou agentes_secoes; parsers/lab.py)
+globs: modules/secoes/laboratoriais.py, modules/gerador/laboratoriais.py, modules/agentes_secoes/laboratoriais.py, modules/parsers/lab.py
 alwaysApply: false
 ---
 
@@ -18,7 +18,7 @@ alwaysApply: false
 - **Agente IA**: `modules/agentes_secoes/laboratoriais.py` → `_PROMPT_LABORATORIAIS` + `preencher_laboratoriais()`
 - **Determinístico**: `modules/gerador/laboratoriais.py` → `_secao_laboratoriais()`
 - **Tabela Comparativa** ("Comparar"): `modules/gerador/html.py` → `gerar_html_labs()`
-- **Mapeamento para Bloco 13**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
+- **Mapeamento para Bloco 13**: `modules/fluxo/bridge.py` → `completar_sistemas_de_outros_blocos()`
 
 ---
 
@@ -44,7 +44,7 @@ alwaysApply: false
 - [ ] Se campo tem regra especial de extração: adicionar na seção "REGRAS DE MAPEAMENTO CLÍNICO"
 - [ ] **Condutas NUNCA são preenchidas pelo agente** — sempre `""`
 
-### 5. Se campo deve alimentar Bloco 13 — `modules/fluxo.py`
+### 5. Se campo deve alimentar Bloco 13 — `modules/fluxo/bridge.py`
 - [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:

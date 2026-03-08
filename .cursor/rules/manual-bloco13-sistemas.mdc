@@ -1,6 +1,6 @@
 ---
-description: Use ao modificar campos do Bloco 13 — Evolução por Sistemas (sistemas/ no secoes, gerador/sistemas.py, agentes_secoes/sistemas.py, parser_sistemas.py, fluxo.py)
-globs: modules/secoes/sistemas/*.py, modules/gerador/sistemas.py, modules/agentes_secoes/sistemas.py, modules/parser_sistemas.py, modules/fluxo.py
+description: Use ao modificar campos do Bloco 13 — Evolução por Sistemas (sistemas/ no secoes, gerador/sistemas.py, agentes_secoes/sistemas.py, parsers/sistemas.py, fluxo/bridge.py)
+globs: modules/secoes/sistemas/*.py, modules/gerador/sistemas.py, modules/agentes_secoes/sistemas.py, modules/parsers/sistemas.py, modules/fluxo/bridge.py
 alwaysApply: false
 ---
 
@@ -34,7 +34,7 @@ alwaysApply: false
 - **Slots de evolução**: `_CAMPOS_ANTE_ONTEM_HOJE` + `_deslocar_sistemas()`
 - **Agente IA**: `modules/agentes_secoes/sistemas.py` → `_PROMPT_SISTEMAS` + `preencher_sistemas()`
 - **Determinístico**: `modules/gerador/sistemas.py` → `_secao_sistemas()`
-- **Alimentação pelos blocos 10/11**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
+- **Alimentação pelos blocos 10/11**: `modules/fluxo/bridge.py` → `completar_sistemas_de_outros_blocos()`
 
 ### Campo global do bloco
 ```python
@@ -213,7 +213,7 @@ Todos os passos acima, mais:
   ```
 - [ ] **`preencher_sistemas()`**: remover `_show` do retorno se necessário — já existe regra genérica que filtra todos os `*_show`
 
-### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `modules/fluxo.py`
+### 4. Se campo é alimentado pelos Blocos 10 ou 11 — `modules/fluxo/bridge.py`
 - [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   for sis_suf, lab_idx in [("hoje",1),("ult",2),("antepen",3),("ant4",4),("ant5",5)]:
@@ -290,5 +290,5 @@ Cr: 2,8 → 2,5 → 2,1
   - `sis_neuro_deficits_ausente` → normaliza → `"Ausente"` ou `None`
   - `sis_gastro_evacuacao_laxativo` → agente retorna esta chave, mas `preencher_sistemas()` grava em `sis_gastro_laxativo`
   - Todos os `*_show` → **removidos do retorno** — nunca sobrescreve checkboxes do usuário
-- **`_limpar_leuco(v)`** em `modules/fluxo.py`: remove diferencial entre parênteses, ex: `"12.500 (Seg 70%)"` → `"12.500"`
-- **`_extrair_parenteses(v)`** em `modules/fluxo.py`: extrai valor entre parênteses — usado para INR (`"14.2s (1.10)"` → `"1.10"`) e TTPA (`"39,6s (1,41)"` → `"1,41"`). Antes existia como `_extrair_inr`/`_extrair_ttpa` separados (unificados na refatoração)
+- **`_limpar_leuco(v)`** em `modules/fluxo/state.py`: remove diferencial entre parênteses, ex: `"12.500 (Seg 70%)"` → `"12.500"`
+- **`_extrair_parenteses(v)`** em `modules/fluxo/state.py`: extrai valor entre parênteses — usado para INR (`"14.2s (1.10)"` → `"1.10"`) e TTPA (`"39,6s (1,41)"` → `"1,41"`). Antes existia como `_extrair_inr`/`_extrair_ttpa` separados (unificados na refatoração)

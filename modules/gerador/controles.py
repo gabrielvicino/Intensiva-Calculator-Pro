@@ -26,10 +26,11 @@ def _secao_controles() -> list[str]:
                 vitais.append(f"{label} {vmin}-{vmax}")
             elif vmin:
                 vitais.append(f"{label} {vmin}")
-        diurese = _get(f"ctrl_{dia}_diurese").strip()
-        balanco = _get(f"ctrl_{dia}_balanco").strip()
+        diurese   = _get(f"ctrl_{dia}_diurese").strip()
+        evacuacao = _get(f"ctrl_{dia}_evacuacao").strip()
+        balanco   = _get(f"ctrl_{dia}_balanco").strip()
 
-        if not any([data, vitais, diurese, balanco]):
+        if not any([data, vitais, diurese, evacuacao, balanco]):
             return None
 
         linhas = []
@@ -40,13 +41,16 @@ def _secao_controles() -> list[str]:
         bh_parts = []
         if diurese:
             bh_parts.append(f"Diurese {diurese}")
+        if evacuacao:
+            bh_parts.append(f"Evacuação {evacuacao}")
         if balanco:
             bh_parts.append(f"BH {balanco}")
         if bh_parts:
             linhas.append(" | ".join(bh_parts))
         return linhas
 
-    dias = ["hoje", "ontem", "anteontem", "ant4", "ant5"]
+    dias = ["hoje", "ontem", "anteontem", "ant4", "ant5",
+            "ant6", "ant7", "ant8", "ant9", "ant10"]
     slots = [s for d in dias for s in [_linha_dia(d)] if s]
 
     if not slots:

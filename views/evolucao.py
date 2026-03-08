@@ -398,7 +398,11 @@ if st.session_state.pop("_ctrl_deterministico_pendente", False):
     if not texto_ctrl:
         st.warning("Cole os controles no campo de notas do Bloco 11 primeiro.")
     else:
-        dados = parse_controles_deterministico(texto_ctrl, data_hoje=date.today())
+        existing_dates = {
+            dia: st.session_state.get(f"ctrl_{dia}_data", "")
+            for dia in ["hoje", "ontem", "anteontem", "ant4", "ant5"]
+        }
+        dados = parse_controles_deterministico(texto_ctrl, existing_dates=existing_dates)
         if dados:
             st.toast(f"✅ {len(dados)} campos de controles preenchidos.", icon="📊")
             _para_staging(dados)

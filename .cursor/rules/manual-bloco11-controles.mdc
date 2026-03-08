@@ -1,6 +1,6 @@
 ---
-description: Use ao modificar campos do Bloco 11 — Controles & Balanço Hídrico (controles.py no secoes, gerador ou agentes_secoes; parser_controles.py)
-globs: modules/secoes/controles.py, modules/gerador/controles.py, modules/agentes_secoes/controles.py, modules/parser_controles.py
+description: Use ao modificar campos do Bloco 11 — Controles & Balanço Hídrico (controles.py no secoes, gerador ou agentes_secoes; parsers/controles.py)
+globs: modules/secoes/controles.py, modules/gerador/controles.py, modules/agentes_secoes/controles.py, modules/parsers/controles.py
 alwaysApply: false
 ---
 
@@ -15,11 +15,11 @@ alwaysApply: false
 ## Arquitetura do Bloco 11
 
 - **UI + deslocamento + get_campos**: `modules/secoes/controles.py` — tudo controlado por `_PARAMS`
-- **Parser determinístico**: `modules/parser_controles.py`
+- **Parser determinístico**: `modules/parsers/controles.py`
 - **Agente IA**: `modules/agentes_secoes/controles.py` → `_PROMPT_CONTROLES`
 - **Determinístico**: `modules/gerador/controles.py` → `_secao_controles()` + `_linha_dia()`
 - **Tabela Comparativa** ("Comparar"): `modules/gerador/html.py` → `gerar_html_controles()`
-- **Mapeamento para Bloco 13**: `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`
+- **Mapeamento para Bloco 13**: `modules/fluxo/bridge.py` → `completar_sistemas_de_outros_blocos()`
 
 ---
 
@@ -53,7 +53,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 - [ ] **`_VITAIS`**: adicionar `("Label", "chave")`
   - Será processado automaticamente por `_add_mm()`
 
-### 4. `modules/parser_controles.py`
+### 4. `modules/parsers/controles.py`
 - [ ] **`MAP_VITAIS`**: adicionar `("SiglaNoProntuário", "chave")`
   ```python
   ("NovaSigla", "nova_chave"),
@@ -95,7 +95,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
 ### 3. `modules/gerador/html.py` — `gerar_html_controles()`
 - [ ] Adicionar `_add_single("Label", "chave")` na seção correta
 
-### 4. `modules/parser_controles.py`
+### 4. `modules/parsers/controles.py`
 - [ ] Adicionar bloco `re.search` após parse do balanço:
   ```python
   m_novo = re.search(r"NovaSigla:\s*([^|]+)", linha_relevante, re.IGNORECASE)
@@ -110,7 +110,7 @@ Ao adicionar campo em `_PARAMS`, esses três são atualizados sem edição adici
   ```
 - [ ] `preencher_controles()`: **não precisa editar**
 
-### 6. Se campo deve alimentar Bloco 13 — `modules/fluxo.py`
+### 6. Se campo deve alimentar Bloco 13 — `modules/fluxo/bridge.py`
 - [ ] Adicionar em `completar_sistemas_de_outros_blocos()`:
   ```python
   _set("sis_SISTEMA_campo", _limpar(st.session_state.get("ctrl_hoje_chave", "")))

@@ -93,4 +93,4 @@ Mais campo global: `culturas_notas` — **único `_notas` que o agente pode pree
 - Reordenação via `cult_ordem`
 - UI: 4 visíveis, 5–8 em expander
 - `cult_{i}_conduta` → Bloco 14 automaticamente
-- Este bloco alimenta `sis_infec_cult_{i}_sitio/data` via `fluxo.completar_sistemas_de_outros_blocos()` em `modules/fluxo.py`
+- Este bloco alimenta `sis_infec_cult_{i}_sitio/data` via `fluxo.completar_sistemas_de_outros_blocos()` em `modules/fluxo/bridge.py`

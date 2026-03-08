@@ -34,7 +34,7 @@ Ao criar ou alterar um campo em qualquer seção do prontuário, você **DEVE** 
 
 ## 4. Se o campo tem correspondente no Bloco 13 (Sistemas)
 
-- Adicionar o mapeamento em `modules/fluxo.py` → `completar_sistemas_de_outros_blocos()`.
+- Adicionar o mapeamento em `modules/fluxo/bridge.py` → `completar_sistemas_de_outros_blocos()`.
 - Esta função é chamada por `evolucao.py` quando a flag `_completar_blocos_sistemas` é ativada.
 
 ## Regras de compatibilidade
