@@ -3,6 +3,7 @@
 # Renderiza a aba "💧 Controles & BH" da página Laboratoriais & Controles.
 # ==============================================================================
 
+import re
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -257,26 +258,50 @@ def render():
         if not dias_com_texto:
             st.warning("Cole o texto de controles nos campos de cada coluna antes de parsear.")
         else:
-            # Processa todos os dias com texto em paralelo
-            def _parse_dia(dia):
-                texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
-                return dia, parse_controles_dia(texto, dia)
+            # Concatena texto de todas as colunas para detecção de formato multi-bloco
+            texto_total = "\n\n".join(
+                st.session_state.get(f"ctrl_{d}_texto_entrada", "").strip()
+                for d in dias_com_texto
+            )
 
-            resultados = {}
-            with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
-                futures = {ex.submit(_parse_dia, d): d for d in dias_com_texto}
-                for fut in as_completed(futures):
-                    dia, dados = fut.result()
-                    resultados[dia] = dados
+            _tem_bloco = bool(re.search(r"#\s*Controles", texto_total, re.IGNORECASE))
 
             n = 0
-            for dados in resultados.values():
-                for k, v in dados.items():
+            if _tem_bloco:
+                # Formato multi-bloco (# Controles - 24h + > data):
+                # usa parse_controles_deterministico que auto-distribui por slot
+                existing_dates = {
+                    dia: st.session_state.get(f"ctrl_{dia}_data", "")
+                    for dia in _ctrl_sec._DIAS
+                }
+                resultado = parse_controles_deterministico(
+                    texto_total, existing_dates=existing_dates
+                )
+                for k, v in resultado.items():
                     if v:
-                        st.session_state[k] = v
+                        _ctrl_sec._set_ss(k, v)
                         n += 1
+            else:
+                # Formato por-coluna: cada texto área → seu dia
+                def _parse_dia(dia):
+                    texto = st.session_state.get(f"ctrl_{dia}_texto_entrada", "").strip()
+                    return dia, parse_controles_dia(texto, dia)
+
+                resultados = {}
+                with ThreadPoolExecutor(max_workers=len(dias_com_texto)) as ex:
+                    futures = {ex.submit(_parse_dia, d): d for d in dias_com_texto}
+                    for fut in as_completed(futures):
+                        dia, dados = fut.result()
+                        resultados[dia] = dados
+
+                for dados in resultados.values():
+                    for k, v in dados.items():
+                        if v:
+                            _ctrl_sec._set_ss(k, v)
+                            n += 1
+
             if n:
-                st.toast(f"✅ {n} campos preenchidos em {len(dias_com_texto)} coluna(s).", icon="📊")
+                st.toast(f"✅ {n} campos preenchidos.", icon="📊")
                 st.rerun()
             else:
                 st.warning("⚠️ Nenhum valor reconhecido no formato esperado.")
