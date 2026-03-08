@@ -503,6 +503,28 @@ def render_formulario_completo():
 
         # ── 12. Análise Clínica ─────────────────────────────────────────────
         from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
+
+        # Reload silencioso: se labs aparecem vazios mas prontuário está carregado,
+        # recarrega apenas lab_* e ctrl_* do banco para garantir a tabela apareça.
+        _pront_ac = st.session_state.get("prontuario", "").strip()
+        _labs_vazios = not any(
+            (st.session_state.get(f"lab_{s}_hb") or "").strip()
+            or (st.session_state.get(f"lab_{s}_data") or "").strip()
+            for s in range(1, 11)
+        )
+        if _labs_vazios and _pront_ac and not st.session_state.get("_ac_reload_feito"):
+            st.session_state["_ac_reload_feito"] = True
+            try:
+                from utils import load_evolucao as _load_ev
+                _dados_ac = _load_ev(_pront_ac)
+                if _dados_ac:
+                    _dados_ac.pop("_data_hora", None)
+                    for _k, _v in _dados_ac.items():
+                        if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
+                            st.session_state[_k] = _v
+            except Exception:
+                pass
+
         st.markdown("##### 📊 12. Análise Clínica")
         st.markdown(
             "<style>"

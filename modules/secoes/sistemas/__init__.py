@@ -90,6 +90,7 @@ def render(_agent_btn_callback=None):
             "Completar Blocos Anteriores", key="btn_completar_blocos_sistemas",
             help="Preenche campos da Seção 13 com dados já preenchidos: Controles, Lab, Antibióticos e Culturas",
             use_container_width=True,
+            type="primary",
         ):
             st.session_state["_completar_blocos_sistemas"] = True
     with col_ag:

@@ -72,12 +72,14 @@ _BRIDGE_CTRL = [
 ]
 
 # ── Slots: (sufixo_sis, dia_ctrl, idx_lab) ─────────────────────────────────────
+# lab_4 = "Admissão/Externo" (fixo, não participa da cadeia temporal).
+# ant4 em Sistemas ← lab_5 (real 4º dia); ant5 ← lab_6 (real 5º dia).
 _SLOTS = [
     ("hoje",    "hoje",      1),
     ("ult",     "ontem",     2),
     ("antepen", "anteontem", 3),
-    ("ant4",    "ant4",      4),
-    ("ant5",    "ant5",      5),
+    ("ant4",    "ant4",      5),   # lab_5 = 4º dia real (pula lab_4 = Admissão)
+    ("ant5",    "ant5",      6),   # lab_6 = 5º dia real
 ]
 
 

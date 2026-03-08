@@ -52,16 +52,25 @@ def _para_staging(dados: dict) -> None:
 
 # ── Busca / carregamento de prontuário ────────────────────────────────────────
 
-def _aplicar_dados_prontuario(dados: dict) -> bool:
-    """Aplica os dados carregados ao session_state."""
+def _aplicar_dados_prontuario(dados: dict, silencioso: bool = False) -> bool:
+    """Aplica os dados carregados ao session_state (merge seguro).
+
+    Regra: só sobrescreve se o DB tem valor, OU se session_state está vazio para essa chave.
+    Garante que dados preenchidos no PACER e ainda não salvos não sejam apagados.
+    """
     if not dados:
         return False
     data_hora = dados.pop("_data_hora", "")
     dados = fichas.migrar_schema_legado(dados)
-    campos_validos = fichas.get_todos_campos_keys()
-    st.session_state.update({k: v for k, v in dados.items() if k in campos_validos})
+    campos_validos = set(fichas.get_todos_campos_keys())
+    for k, v in dados.items():
+        if k not in campos_validos:
+            continue
+        if v or not st.session_state.get(k):
+            st.session_state[k] = v
     st.session_state["_data_hora_carregado"] = data_hora
-    st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
+    if not silencioso:
+        st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
     return True
 
 
@@ -95,6 +104,17 @@ def _fragment_busca():
                     st.rerun()
 
 _fragment_busca()
+
+# ── Auto-reload: recupera dados se sessão reiniciou (ex: Streamlit Cloud restart) ──
+# Condição: prontuário definido, mas nome vazio (session_state recém-zerado)
+_pront_autoload = st.session_state.get("prontuario", "").strip()
+if (_pront_autoload
+        and not st.session_state.get("nome", "").strip()
+        and not st.session_state.get("_autoload_feito")):
+    st.session_state["_autoload_feito"] = True
+    _dados_auto = load_evolucao(_pront_autoload)
+    if _dados_auto and _aplicar_dados_prontuario(_dados_auto, silencioso=True):
+        st.rerun()
 
 # ── Confirmação de criação de novo prontuário ──────────────────────────────────
 if "_busca_pendente_criar" in st.session_state:
