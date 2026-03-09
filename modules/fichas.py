@@ -387,11 +387,15 @@ def render_formulario_completo():
                     del st.session_state[_k]
                 st.session_state[_k] = _v
 
-    # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget
+    # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget.
+    # Usa del+set (igual ao _evo_bridge_hoje) para garantir que widgets já
+    # existentes no session_state recebam o novo valor sem StreamlitAPIException.
     if "_agent_staging" in st.session_state:
         staging = st.session_state.pop("_agent_staging")
         _normalizar_pills_dict(staging)  # normaliza antes de aplicar ao state
         for k, v in staging.items():
+            if k in st.session_state:
+                del st.session_state[k]
             st.session_state[k] = v
 
     # Corrige campos de radio que receberam "" em vez de None
@@ -594,14 +598,6 @@ def render_formulario_completo():
         condutas.render()
         _btn_gerar_bloco_com_inc("condutas")
 
-        st.divider()
-        if st.form_submit_button(
-            "📋 Gerar Prontuário Completo",
-            type="primary",
-            use_container_width=True,
-            help="Salva o formulário (incluindo checkboxes de evolução) e gera o prontuário completo",
-        ):
-            st.session_state["_gerar_prontuario_pendente"] = True
 
 
 def migrar_schema_legado(dados: dict) -> dict:

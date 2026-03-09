@@ -251,8 +251,16 @@ with st.container(border=True):
                     if sec in agentes_secoes._AGENTES
                 }
 
-# ── Checklist persistente + botão de agentes ──────────────────────────────────
+# ── Checklist dinâmico + botão de agentes ─────────────────────────────────────
+# Só exibe o checklist se já foi feita ao menos uma extração (_secoes_recortadas
+# inicializado). A cada render, recalcula ao vivo para refletir o estado atual
+# das notas — evita a mensagem "Processando N seções" ficar desatualizada.
 if "_secoes_recortadas" in st.session_state:
+    st.session_state["_secoes_recortadas"] = {
+        sec: bool(st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
+        for sec in agentes_secoes._NOTAS_MAP
+        if sec in agentes_secoes._AGENTES
+    }
     _status    = st.session_state["_secoes_recortadas"]
     _com_texto = sum(_status.values())
 
@@ -408,16 +416,6 @@ if st.session_state.pop("_sistemas_deterministico_pendente", False):
 if st.session_state.pop("_completar_blocos_sistemas", False):
     fluxo.completar_sistemas_de_outros_blocos()
 
-# ── Gerar Prontuário via form_submit_button (comita checkboxes _show) ─────────
-if st.session_state.pop("_gerar_prontuario_pendente", False):
-    _pront_gerar2 = st.session_state.get("prontuario", "").strip()
-    if _pront_gerar2:
-        _dados_gerar2 = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
-        with st.spinner("💾 Salvando antes de gerar..."):
-            save_evolucao(_pront_gerar2, st.session_state.get("nome", "").strip(), _dados_gerar2)
-    st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
-    st.rerun()
-
 
 # ==============================================================================
 # BLOCO 3: PRONTUÁRIO COMPLETO
@@ -434,12 +432,15 @@ if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_wi
     st.rerun()
 
 with st.container(border=True):
+    # Sem key= para não vincular ao session_state como widget —
+    # isso permite que o _modal_comparar atualize texto_final_gerado livremente.
     st.text_area(
         "Final",
-        key="texto_final_gerado",
+        value=st.session_state.get("texto_final_gerado", ""),
         height=200,
         label_visibility="collapsed",
         placeholder="Clique em Prontuário Completo para gerar o texto.",
+        disabled=True,
     )
 
 _c_copy_esp, _c_copy_btn = st.columns([4, 1])
