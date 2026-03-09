@@ -407,8 +407,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
                 disabled=not prontuario,
             )
 
-        # ── Tabela cronológica ─────────────────────────────────────────────
-        active_slots = get_active_slots_sorted()
+        # ── Tabela cronológica (mais recente primeiro) ────────────────────
+        active_slots = list(reversed(get_active_slots_sorted()))
 
         if active_slots:
             main_slots = active_slots[:_COLS_VISIVEL]
