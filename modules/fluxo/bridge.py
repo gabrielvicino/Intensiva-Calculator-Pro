@@ -71,16 +71,17 @@ _BRIDGE_CTRL = [
     if bridge_sis is not None
 ]
 
-# ── Slots: (sufixo_sis, dia_ctrl, idx_lab) ─────────────────────────────────────
-# lab_4 = "Admissão/Externo" (fixo, não participa da cadeia temporal).
-# ant4 em Sistemas ← lab_5 (real 4º dia); ant5 ← lab_6 (real 5º dia).
-_SLOTS = [
-    ("hoje",    "hoje",      1),
-    ("ult",     "ontem",     2),
-    ("antepen", "anteontem", 3),
-    ("ant4",    "ant4",      5),   # lab_5 = 4º dia real (pula lab_4 = Admissão)
-    ("ant5",    "ant5",      6),   # lab_6 = 5º dia real
+# ── Slots fixos para Controles → Sistemas ──────────────────────────────────────
+_SLOTS_CTRL = [
+    ("hoje",    "hoje"),
+    ("ult",     "ontem"),
+    ("antepen", "anteontem"),
+    ("ant4",    "ant4"),
+    ("ant5",    "ant5"),
 ]
+
+# Sufixos de destino em ordem: mais recente → mais antigo
+_SLOTS_SIS_ORDEM = ["hoje", "ult", "antepen", "ant4", "ant5"]
 
 
 def _lac_do_dia(lab_idx: int) -> str:
@@ -124,19 +125,29 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
     _set("sis_renal_balanco",  _limpar(st.session_state.get("ctrl_hoje_balanco", "")))
 
     # 2. Mapeamento por slots: Lab + Ctrl → Sistemas
-    for sis_suf, ctrl_dia, lab_idx in _SLOTS:
-        for dest_pat, suf_lab, fn in _BRIDGE_LAB:
-            _set(
-                dest_pat.format(s=sis_suf),
-                fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", "")),
-            )
+    #    Labs: pega os slots ativos ordenados cronologicamente (mais antigo→mais novo)
+    #    e inverte para que o ÚLTIMO (mais recente) seja mapeado como "hoje".
+    from modules.secoes.laboratoriais import get_active_slots_sorted as _get_lab_slots
+    lab_slots_recentes = list(reversed(_get_lab_slots()))  # [mais_novo, ..., mais_antigo]
+
+    for i, (sis_suf, ctrl_dia) in enumerate(_SLOTS_CTRL):
+        # Lab: usa posição i da lista invertida (0=hoje=mais novo, 1=ontem, ...)
+        lab_idx = lab_slots_recentes[i] if i < len(lab_slots_recentes) else None
+
+        if lab_idx is not None:
+            for dest_pat, suf_lab, fn in _BRIDGE_LAB:
+                _set(
+                    dest_pat.format(s=sis_suf),
+                    fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", "")),
+                )
+            # Lactato: caso especial — tenta gas, gas2, gas3 em ordem
+            _set(f"sis_cardio_lac_{sis_suf}", _lac_do_dia(lab_idx))
+
         for dest_pat, suf_ctrl, fn in _BRIDGE_CTRL:
             _set(
                 dest_pat.format(s=sis_suf),
                 fn(st.session_state.get(f"ctrl_{ctrl_dia}_{suf_ctrl}", "")),
             )
-        # Lactato: caso especial — tenta gas, gas2, gas3 em ordem
-        _set(f"sis_cardio_lac_{sis_suf}", _lac_do_dia(lab_idx))
 
     # 3. Antibióticos atuais → Infeccioso (até 3 ATBs com status "Atual")
     ordem_atb = st.session_state.get("atb_ordem", list(range(1, 9)))

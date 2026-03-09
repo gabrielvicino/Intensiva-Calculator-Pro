@@ -65,15 +65,16 @@ class TestParseLabDeterministico:
         assert result.get("lab_2_hb") == "9,0"
         assert result.get("lab_2_data") == "01/01/2020"
 
-    def test_keyword_admissao_vai_para_slot4(self):
+    def test_keyword_admissao_vai_para_proximo_slot(self):
+        """Admissão/Externo agora segue a ordem normal (sem slot fixo)."""
         texto = "Admissao - Hb 7,1 | Cr 4,2"
         result = parse_lab_deterministico(texto)
-        assert result.get("lab_4_hb") == "7,1"
+        assert result.get("lab_1_hb") == "7,1"
 
-    def test_keyword_externo_vai_para_slot4(self):
+    def test_keyword_externo_vai_para_proximo_slot(self):
         texto = "Externo - Hb 10,2"
         result = parse_lab_deterministico(texto)
-        assert result.get("lab_4_hb") == "10,2"
+        assert result.get("lab_1_hb") == "10,2"
 
     def test_tres_linhas_de_data_slots_1_2_3(self):
         texto = "08/03/2026 - Hb 8,8\n07/03/2026 - Hb 9,0\n06/03/2026 - Hb 9,5"
@@ -82,15 +83,14 @@ class TestParseLabDeterministico:
         assert result.get("lab_2_hb") == "9,0"
         assert result.get("lab_3_hb") == "9,5"
 
-    def test_quarta_linha_de_data_vai_para_slot5(self):
-        """Slot 4 reservado para admissão/externo: 4 linhas de data ocupam slots 1,2,3,5."""
-        texto = "08/03/2026 - Hb 8\n07/03/2026 - Hb 9\n06/03/2026 - Hb 10\nAdmissao - Hb 7\n05/03/2026 - Hb 11"
+    def test_quatro_linhas_de_data_sequencial(self):
+        """Sem slot fixo de Admissão: todas as linhas seguem em ordem."""
+        texto = "08/03/2026 - Hb 8\n07/03/2026 - Hb 9\n06/03/2026 - Hb 10\n05/03/2026 - Hb 11"
         result = parse_lab_deterministico(texto)
         assert result.get("lab_1_hb") == "8"
         assert result.get("lab_2_hb") == "9"
         assert result.get("lab_3_hb") == "10"
-        assert result.get("lab_4_hb") == "7"
-        assert result.get("lab_5_hb") == "11"
+        assert result.get("lab_4_hb") == "11"
 
     def test_urn_parseia_corretamente(self):
         texto = "07/03/2026 - Hb 8,8 | Urn: Den: 1.010 / Leu Est: Neg"

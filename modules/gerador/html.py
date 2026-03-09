@@ -46,7 +46,7 @@ def gerar_html_labs() -> str:
         v = _get(f"lab_{i}_{campo}")
         return str(v).strip() if v else ""
 
-    SLOTS = [i for i in range(1, 11)
+    SLOTS = [i for i in range(1, 31)
              if any(_v(i, k) for k in ("data", "hb", "cr", "na", "tp", "plaq", "gas_ph"))]
     if not SLOTS:
         return ""
@@ -271,9 +271,8 @@ def gerar_html_comparativo() -> tuple[str, str]:
     Retorna (html_labs, html_ctrl) — cada tabela com suas próprias colunas/datas.
 
     Regras:
-      - Título de cada coluna = data preenchida pelo usuário.
-      - Ordem das colunas = ordem de preenchimento (slot 1 → slot 3, slot 5 → slot 10).
-      - Slot 4 (Admissão/Externo) SEMPRE última coluna de labs — nunca é deslocado.
+      - Título de cada coluna = data + hora (quando disponível).
+      - Ordem das colunas = cronológica por (data, hora).
       - Controles: hoje → ant5 em ordem.
       - As duas tabelas são independentes; datas podem ser diferentes entre elas.
     """
@@ -291,17 +290,41 @@ def gerar_html_comparativo() -> tuple[str, str]:
                 return True
         return False
 
-    # ── 1. Slots de labs (regulares em ordem + admissão ao final) ────────────
-    lab_slots = [s for s in [1, 2, 3, 5, 6, 7, 8, 9, 10] if _slot_tem_dado(s)]
-    if _slot_tem_dado(4):
-        lab_slots.append(4)   # admissão sempre por último
+    # ── 1. Slots de labs (todos, ordenados cronologicamente) ─────────────────
+    def _sort_key_lab(s):
+        d = (_get(f"lab_{s}_data") or "").strip()
+        h = (_get(f"lab_{s}_hora") or "").strip()
+        try:
+            p = d.split("/")
+            d_iso = f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 else ""
+        except (IndexError, ValueError):
+            d_iso = ""
+        try:
+            h_int = int(h.split(":")[0]) if ":" in h else 0
+        except (ValueError, IndexError):
+            h_int = 0
+        return (d_iso, h_int)
+
+    lab_slots = sorted(
+        [s for s in range(1, 31) if _slot_tem_dado(s)],
+        key=_sort_key_lab,
+    )
 
     # ── 2. Dias de controles em ordem ────────────────────────────────────────
     _DIAS_CTRL = ["hoje", "ontem", "anteontem", "ant4", "ant5"]
     ctrl_dias = [d for d in _DIAS_CTRL if _dia_tem_dado(d)]
 
     # ── 3. Cabeçalhos independentes ───────────────────────────────────────────
-    lab_headers  = [_fmt_data_hdr((_get(f"lab_{s}_data") or "").strip()) for s in lab_slots]
+    def _lab_hdr(s):
+        d = _fmt_data_hdr((_get(f"lab_{s}_data") or "").strip())
+        h = (_get(f"lab_{s}_hora") or "").strip()
+        try:
+            hc = int(h.split(":")[0]) if ":" in h else None
+        except (ValueError, IndexError):
+            hc = None
+        return f"{d} {hc:02d}h" if hc is not None else d
+
+    lab_headers  = [_lab_hdr(s) for s in lab_slots]
     ctrl_headers = [_fmt_data_hdr((_get(f"ctrl_{d}_data") or "").strip()) for d in ctrl_dias]
 
     # ── 4. Linhas de labs ─────────────────────────────────────────────────────

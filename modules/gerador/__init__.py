@@ -96,7 +96,7 @@ def gerar_html_labs() -> str:
         v = _get(f"lab_{i}_{campo}")
         return str(v).strip() if v else ""
 
-    SLOTS = [i for i in range(1, 11)
+    SLOTS = [i for i in range(1, 31)
              if any(_v(i, k) for k in ("data", "hb", "cr", "na", "tp", "plaq", "gas_ph"))]
     if not SLOTS:
         return ""

@@ -114,16 +114,29 @@ def _secao_laboratoriais() -> list[str]:
         return any([_v(i, "data"), _v(i, "hb"), _v(i, "cr"), _v(i, "na"),
                     _v(i, "plaq"), _v(i, "gas_ph"), _v(i, "outros")])
 
-    # Último slot populado entre 1-4 é rotulado como Admissão
-    last_main_slot = None
-    for _i in range(4, 0, -1):
-        if _slot_tem_dados(_i):
-            last_main_slot = _i
-            break
+    def _sort_key(i):
+        data = _v(i, "data")
+        hora = _v(i, "hora") if _v(i, "hora") else ""
+        try:
+            p = data.split("/")
+            data_iso = f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 else ""
+        except (IndexError, ValueError):
+            data_iso = ""
+        try:
+            hora_int = int(hora.split(":")[0]) if ":" in hora else 0
+        except (ValueError, IndexError):
+            hora_int = 0
+        return (data_iso, hora_int)
+
+    active_slots = sorted(
+        [i for i in range(1, 31) if _slot_tem_dados(i)],
+        key=_sort_key,
+    )
 
     slots = []
-    for i in range(1, 11):
+    for i in active_slots:
         data   = _v(i, "data")
+        hora   = _v(i, "hora")
         outros = _v(i, "outros")
 
         _DIF_CAMPOS = [
@@ -139,7 +152,6 @@ def _secao_laboratoriais() -> list[str]:
                 if not leuco_v:
                     continue
                 if "(" in leuco_v:
-                    # formato legado: já contém diferencial embutido
                     main_parts.append(f"Leuco {leuco_v}")
                 else:
                     dif_parts = [f"{dl} {_v(i, ds)}" for dl, ds in _DIF_CAMPOS if _v(i, ds)]
@@ -165,17 +177,17 @@ def _secao_laboratoriais() -> list[str]:
             continue
 
         linhas = []
-        if i == last_main_slot:
-            # Último slot principal → rótulo de Admissão
-            label_adm = f"> Adm ({data})" if data else "> Adm"
-            linhas.append(label_adm)
-            if linha_main:
-                linhas.append(linha_main)
-        else:
-            if data:
-                linhas.append(f"> {data}")
-            if linha_main:
-                linhas.append(linha_main)
+        header = f"> {data}"
+        if hora:
+            try:
+                hc = int(hora.split(":")[0])
+                header += f" ({hc:02d}h)"
+            except (ValueError, IndexError):
+                pass
+        if data:
+            linhas.append(header)
+        if linha_main:
+            linhas.append(linha_main)
         if outros:
             linhas.append(_normalizar_outros(outros))
         linhas.extend(linhas_gas)

@@ -187,6 +187,50 @@ from modules.secoes import controles          # 13
 from modules.secoes import prescricao         # 14
 from modules.secoes import condutas           # 15
 
+# Mapa secao_key → módulo (usado para limpar campos individualmente)
+_SECOES_MODULOS: dict = {}  # preenchido lazily para evitar imports circulares
+
+def _get_secoes_modulos() -> dict:
+    global _SECOES_MODULOS
+    if not _SECOES_MODULOS:
+        _SECOES_MODULOS = {
+            "identificacao":  identificacao,
+            "scores":         scores,
+            "hd":             hd,
+            "comorbidades":   comorbidades,
+            "muc":            muc,
+            "hmpa":           hmpa,
+            "intraoperatorio": intraoperatorio,
+            "dispositivos":   dispositivos,
+            "culturas":       culturas,
+            "antibioticos":   antibioticos,
+            "complementares": complementares,
+            "laboratoriais":  laboratoriais,
+            "evolucao":       evolucao_clinica,
+            "sistemas":       sistemas,
+            "controles":      controles,
+            "prescricao":     prescricao,
+            "condutas":       condutas,
+        }
+    return _SECOES_MODULOS
+
+
+def limpar_campos_secao(secao_key: str) -> int:
+    """Restaura os campos de uma seção para os valores padrão.
+
+    Retorna a quantidade de campos resetados.
+    """
+    mod = _get_secoes_modulos().get(secao_key)
+    if mod is None:
+        return 0
+    defaults = mod.get_campos()
+    ss = st.session_state
+    for k, v in defaults.items():
+        if k in ss:
+            del ss[k]
+        ss[k] = v
+    return len(defaults)
+
 def _campos_base() -> dict:
     """Retorna o dicionário com TODOS os campos do formulário e seus valores padrão."""
     campos = {}
@@ -343,6 +387,37 @@ def _btn_agente(secao_key: str):
     return _render
 
 
+def _btn_limpar_secao(secao_key: str, nome_display: str | None = None):
+    """Renderiza o botão 'Limpar Seção' dentro de um form.
+    Define a flag _limpar_secao_pendente que é processada fora do form.
+    """
+    from modules import agentes_secoes
+    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    if st.form_submit_button(
+        "Limpar",
+        key=f"_fsbtn_limpar_{secao_key}",
+        help=f"Apaga apenas os campos de '{nome}' (demais seções e prontuário não são afetados)",
+        use_container_width=True,
+    ):
+        st.session_state["_limpar_secao_pendente"] = secao_key
+
+
+def _btn_salvar_secao(secao_key: str, nome_display: str | None = None):
+    """
+    Renderiza o botão 'Salvar Seção' dentro de um form.
+    Salva todo o session_state (garante consistência) mas indica qual seção foi salva.
+    """
+    from modules import agentes_secoes
+    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    if st.form_submit_button(
+        "💾 Salvar",
+        key=f"_fsbtn_save_{secao_key}",
+        help=f"Salva os dados de '{nome}' no prontuário",
+        use_container_width=True,
+    ):
+        st.session_state["_salvar_secao_pendente"] = nome
+
+
 def _btn_gerar_bloco_com_inc(secao_key: str):
     """Renderiza checkbox 'Incluir na saída' + botão 'Gerar Bloco' na mesma linha."""
     col_inc, col_btn = st.columns([1, 2])
@@ -357,19 +432,22 @@ def _btn_gerar_bloco_com_inc(secao_key: str):
         _btn_gerar_bloco(secao_key)
 
 
-_CSS_FORMULARIO = """<style>
-    [data-testid="stExpander"] { border: none !important; box-shadow: none !important; background: transparent !important; }
-    [data-testid="stExpander"] details { border-radius: 4px !important; border: 1px solid #f0f0f0 !important; background-color: #fafafa; box-shadow: none; margin-bottom: 8px !important; }
-    [data-testid="stExpander"] details summary p { font-size: 0.95rem !important; font-weight: 500 !important; margin: 0 !important; color: #666 !important; }
-    [data-testid="stExpander"] details summary { background-color: transparent !important; padding: 0.6rem 0.8rem !important; transition: background-color 0.12s ease, box-shadow 0.12s ease; border-left: 3px solid #e8e8e8; min-height: auto !important; }
-    [data-testid="stExpander"] details[open] summary { border-left-color: #1E88E5; }
-    [data-testid="stExpander"] details:hover summary { background-color: #f5f5f5 !important; }
-    div[data-testid="stTextInput"]:has(input[placeholder="Escreva a conduta aqui..."]) { border-left: 3px solid #43a047; padding-left: 8px; }
-    div[data-testid="stCheckbox"] label { white-space: nowrap !important; }
-    hr { border: none !important; border-top: 2px solid #9ca3af !important; box-shadow: 0 4px 0 0 #9ca3af !important; margin: 1.6rem 0 1.8rem 0 !important; opacity: 1 !important; }
-    h5:nth-of-type(odd) { background: linear-gradient(90deg, #FFF3CD 0%, #FFFDF5 60%, #FFFFFF 100%) !important; padding: 0.7rem 1.1rem !important; border-left: 5px solid #F59E0B !important; border-radius: 0 6px 6px 0 !important; margin-top: 0.4rem !important; margin-bottom: 1rem !important; font-size: 0.97rem !important; font-weight: 700 !important; letter-spacing: 0.01em !important; box-shadow: 0 1px 4px rgba(245,158,11,0.10) !important; }
-    h5:nth-of-type(even) { background: linear-gradient(90deg, #D1FAE5 0%, #F0FDF8 60%, #FFFFFF 100%) !important; padding: 0.7rem 1.1rem !important; border-left: 5px solid #10B981 !important; border-radius: 0 6px 6px 0 !important; margin-top: 0.4rem !important; margin-bottom: 1rem !important; font-size: 0.97rem !important; font-weight: 700 !important; letter-spacing: 0.01em !important; box-shadow: 0 1px 4px rgba(16,185,129,0.10) !important; }
-</style>"""
+def _rodape_secao(secao_key: str, nome_display: str | None = None):
+    """Renderiza a barra de ações de uma seção: [toggle Output | ✨ Gerar | 💾 Salvar | Limpar]."""
+    from modules import agentes_secoes
+    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    col_inc, col_gerar, col_salvar, col_limpar = st.columns([1, 2, 1, 1])
+    with col_inc:
+        st.checkbox(
+            "Output",
+            key=f"inc_{secao_key}",
+        )
+    with col_gerar:
+        _btn_gerar_bloco(secao_key)
+    with col_salvar:
+        _btn_salvar_secao(secao_key, nome)
+    with col_limpar:
+        _btn_limpar_secao(secao_key, nome)
 
 
 def render_formulario_completo():
@@ -397,7 +475,7 @@ def render_formulario_completo():
         (st.session_state.get(f"lab_{s}_hb") or "").strip()
         or (st.session_state.get(f"lab_{s}_data") or "").strip()
         or (st.session_state.get(f"lab_{s}_cr") or "").strip()
-        for s in range(1, 11)
+        for s in range(1, 31)
     )
     if _labs_vazios_rl and _pront_rl and st.session_state.get("_ac_pront_reloaded", "") != _pront_rl:
         st.session_state["_ac_pront_reloaded"] = _pront_rl
@@ -432,32 +510,30 @@ def render_formulario_completo():
     # Reformata campos de data digitados sem barras (ex.: 10022026 → 10/02/2026)
     _normalizar_datas()
 
-    st.markdown(_CSS_FORMULARIO, unsafe_allow_html=True)
-
     # ==========================================
     # 1. DADOS DO PACIENTE
     # ==========================================
     with st.expander("Dados do Paciente", expanded=False):
         identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
-        _btn_gerar_bloco_com_inc("identificacao")
+        _rodape_secao("identificacao", "Identificação")
         st.divider()
         scores.render(_agent_btn_callback=_btn_agente("scores"))
-        _btn_gerar_bloco_com_inc("scores")
+        _rodape_secao("scores", "Scores")
         st.divider()
         hd.render(_agent_btn_callback=_btn_agente("hd"))
-        _btn_gerar_bloco_com_inc("hd")
+        _rodape_secao("hd", "Diagnósticos")
         st.divider()
         comorbidades.render(_agent_btn_callback=_btn_agente("comorbidades"))
-        _btn_gerar_bloco_com_inc("comorbidades")
+        _rodape_secao("comorbidades", "Comorbidades")
         st.divider()
         muc.render(_agent_btn_callback=_btn_agente("muc"))
-        _btn_gerar_bloco_com_inc("muc")
+        _rodape_secao("muc", "Medicações")
         st.divider()
         hmpa.render(_agent_btn_callback=_btn_agente("hmpa"))
-        _btn_gerar_bloco_com_inc("hmpa")
+        _rodape_secao("hmpa", "HMPA")
         st.divider()
         intraoperatorio.render()
-        _btn_gerar_bloco_com_inc("intraoperatorio")
+        _rodape_secao("intraoperatorio", "Intraoperatório")
 
     st.write("")
 
@@ -466,16 +542,16 @@ def render_formulario_completo():
     # ==========================================
     with st.expander("Evolução Horizontal", expanded=False):
         dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
-        _btn_gerar_bloco_com_inc("dispositivos")
+        _rodape_secao("dispositivos", "Dispositivos")
         st.divider()
         culturas.render(_agent_btn_callback=_btn_agente("culturas"))
-        _btn_gerar_bloco_com_inc("culturas")
+        _rodape_secao("culturas", "Culturas")
         st.divider()
         antibioticos.render(_agent_btn_callback=_btn_agente("antibioticos"))
-        _btn_gerar_bloco_com_inc("antibioticos")
+        _rodape_secao("antibioticos", "Antibióticos")
         st.divider()
         complementares.render(_agent_btn_callback=_btn_agente("complementares"))
-        _btn_gerar_bloco_com_inc("complementares")
+        _rodape_secao("complementares", "Complementares")
 
     st.write("")
 
@@ -589,18 +665,27 @@ def render_formulario_completo():
         st.divider()
         # ── 13. Evolução Clínica ────────────────────────────────────────────
         evolucao_clinica.render()
-        _btn_gerar_bloco_com_inc("evolucao")
+        _rodape_secao("evolucao", "Evolução Clínica")
         st.divider()
         # ── 14. Evolução por Sistemas ───────────────────────────────────────
         sistemas.render(_agent_btn_callback=_btn_agente("sistemas"))
-        _btn_gerar_bloco_com_inc("sistemas")
+        _rodape_secao("sistemas", "Sistemas")
         st.divider()
         prescricao.render()
-        _btn_gerar_bloco_com_inc("prescricao")
+        _rodape_secao("prescricao", "Prescrição")
         st.divider()
         condutas.render()
-        _btn_gerar_bloco_com_inc("condutas")
+        _rodape_secao("condutas", "Condutas")
 
+    # ── Botão principal — fora dos expanders, dentro do form ────────────────
+    st.write("")
+    if st.form_submit_button(
+        "💾 Salvar + Gerar Prontuário",
+        type="primary",
+        use_container_width=True,
+        help="Salva todos os dados no banco e atualiza o prontuário completo",
+    ):
+        st.session_state["_salvar_gerar_pendente"] = True
 
 
 def migrar_schema_legado(dados: dict) -> dict:

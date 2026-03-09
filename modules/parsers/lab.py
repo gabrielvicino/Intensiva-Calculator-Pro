@@ -36,7 +36,6 @@ def _parse_data_br(data_str: str) -> Optional[str]:
     return None
 
 
-# Palavras-chave que vão para slot 4 (Laboratoriais Admissão / Externo)
 _LAB_EXTERNO_KEYWORDS = frozenset(
     w.lower() for w in [
         "admissão", "admissao", "adm", "admissionais", "admissional",
@@ -150,8 +149,7 @@ def _parse_linha_exame(linha: str) -> tuple[str, dict[str, str], int | None] | N
     return (data_str, resultado, slot_fixo)
 
 
-# Slots para linhas de data (em ordem); slot 4 é reservado para admissão/externo
-_SLOTS_DATA_ORDEM = [1, 2, 3, 5, 6, 7, 8, 9, 10]
+_SLOTS_DATA_ORDEM = list(range(1, 31))
 
 
 def parse_lab_deterministico(
@@ -162,10 +160,7 @@ def parse_lab_deterministico(
     Parseia texto de exames no formato padronizado e retorna dict para session_state.
     Chaves: lab_{slot}_{campo} = valor.
 
-    Os slots são atribuídos por ORDEM DE APARIÇÃO no texto:
-      - Linhas com admissão/externo: sempre slot 4
-      - Linhas com data: 1ª → slot 1, 2ª → slot 2, 3ª → slot 3, 4ª → slot 5, ...
-        (a data serve apenas para preencher lab_{slot}_data — não define o slot)
+    Os slots são atribuídos por ORDEM DE APARIÇÃO no texto (1, 2, 3, ...).
 
     data_hoje: mantido por compatibilidade de assinatura, ignorado.
     """
@@ -180,19 +175,14 @@ def parse_lab_deterministico(
             continue
         data_str, campos, slot_fixo = parsed
 
-        if slot_fixo is not None:
-            slot = slot_fixo  # admissão/externo → sempre slot 4
-        else:
-            # Valida que tem ao menos uma data ou texto reconhecível
-            if not data_str:
-                continue
-            if slot_idx >= len(_SLOTS_DATA_ORDEM):
-                break
-            slot = _SLOTS_DATA_ORDEM[slot_idx]
-            slot_idx += 1
+        if not data_str:
+            continue
+        if slot_idx >= len(_SLOTS_DATA_ORDEM):
+            break
+        slot = _SLOTS_DATA_ORDEM[slot_idx]
+        slot_idx += 1
 
-        # Grava a data no slot (normaliza se possível, mantém texto original para adm/externo)
-        data_normalizada = _parse_data_br(data_str) if slot_fixo is None else None
+        data_normalizada = _parse_data_br(data_str)
         resultado[f"lab_{slot}_data"] = data_normalizada if data_normalizada else data_str
         for campo, valor in campos.items():
             resultado[f"lab_{slot}_{campo}"] = valor
@@ -644,3 +634,17 @@ def parse_agentes_para_slot(resultados: dict[str, Optional[str]], slot: int) -> 
         out[f"{pfx}data"] = data_coleta
 
     return out
+
+
+def parse_agentes_bare(resultados: dict[str, Optional[str]]) -> dict[str, str]:
+    """
+    Versão de parse_agentes_para_slot que retorna chaves bare (sem prefixo lab_{slot}_).
+    Útil para o fluxo de coletas onde o slot é determinado depois.
+    """
+    prefixed = parse_agentes_para_slot(resultados, slot=1)
+    bare: dict[str, str] = {}
+    _pfx = "lab_1_"
+    for k, v in prefixed.items():
+        if k.startswith(_pfx) and v:
+            bare[k[len(_pfx):]] = v
+    return bare

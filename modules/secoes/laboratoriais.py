@@ -10,9 +10,12 @@ import streamlit as st
 #    Exemplo: ("sis_metab_glic_{s}", "glic", _limpar)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Sufixos dos campos lab_{i}_{suf} para deslocamento (Evolução Hoje)
+MAX_SLOTS = 30
+
+# Sufixos dos campos lab_{i}_{suf} para deslocamento e inicialização
 _LAB_SUFIXOS = [
-    "data", "hb", "ht", "vcm", "hcm", "rdw",
+    "data", "hora",
+    "hb", "ht", "vcm", "hcm", "rdw",
     "leuco", "leuco_bla", "leuco_mie", "leuco_meta",
     "leuco_bast", "leuco_seg", "leuco_linf", "leuco_mon", "leuco_eos", "leuco_bas",
     "plaq",
@@ -51,8 +54,8 @@ def _set_ss(key: str, value) -> None:
 
 def _deslocar_laboratoriais():
     """
-    Desloca os resultados por data: Hoje→vazio, Ontem→Hoje, Anteontem→Ontem, Anteontem→4 dias atrás.
-    Slot 4 (Laboratoriais Admissão / Externo) é FIXO — nunca é deslocado.
+    Desloca resultados: N→N+1, slot 1 fica vazio.
+    Todas as colunas são iguais (sem slot fixo de Admissão).
     """
     def _copiar(orig: int, dest: int):
         for suf in _LAB_SUFIXOS:
@@ -72,16 +75,8 @@ def _deslocar_laboratoriais():
             else:
                 _set_ss(key, "")
 
-    # Ordem reversa para não sobrescrever antes de ler
-    # 9→10, 8→9, 7→8, 6→7, 5→6 (demais exames)
-    for i in range(9, 4, -1):
+    for i in range(MAX_SLOTS - 1, 0, -1):
         _copiar(i, i + 1)
-    # 3→5 (anteontem vira 4 dias atrás; pula slot 4)
-    _copiar(3, 5)
-    # 2→3, 1→2 (ontem→anteontem, hoje→ontem)
-    _copiar(2, 3)
-    _copiar(1, 2)
-    # Slot 1 fica vazio; slot 4 permanece inalterado
     _limpar(1)
 
 
@@ -95,13 +90,12 @@ def limpar_slot(slot: int) -> None:
             _set_ss(key, "")
 
 
-# 1. Definição das Variáveis (10 Slots de Data)
 def get_campos():
     campos = {'laboratoriais_notas': ''}
     
-    for i in range(1, 11):
+    for i in range(1, MAX_SLOTS + 1):
         campos.update({
-            f'lab_{i}_data': '',
+            f'lab_{i}_data': '', f'lab_{i}_hora': '',
             
             # Linha 1: Hemato
             f'lab_{i}_hb': '', f'lab_{i}_ht': '', f'lab_{i}_vcm': '', f'lab_{i}_hcm': '',
@@ -158,12 +152,11 @@ def get_campos():
         })
     return campos
 
-# Títulos dos slots
+# Títulos dos slots (Evolução page)
 _SLOT_TITULOS = {
-    1: "Hoje",
-    2: "Ontem",
-    3: "Anteontem",
-    4: "Admissão / Externo",
+    1: "Hoje", 2: "Ontem", 3: "Anteontem", 4: "Dia -3",
+    5: "Dia -4", 6: "Dia -5", 7: "Dia -6", 8: "Dia -7",
+    9: "Dia -8", 10: "Dia -9",
 }
 
 _SEC_STYLE = (
@@ -381,7 +374,122 @@ def _render_gas_extras(slots: list):
                         st.divider()
 
 
-# 2. Renderização Principal
+# ─────────────────────────────────────────────────────────────────────────────
+# Funções auxiliares para PACER — gerenciamento de coletas
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SLOT_CHECK_SUFS = ("data", "hb", "cr", "na", "gas_ph", "plaq", "ur")
+
+
+def slot_tem_dados(slot: int) -> bool:
+    """Verifica se o slot tem pelo menos um dado preenchido."""
+    return any(
+        (st.session_state.get(f"lab_{slot}_{suf}") or "").strip()
+        for suf in _SLOT_CHECK_SUFS
+    )
+
+
+def get_active_slots_sorted() -> list[int]:
+    """Retorna lista de slots com dados, ordenados por (data, hora) cronológica."""
+    active = [i for i in range(1, MAX_SLOTS + 1) if slot_tem_dados(i)]
+
+    def _sort_key(s):
+        data = st.session_state.get(f"lab_{s}_data", "") or ""
+        hora = st.session_state.get(f"lab_{s}_hora", "") or ""
+        try:
+            p = data.split("/")
+            data_iso = f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 else ""
+        except (IndexError, ValueError):
+            data_iso = ""
+        try:
+            hora_int = int(hora.split(":")[0]) if ":" in hora else 0
+        except (ValueError, IndexError):
+            hora_int = 0
+        return (data_iso, hora_int)
+
+    active.sort(key=_sort_key)
+    return active
+
+
+def find_slot_for_coleta(data: str, hora_cheia: int) -> int | None:
+    """Encontra slot existente com mesmo col_key, ou primeiro slot vazio."""
+    for i in range(1, MAX_SLOTS + 1):
+        ex_data = st.session_state.get(f"lab_{i}_data", "") or ""
+        ex_hora = st.session_state.get(f"lab_{i}_hora", "") or ""
+        try:
+            ex_hc = int(ex_hora.split(":")[0]) if ":" in ex_hora else -1
+        except (ValueError, IndexError):
+            ex_hc = -1
+        if ex_data == data and ex_hc == hora_cheia:
+            return i
+
+    for i in range(1, MAX_SLOTS + 1):
+        if not slot_tem_dados(i):
+            return i
+
+    return None
+
+
+def write_coleta_to_slot(slot: int, coleta: dict, merge: bool = False) -> None:
+    """Escreve uma coleta (dict bare) no session_state lab_{slot}_*."""
+    pfx = f"lab_{slot}_"
+    for key, value in coleta.items():
+        if key == "hora_cheia":
+            continue
+        ss_key = pfx + key
+        if merge:
+            existing = (st.session_state.get(ss_key) or "").strip()
+            if existing and value and str(value).strip():
+                new_hora = coleta.get("hora", "")
+                old_hora = (st.session_state.get(f"{pfx}hora") or "")
+                if new_hora >= old_hora:
+                    _set_ss(ss_key, value)
+            elif value and str(value).strip():
+                _set_ss(ss_key, value)
+        else:
+            if key in ("gas_tipo", "gas2_tipo", "gas3_tipo"):
+                _set_ss(ss_key, value if value in ("Arterial", "Venosa", "Pareada") else None)
+            else:
+                _set_ss(ss_key, value)
+
+
+def adicionar_coleta(coleta: dict) -> int | None:
+    """Adiciona coleta ao session_state. Retorna slot usado ou None se cheio."""
+    data = coleta.get("data", "")
+    hora_cheia = coleta.get("hora_cheia", 0)
+    slot = find_slot_for_coleta(data, hora_cheia)
+    if slot is None:
+        return None
+    merge = slot_tem_dados(slot)
+    write_coleta_to_slot(slot, coleta, merge=merge)
+    return slot
+
+
+def render_chrono_headers(slots: list) -> None:
+    """Renderiza cabeçalhos data+hora para colunas cronológicas."""
+    cols = st.columns(len(slots))
+    for col, slot in zip(cols, slots):
+        data = st.session_state.get(f"lab_{slot}_data", "") or "—"
+        hora_raw = st.session_state.get(f"lab_{slot}_hora", "") or ""
+        try:
+            hc = int(hora_raw.split(":")[0])
+            hora_display = f"{hc:02d}h"
+        except (ValueError, IndexError):
+            hora_display = hora_raw or ""
+        with col:
+            st.markdown(
+                f'<div style="text-align:center">'
+                f'<div style="font-size:0.82rem;font-weight:700;color:#1a73e8">{data}</div>'
+                f'<div style="font-size:0.72rem;color:#5f6368">{hora_display}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Renderização Principal (Evolução page)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def render(_agent_btn_callback=None):
     st.markdown('<span id="sec-12"></span>', unsafe_allow_html=True)
     st.markdown("##### 12. Exames Laboratoriais")

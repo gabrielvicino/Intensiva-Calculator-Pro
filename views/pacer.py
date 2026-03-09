@@ -98,7 +98,7 @@ tab_lab, tab_ctrl, tab_presc, tab_cmp, tab_dbg = st.tabs([
 ])
 
 with tab_lab:
-    tab_laboratoriais.render(api_key, modelo_escolhido)
+    tab_laboratoriais.render(api_key, modelo_escolhido, openai_api_key=OPENAI_API_KEY)
 
 with tab_ctrl:
     tab_controles.render(api_key, modelo_escolhido)
