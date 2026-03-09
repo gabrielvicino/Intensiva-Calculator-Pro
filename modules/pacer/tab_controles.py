@@ -133,6 +133,27 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
     from utils import save_evolucao, load_evolucao
     from modules import fichas
 
+    # ── Auto-load: recupera controles salvos ao iniciar nova sessão ──────────
+    _pront_autoload = st.session_state.get("prontuario", "").strip()
+    _ctrl_vazios = not any(
+        st.session_state.get(f"ctrl_{dia}_diurese") or st.session_state.get(f"ctrl_{dia}_data")
+        for dia in ("hoje", "ontem", "anteontem")
+    )
+    _ultimo_reload_ctrl = st.session_state.get("_ctrl_ultimo_reload", "")
+
+    if _pront_autoload and _ctrl_vazios and _ultimo_reload_ctrl != _pront_autoload:
+        with st.spinner("Carregando controles salvos..."):
+            _dados_autoload = load_evolucao(_pront_autoload)
+        if _dados_autoload:
+            _dados_autoload.pop("_data_hora", None)
+            _dados_autoload = fichas.migrar_schema_legado(_dados_autoload)
+            campos_validos = set(fichas.get_todos_campos_keys())
+            for k, v in _dados_autoload.items():
+                if k in campos_validos and (v or not st.session_state.get(k)):
+                    st.session_state[k] = v
+            st.toast("Controles carregados do prontuário.", icon="💧")
+        st.session_state["_ctrl_ultimo_reload"] = _pront_autoload
+
     st.subheader("💧 Controles & Balanço Hídrico")
 
     # ── Prontuário ────────────────────────────────────────────────────────────

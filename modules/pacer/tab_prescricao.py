@@ -115,6 +115,25 @@ def render(motor: str, api_key: str, modelo: str):
     from utils import save_evolucao, load_evolucao
     from modules import fichas
 
+    # ── Auto-load: recupera prescrição salva ao iniciar nova sessão ──────────
+    _pront_autoload = st.session_state.get("prontuario", "").strip()
+    _presc_vazia = not st.session_state.get("prescricao_formatada", "").strip()
+    _ultimo_reload_presc = st.session_state.get("_presc_ultimo_reload", "")
+
+    if _pront_autoload and _presc_vazia and _ultimo_reload_presc != _pront_autoload:
+        with st.spinner("Carregando prescrição salva..."):
+            _dados_autoload = load_evolucao(_pront_autoload)
+        if _dados_autoload:
+            _dados_autoload.pop("_data_hora", None)
+            _dados_autoload = fichas.migrar_schema_legado(_dados_autoload)
+            campos_validos = set(fichas.get_todos_campos_keys())
+            for k, v in _dados_autoload.items():
+                if k in campos_validos and (v or not st.session_state.get(k)):
+                    st.session_state[k] = v
+            if st.session_state.get("prescricao_formatada", "").strip():
+                st.toast("Prescrição carregada do prontuário.", icon="💊")
+        st.session_state["_presc_ultimo_reload"] = _pront_autoload
+
     st.subheader("💊 Pacer - Prescrição Médica")
 
     # ── Prontuário ────────────────────────────────────────────────────────────
