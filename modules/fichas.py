@@ -387,6 +387,33 @@ def render_formulario_completo():
                     del st.session_state[_k]
                 st.session_state[_k] = _v
 
+    # ── Reload silencioso de lab_*/ctrl_* ──────────────────────────────────────
+    # DEVE ficar aqui, antes de qualquer widget ser criado.
+    # Se ficar depois do Bloco 10/11, os widgets lab_*/ctrl_* já existem e a
+    # atribuição levanta StreamlitAPIException (engolida pelo try/except antigo),
+    # fazendo o session_state ficar vazio e o bridge não encontrar nenhum valor.
+    _pront_rl = st.session_state.get("prontuario", "").strip()
+    _labs_vazios_rl = not any(
+        (st.session_state.get(f"lab_{s}_hb") or "").strip()
+        or (st.session_state.get(f"lab_{s}_data") or "").strip()
+        or (st.session_state.get(f"lab_{s}_cr") or "").strip()
+        for s in range(1, 11)
+    )
+    if _labs_vazios_rl and _pront_rl and st.session_state.get("_ac_pront_reloaded", "") != _pront_rl:
+        st.session_state["_ac_pront_reloaded"] = _pront_rl
+        try:
+            from utils import load_evolucao as _load_ev
+            _dados_rl = _load_ev(_pront_rl)
+            if _dados_rl:
+                _dados_rl.pop("_data_hora", None)
+                for _k, _v in _dados_rl.items():
+                    if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
+                        if _k in st.session_state:
+                            del st.session_state[_k]
+                        st.session_state[_k] = _v
+        except Exception:
+            pass
+
     # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget.
     # Usa del+set (igual ao _evo_bridge_hoje) para garantir que widgets já
     # existentes no session_state recebam o novo valor sem StreamlitAPIException.
@@ -507,30 +534,6 @@ def render_formulario_completo():
 
         # ── 12. Análise Clínica ─────────────────────────────────────────────
         from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
-
-        # ── Reload silencioso ──────────────────────────────────────────────
-        # Dispara SEMPRE que labs estão vazios E o prontuário mudou desde o
-        # último reload. Assim, trocar de prontuário sempre recarrega os dados.
-        _pront_ac = st.session_state.get("prontuario", "").strip()
-        _labs_vazios = not any(
-            (st.session_state.get(f"lab_{s}_hb") or "").strip()
-            or (st.session_state.get(f"lab_{s}_data") or "").strip()
-            or (st.session_state.get(f"lab_{s}_cr") or "").strip()
-            for s in range(1, 11)
-        )
-        _ultimo_reload = st.session_state.get("_ac_pront_reloaded", "")
-        if _labs_vazios and _pront_ac and _ultimo_reload != _pront_ac:
-            st.session_state["_ac_pront_reloaded"] = _pront_ac
-            try:
-                from utils import load_evolucao as _load_ev
-                _dados_ac = _load_ev(_pront_ac)
-                if _dados_ac:
-                    _dados_ac.pop("_data_hora", None)
-                    for _k, _v in _dados_ac.items():
-                        if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
-                            st.session_state[_k] = _v
-            except Exception:
-                pass
 
         # ── Gera tabela e armazena cache ──────────────────────────────────
         # O cache garante que a tabela NUNCA suma: se a geração atual retornar
