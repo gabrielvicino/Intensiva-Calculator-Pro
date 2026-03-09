@@ -228,6 +228,24 @@ def render(api_key: str = "", modelo: str = "gpt-4o") -> None:
     from utils import save_evolucao, load_evolucao
     from modules import fichas
 
+    # ── Auto-load: recupera exames salvos ao iniciar nova sessão ─────────────
+    # Só dispara se: há prontuário definido, labs do slot 1 estão vazios e
+    # ainda não fizemos o reload nesta sessão (evita loop a cada rerun).
+    _pront_autoload = st.session_state.get("prontuario", "").strip()
+    _labs_vazios = not any(
+        st.session_state.get(f"lab_{i}_hb") or st.session_state.get(f"lab_{i}_data")
+        for i in range(1, 5)
+    )
+    _ultimo_reload_lab = st.session_state.get("_lab_ultimo_reload", "")
+
+    if _pront_autoload and _labs_vazios and _ultimo_reload_lab != _pront_autoload:
+        with st.spinner("Carregando exames salvos..."):
+            _dados_autoload = load_evolucao(_pront_autoload)
+        if _dados_autoload:
+            _aplicar_dados_prontuario(_dados_autoload, fichas)
+            st.toast("Exames carregados do prontuário.", icon="🧪")
+        st.session_state["_lab_ultimo_reload"] = _pront_autoload
+
     # Aplica resultados pendentes de extração IA/parsing ANTES de renderizar widgets.
     # Preserva dados já preenchidos: sobrescreve só com valores não-vazios.
     if "_lab_pending_update" in st.session_state:
