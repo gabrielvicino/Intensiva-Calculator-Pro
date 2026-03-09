@@ -78,11 +78,11 @@ _fichas.inicializar_estado()
 _fichas._normalizar_datas()   # formata datas digitadas sem barras (ex.: 20022026 → 20/02/2026)
 
 # ==============================================================================
-# IA — fixo: OpenAI GPT-4o (usado em Exames PACER e Prescrição)
+# IA — Google Gemini 2.5 Pro (máxima qualidade para extração de exames)
 # ==============================================================================
-motor_escolhido = "OpenAI GPT"
-modelo_escolhido = "gpt-4o"
-api_key = OPENAI_API_KEY
+motor_escolhido = "Google Gemini"
+modelo_escolhido = "gemini-2.5-pro"
+api_key = GOOGLE_API_KEY
 
 # ==============================================================================
 # PÁGINA — cabeçalho e abas

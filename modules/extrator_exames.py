@@ -88,6 +88,11 @@ Especialista em Hematologia e Nefrologia.
 Varra o texto buscando os dados abaixo.
 Retorne APENAS os itens que possuem valor numérico, separados por " | ".
 
+# REGRA DE DUPLICATAS (CRÍTICO)
+Se o mesmo exame aparecer mais de uma vez no laudo (ex: duas creatininas, dois hemogramas),
+utilize SEMPRE o valor do resultado mais recente (data/hora de coleta mais nova).
+Descarte completamente os valores mais antigos do mesmo exame.
+
 # REGRAS DE LIMPEZA (CRÍTICO)
 - Se um item não tiver valor, IGNORE-O completamente.
 - NÃO deixe pipes duplos "||".
@@ -126,6 +131,11 @@ Especialista em Gastroenterologia e Bioquímica.
 Extraia os dados abaixo. Se o dado não existir, PULE para o próximo.
 Não deixe espaços vazios ou pipes extras.
 
+# REGRA DE DUPLICATAS (CRÍTICO)
+Se o mesmo exame aparecer mais de uma vez no laudo (ex: duas TGPs, duas albuminas),
+utilize SEMPRE o valor do resultado mais recente (data/hora de coleta mais nova).
+Descarte completamente os valores mais antigos do mesmo exame.
+
 # ORDEM DE PREFERÊNCIA
 1. TGP (Alanina Aminotransferase / ALT)
 2. TGO (Aspartato Aminotransferase / AST)
@@ -156,6 +166,11 @@ Especialista em Marcadores Críticos e Coagulação.
 
 # TAREFA
 Extraia apenas os marcadores presentes no texto.
+
+# REGRA DE DUPLICATAS (CRÍTICO)
+Se o mesmo marcador aparecer mais de uma vez no laudo (ex: dois PCRs, duas troponinas),
+utilize SEMPRE o valor do resultado mais recente (data/hora de coleta mais nova).
+Descarte completamente os valores mais antigos do mesmo marcador.
 
 # LISTA ALVO
 1. PCR (Proteína C Reativa — inteiro, sem casas decimais)
@@ -197,6 +212,10 @@ Especialista em Urinálise.
 Verifique se há exame de URINA TIPO I (EAS).
 - SE SIM: Monte a string completa.
 - SE NÃO: Retorne string vazia.
+
+# REGRA DE DUPLICATAS (CRÍTICO)
+Se houver mais de um EAS no laudo, utilize SEMPRE o resultado mais recente
+(data/hora de coleta mais nova). Descarte os mais antigos.
 
 # ESTRUTURA
 Urn: Den: [Val] / Leu Est: [Val] / Nit: [Val] / Leuco [Val] / Hm : [Val] / Prot: [Val] / Cet: [Val] / Glic: [Val]
@@ -309,6 +328,10 @@ Especialista em auditoria de laudos laboratoriais.
 # TAREFA
 Leia o texto e identifique o nome de TODOS os exames/testes laboratoriais mencionados.
 Em seguida, liste APENAS os exames que NÃO pertencem a nenhuma das categorias abaixo (já cobertas por outros agentes).
+
+# REGRA DE DUPLICATAS (CRÍTICO)
+Se o mesmo exame aparecer mais de uma vez, liste o nome apenas UMA vez
+(use o resultado mais recente se precisar desambiguar).
 
 # CATEGORIAS JÁ COBERTAS (IGNORE COMPLETAMENTE)
 - Hemograma / Hemato: Hb, Ht, VCM, HCM, RDW, Leucócitos (e diferencial: Seg, Bast, Linf, Mon, Eos, Bas), Plaquetas
