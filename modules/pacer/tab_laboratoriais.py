@@ -199,22 +199,18 @@ def _extrair_data_hora_texto(texto: str) -> tuple[str, str]:
 
 def _processar_texto_hibrido(
     texto: str, api_key: str, modelo: str, provider: str = "",
-    openai_api_key: str = "",
 ) -> tuple[list[dict], str]:
     """
     Processa texto de laudo com fluxo híbrido:
-      1. Parser HC Unicamp → se detectado
-         + agente OpenAI complementar para não-transcritos
+      1. Parser HC Unicamp (determinístico, instantâneo)
       2. LLM fallback (7 agentes em paralelo)
     Retorna (lista de coletas, caminho usado: "regex" | "ia").
+    NÃO chama GPT para não-transcritos — isso é feito depois, desacoplado.
     """
     from modules.parsers.hc_unicamp import parsear as _parsear_unicamp
 
     coletas = _parsear_unicamp(texto)
     if coletas:
-        nao_trans = _extrair_nao_transcritos(texto, openai_api_key)
-        if nao_trans:
-            coletas[0]["outros"] = nao_trans
         return coletas, "regex"
 
     from modules.parsers.lab import parse_agentes_bare
@@ -255,7 +251,12 @@ def _extrair_com_ia(
     api_key: str, modelo: str, provider: str = "",
     openai_api_key: str = "", placeholder=None,
 ) -> None:
-    """Extrai dos 4 campos de input em paralelo, adiciona como coletas."""
+    """Extrai dos 4 campos de input em paralelo, adiciona como coletas.
+
+    Fluxo otimizado:
+      1. Parser regex (instantâneo) — adiciona coletas imediatamente
+      2. GPT-4o-mini para não-transcritos — roda depois, só para textos regex
+    """
     textos = []
     for i in range(4):
         txt = (st.session_state.get(f"_lab_input_{i}") or "").strip()
@@ -270,38 +271,39 @@ def _extrair_com_ia(
 
     if placeholder is not None:
         with placeholder.container():
-            st.info(f"🔬 Processando {len(textos)} laudo(s) em paralelo...")
+            st.info(f"🔬 Processando {len(textos)} laudo(s)...")
 
-    # Processa todos os laudos em paralelo
+    # Fase 1: parser regex/IA (sem GPT não-transcritos)
     def _processar_um(idx_texto):
         idx, texto = idx_texto
         coletas, caminho = _processar_texto_hibrido(
-            texto, api_key, modelo, provider, openai_api_key=openai_api_key
+            texto, api_key, modelo, provider,
         )
         return idx, coletas, caminho
 
     resultados_paralelos = {}
-    with ThreadPoolExecutor(max_workers=len(textos)) as ex:
+    with ThreadPoolExecutor(max_workers=max(len(textos), 1)) as ex:
         futures = {ex.submit(_processar_um, t): t[0] for t in textos}
         for f in as_completed(futures):
             idx, coletas, caminho = f.result()
             resultados_paralelos[idx] = (coletas, caminho)
 
-    if placeholder is not None:
-        placeholder.empty()
-
     n_total = 0
     erros = []
     logs = []
+    regex_textos_para_gpt: list[tuple[int, str, int]] = []
 
     for idx, texto in textos:
         coletas, caminho = resultados_paralelos.get(idx, ([], "?"))
         icone = "⚡" if caminho == "regex" else "🤖"
         if coletas:
             n_coletas = 0
+            primeiro_slot = None
             for coleta in coletas:
                 slot = adicionar_coleta(coleta)
                 if slot is not None:
+                    if primeiro_slot is None:
+                        primeiro_slot = slot
                     n_campos = len([v for k, v in coleta.items()
                                     if v and k not in ("data", "hora", "hora_cheia")])
                     n_total += n_campos
@@ -312,13 +314,37 @@ def _extrair_com_ia(
             logs.append(f"{icone} Laudo {idx + 1}: {n_coletas} coleta(s) via {via}")
             st.session_state.pop(f"_lab_input_{idx}", None)
             st.session_state[f"_lab_input_{idx}"] = ""
+            if caminho == "regex" and primeiro_slot is not None:
+                regex_textos_para_gpt.append((idx, texto, primeiro_slot))
         else:
             erros.append(f"Laudo {idx + 1}: nenhum campo extraído.")
 
-    if n_total > 0:
-        st.toast(f"✅ {n_total} campos extraídos!", icon="🧪")
+    # Fase 2: GPT não-transcritos (só para textos parseados por regex)
+    if regex_textos_para_gpt and openai_api_key:
+        if placeholder is not None:
+            with placeholder.container():
+                st.info("🤖 Buscando exames não transcritos (GPT)...")
+        with ThreadPoolExecutor(max_workers=max(len(regex_textos_para_gpt), 1)) as ex:
+            futs = {
+                ex.submit(_extrair_nao_transcritos, txt, openai_api_key): slot
+                for _, txt, slot in regex_textos_para_gpt
+            }
+            for f in as_completed(futs):
+                slot = futs[f]
+                try:
+                    nao_trans = f.result()
+                    if nao_trans:
+                        st.session_state[f"lab_{slot}_outros"] = nao_trans
+                except Exception:
+                    pass
 
-    avisos = [f"ℹ️ {lg}" for lg in logs]
+    if placeholder is not None:
+        placeholder.empty()
+
+    avisos = []
+    if n_total > 0:
+        avisos.append(f"✅ {n_total} campos extraídos com sucesso!")
+    avisos += [f"ℹ️ {lg}" for lg in logs]
     if erros:
         avisos += [f"⚠️ {e}" for e in erros]
     if avisos:
@@ -375,20 +401,25 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
 
     st.subheader("🧪 Exames Laboratoriais")
 
+    # ── Feedback no topo (antes de tudo) ───────────────────────────────────
+    _msg_topo = st.empty()
+    _msg_avisos = st.empty()
+    if "_lab_avisos" in st.session_state:
+        with _msg_avisos.container():
+            for aviso in st.session_state.pop("_lab_avisos"):
+                if aviso.startswith("✅"):
+                    st.success(aviso)
+                elif aviso.startswith("⚠️"):
+                    st.warning(aviso)
+                else:
+                    st.info(aviso)
+
     # ── Prontuário ─────────────────────────────────────────────────────────
     _fragment_prontuario()
     _confirmar_novo_prontuario()
     st.write("")
 
     prontuario = st.session_state.get("prontuario", "").strip()
-
-    _msg_avisos = st.empty()
-    if "_lab_avisos" in st.session_state:
-        with _msg_avisos.container():
-            for aviso in st.session_state.pop("_lab_avisos"):
-                st.warning(aviso)
-
-    _msg_salvar = st.empty()
 
     # ── Form principal ─────────────────────────────────────────────────────
     with st.form("form_laboratoriais_main"):
@@ -402,18 +433,12 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
 
         # Botões
         b1, b2, b3 = st.columns(3)
-        _has_any_key = bool(api_key or openai_api_key)
-        _help_btn = (
-            "HC Unicamp: parser determinístico + ChatGPT para não-transcritos. "
-            "Outros labs: IA completa."
-        )
         with b1:
             btn_extrair = st.form_submit_button(
                 "🔬 Parsear e Adicionar",
                 use_container_width=True,
                 type="primary",
-                help=_help_btn,
-                disabled=False,
+                help="HC Unicamp: parser determinístico + ChatGPT para não-transcritos. Outros labs: IA completa.",
             )
         with b2:
             btn_nova = st.form_submit_button(
@@ -495,7 +520,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
 
     if btn_extrair:
         _extrair_com_ia(
-            api_key, modelo, openai_api_key=openai_api_key, placeholder=_msg_avisos
+            api_key, modelo, openai_api_key=openai_api_key, placeholder=_msg_topo
         )
         st.rerun()
 
@@ -514,22 +539,18 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
         st.rerun()
 
     if btn_salvar:
-        _msg_salvar.info("💾 Salvando...")
-        with st.spinner("💾 Salvando..."):
-            base = load_evolucao(prontuario) or {}
-            base.pop("_data_hora", None)
-            todas_chaves = fichas.get_todos_campos_keys()
-            dados = {
-                k: (st.session_state.get(k) if k.startswith("lab_")
-                    else base.get(k, st.session_state.get(k)))
-                for k in todas_chaves
-            }
-            ok = save_evolucao(
-                prontuario,
-                st.session_state.get("nome", "").strip(),
-                dados,
-            )
+        _msg_topo.info("💾 Salvando exames...")
+        base = load_evolucao(prontuario) or {}
+        base.pop("_data_hora", None)
+        for k in list(st.session_state.keys()):
+            if k.startswith("lab_"):
+                base[k] = st.session_state[k]
+        ok = save_evolucao(
+            prontuario,
+            st.session_state.get("nome", "").strip(),
+            base,
+        )
         if ok:
-            _msg_salvar.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+            _msg_topo.success(f"✅ Exames salvos! Prontuário: {prontuario}")
         else:
-            _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão.")
+            _msg_topo.error("❌ Erro ao salvar. Verifique a conexão.")

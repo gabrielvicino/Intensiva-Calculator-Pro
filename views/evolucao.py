@@ -37,6 +37,13 @@ with st.sidebar:
 st.title("📝 Evolução Diária")
 st.write("")
 
+# ── Proteção contra perda de dados ────────────────────────────────────────────
+if st.session_state.get("prontuario", "").strip():
+    components.html(
+        '<script>window.onbeforeunload=function(){return"Dados não salvos serão perdidos."}</script>',
+        height=0,
+    )
+
 
 # ── Helpers de staging ─────────────────────────────────────────────────────────
 

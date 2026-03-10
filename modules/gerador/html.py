@@ -64,6 +64,7 @@ def gerar_html_labs() -> str:
         [i for i in range(1, 31)
          if any(_v(i, k) for k in ("data", "hb", "cr", "na", "tp", "plaq", "gas_ph"))],
         key=_sort_key,
+        reverse=True,
     )
     if not SLOTS:
         return ""
@@ -167,7 +168,8 @@ def gerar_html_labs() -> str:
                    ("BE","gas_be"),("Cl(g)","gas_cl"),("AG","gas_ag"),
                    ("pO2","gas_po2"),("SatO2","gas_sat"),
                    ("Na(g)","gas_na"),("K(g)","gas_k"),("CaI(g)","gas_cai"),
-                   ("Lac","gas_lac"),("pCO2(v)","gasv_pco2"),("SvO2","svo2")]:
+                   ("Lac","gas_lac"),("Hb(g)","gas_hb"),("Ht(g)","gas_ht"),
+                   ("pCO2(v)","gasv_pco2"),("SvO2","svo2")]:
         _add(lbl, k)
 
     _sep("Urina")
@@ -400,6 +402,7 @@ def gerar_html_comparativo() -> tuple[str, str]:
     lab_slots = sorted(
         [s for s in range(1, 31) if _slot_tem_dado(s)],
         key=_sort_key_lab,
+        reverse=True,
     )
 
     # ── 2. Dias de controles em ordem ────────────────────────────────────────
@@ -503,7 +506,8 @@ def gerar_html_comparativo() -> tuple[str, str]:
                    ("BE","gas_be"),("Cl(g)","gas_cl"),("AG","gas_ag"),
                    ("pO2","gas_po2"),("SatO2","gas_sat"),
                    ("Na(g)","gas_na"),("K(g)","gas_k"),("CaI(g)","gas_cai"),
-                   ("Lac","gas_lac"),("pCO2(v)","gasv_pco2"),("SvO2","svo2")]:
+                   ("Lac","gas_lac"),("Hb(g)","gas_hb"),("Ht(g)","gas_ht"),
+                   ("pCO2(v)","gasv_pco2"),("SvO2","svo2")]:
         _add_l(lbl, k)
     _sep_l_set("Urina")
     for lbl, k in [("Dens","ur_dens"),("L.Est","ur_le"),("Nit","ur_nit"),

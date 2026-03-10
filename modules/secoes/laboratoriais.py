@@ -27,6 +27,7 @@ _LAB_SUFIXOS = [
     "gas_tipo", "gas_hora",
     "gas_ph", "gas_pco2", "gas_po2", "gas_hco3", "gas_be", "gas_sat",
     "gas_lac", "gas_ag", "gas_cl", "gas_na", "gas_k", "gas_cai",
+    "gas_hb", "gas_ht",
     "gasv_pco2", "svo2",
     # Gasometria 2
     "gas2_tipo", "gas2_hora",
@@ -128,6 +129,7 @@ def get_campos():
             f'lab_{i}_gas_ph': '', f'lab_{i}_gas_pco2': '', f'lab_{i}_gas_po2': '', f'lab_{i}_gas_hco3': '',
             f'lab_{i}_gas_be': '', f'lab_{i}_gas_sat': '', f'lab_{i}_gas_lac': '', f'lab_{i}_gas_ag': '',
             f'lab_{i}_gas_cl': '', f'lab_{i}_gas_na': '', f'lab_{i}_gas_k': '', f'lab_{i}_gas_cai': '',
+            f'lab_{i}_gas_hb': '', f'lab_{i}_gas_ht': '',
             f'lab_{i}_gasv_pco2': '', f'lab_{i}_svo2': '',
 
             # Gasometria 2

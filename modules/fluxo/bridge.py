@@ -131,7 +131,7 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
         if not raw:
             return None
         try:
-            return float(raw.replace(",", ".").replace("+", "").strip())
+            return float(raw.replace(",", ".").replace("+", "").lower().replace("ml", "").strip())
         except ValueError:
             return None
 
@@ -164,25 +164,39 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
         staging["sis_renal_bacum_show"] = True
         cnt[0] += 1
 
-    # 2. Mapeamento por slots: Lab + Ctrl → Sistemas
-    #    Cada coleta é uma posição, da mais recente para a mais antiga.
-    #    Posição 0 = hoje (mais recente), 1 = ult, 2 = antepen, etc.
+    # 2. Mapeamento campo-a-campo: Lab → Sistemas
+    #    Para cada campo (ex: "cr"), coleta os valores não-vazios dos lab_slots
+    #    ordenados do mais recente ao mais antigo e distribui para hoje/ult/antepen/ant4/ant5.
+    #    Isso evita "buracos" quando um slot recente tem dados parciais.
     from modules.secoes.laboratoriais import get_active_slots_sorted as _get_lab_slots
     lab_slots_recentes = list(reversed(_get_lab_slots()))  # [mais_novo, ..., mais_antigo]
 
+    for dest_pat, suf_lab, fn in _BRIDGE_LAB:
+        valores: list[str] = []
+        for lab_idx in lab_slots_recentes:
+            v = fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", ""))
+            if v:
+                valores.append(v)
+            if len(valores) >= 5:
+                break
+        for pos, val in enumerate(valores):
+            if pos < len(_SLOTS_SIS_ORDEM):
+                _set(dest_pat.format(s=_SLOTS_SIS_ORDEM[pos]), val)
+
+    # Lactato: campo-a-campo (gas → gas2 → gas3 por slot)
+    lac_valores: list[str] = []
+    for lab_idx in lab_slots_recentes:
+        v = _lac_do_dia(lab_idx)
+        if v:
+            lac_valores.append(v)
+        if len(lac_valores) >= 5:
+            break
+    for pos, val in enumerate(lac_valores):
+        if pos < len(_SLOTS_SIS_ORDEM):
+            _set(f"sis_cardio_lac_{_SLOTS_SIS_ORDEM[pos]}", val)
+
+    # 2b. Controles → Sistemas (mantém mapeamento fixo por dia)
     for i, (sis_suf, ctrl_dia) in enumerate(_SLOTS_CTRL):
-        # Lab: usa posição i da lista invertida (0=hoje=mais novo, 1=ontem, ...)
-        lab_idx = lab_slots_recentes[i] if i < len(lab_slots_recentes) else None
-
-        if lab_idx is not None:
-            for dest_pat, suf_lab, fn in _BRIDGE_LAB:
-                _set(
-                    dest_pat.format(s=sis_suf),
-                    fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", "")),
-                )
-            # Lactato: caso especial — tenta gas, gas2, gas3 em ordem
-            _set(f"sis_cardio_lac_{sis_suf}", _lac_do_dia(lab_idx))
-
         for dest_pat, suf_ctrl, fn in _BRIDGE_CTRL:
             _set(
                 dest_pat.format(s=sis_suf),

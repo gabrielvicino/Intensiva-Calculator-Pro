@@ -88,6 +88,14 @@ api_key = GOOGLE_API_KEY
 # ==============================================================================
 st.header("🔬 Laboratoriais & Controles")
 
+# ── Proteção contra perda de dados ────────────────────────────────────────────
+if st.session_state.get("prontuario", "").strip():
+    import streamlit.components.v1 as _components
+    _components.html(
+        '<script>window.onbeforeunload=function(){return"Dados não salvos serão perdidos."}</script>',
+        height=0,
+    )
+
 tab_lab, tab_ctrl, tab_presc, tab_cmp = st.tabs([
     "🧪 Laboratoriais",
     "💧 Controles & BH",

@@ -216,29 +216,19 @@ def render(motor: str, api_key: str, modelo: str):
             _msg_salvar.error("❌ Prescrição com erro — não será salva. Salvando apenas Labs e Controles...")
 
         _msg_salvar.info("💾 Salvando...")
-        with st.spinner("💾 Salvando..."):
-            base = load_evolucao(prontuario) or {}
-            base.pop("_data_hora", None)
-            todas_chaves = fichas.get_todos_campos_keys()
-
-            # Lab, Ctrl e Prescrição vêm do session_state; o resto preserva o último save
-            dados = {}
-            for k in todas_chaves:
-                if k.startswith("lab_") or k.startswith("ctrl_") or k.startswith("prescricao_"):
-                    dados[k] = st.session_state.get(k)
-                else:
-                    dados[k] = base.get(k, st.session_state.get(k))
-
-            # Prescrição processada sobrescreve o campo formatado
-            if pode_salvar:
-                dados["prescricao_formatada"] = output_presc.strip()
-                st.session_state["prescricao_formatada"] = output_presc.strip()
-
-            ok = save_evolucao(
-                prontuario,
-                st.session_state.get("nome", "").strip(),
-                dados,
-            )
+        base = load_evolucao(prontuario) or {}
+        base.pop("_data_hora", None)
+        for k in list(st.session_state.keys()):
+            if k.startswith(("lab_", "ctrl_", "prescricao_")):
+                base[k] = st.session_state[k]
+        if pode_salvar:
+            base["prescricao_formatada"] = output_presc.strip()
+            st.session_state["prescricao_formatada"] = output_presc.strip()
+        ok = save_evolucao(
+            prontuario,
+            st.session_state.get("nome", "").strip(),
+            base,
+        )
 
         if ok:
             _msg_salvar.success(

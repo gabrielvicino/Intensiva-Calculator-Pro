@@ -165,15 +165,18 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
 
     prontuario = st.session_state.get("prontuario", "").strip()
 
-    # Placeholder de avisos — fica no TOPO, antes do formulário
+    # Feedback no topo — antes de tudo
+    _msg_salvar = st.empty()
     _msg_avisos = st.empty()
     if "_ctrl_avisos" in st.session_state:
         with _msg_avisos.container():
             for aviso in st.session_state.pop("_ctrl_avisos"):
-                st.warning(aviso)
-
-    # Placeholder para mensagens de save — acima do formulário
-    _msg_salvar = st.empty()
+                if aviso.startswith("✅"):
+                    st.success(aviso)
+                elif aviso.startswith("❌") or aviso.startswith("⚠️"):
+                    st.warning(aviso)
+                else:
+                    st.info(aviso)
 
     # ── Form principal — sem rerender ao digitar ──────────────────────────────
     with st.form("form_controles_main"):
@@ -377,21 +380,15 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
             st.rerun()
 
     if btn_salvar:
-        _msg_salvar.info("💾 Salvando...")
-        with st.spinner("💾 Salvando..."):
-            # Carrega última versão salva para preservar seções fora do escopo desta aba
-            base = load_evolucao(prontuario) or {}
-            base.pop("_data_hora", None)
-            todas_chaves = fichas.get_todos_campos_keys()
-            # Campos ctrl_* vêm do session_state atual; todo o resto vem do último save
-            dados = {
-                k: (st.session_state.get(k) if k.startswith("ctrl_")
-                    else base.get(k, st.session_state.get(k)))
-                for k in todas_chaves
-            }
-            ok = save_evolucao(prontuario, st.session_state.get("nome", "").strip(), dados)
+        _msg_salvar.info("💾 Salvando controles...")
+        base = load_evolucao(prontuario) or {}
+        base.pop("_data_hora", None)
+        for k in list(st.session_state.keys()):
+            if k.startswith("ctrl_"):
+                base[k] = st.session_state[k]
+        ok = save_evolucao(prontuario, st.session_state.get("nome", "").strip(), base)
         if ok:
-            _msg_salvar.success(f"✅ Salvo com sucesso! Prontuário: {prontuario}")
+            _msg_salvar.success(f"✅ Controles salvos! Prontuário: {prontuario}")
         else:
             _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão.")
 

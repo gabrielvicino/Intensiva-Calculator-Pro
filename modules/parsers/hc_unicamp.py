@@ -101,8 +101,8 @@ _GAS_PATTERNS: list[tuple[str, str]] = [
     (r'^CLORO\s+([\d,\.]+)',             'gas_cl'),
     (r'^SODIO\s+([\d,\.]+)',             'gas_na'),
     (r'^POTASSIO\s+([\d,\.]+)',          'gas_k'),
-    (r'^HEMOGLOBINA\s+([\d,\.]+)',        'hb'),
-    (r'^HEMATOCRITO\s+([\d,\.]+)',        'ht'),
+    (r'^HEMOGLOBINA\s+([\d,\.]+)',        'gas_hb'),
+    (r'^HEMATOCRITO\s+([\d,\.]+)',        'gas_ht'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
