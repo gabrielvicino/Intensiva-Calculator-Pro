@@ -353,15 +353,15 @@ def _sanitizar_radios():
             ss[k] = None
 
 def _btn_gerar_bloco(secao_key: str):
-    """Renderiza o botão 'Gerar Bloco' para uma seção específica (dentro de um form)."""
+    """Renderiza o botão 'Comparar' para uma seção específica (dentro de um form).
+    Gera deterministicamente a saída da seção e abre modal lado a lado com as notas."""
     from modules import agentes_secoes
     nome = agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
     if st.form_submit_button(
-        f"✨ Gerar Bloco {nome}",
+        f"🔍 Comparar {nome}",
         key=f"_fsbtn_gerar_{secao_key}",
-        help="Gera o texto desta seção e abre para visualização/edição",
+        help="Compara as notas coladas com a saída determinística gerada para esta seção",
         use_container_width=True,
-        type="primary",
     ):
         st.session_state["_gerar_bloco_pendente"] = secao_key
 
@@ -419,7 +419,7 @@ def _btn_salvar_secao(secao_key: str, nome_display: str | None = None):
 
 
 def _btn_gerar_bloco_com_inc(secao_key: str):
-    """Renderiza checkbox 'Incluir na saída' + botão 'Gerar Bloco' na mesma linha."""
+    """Renderiza checkbox 'Incluir na saída' + botão 'Comparar' na mesma linha."""
     col_inc, col_btn = st.columns([1, 2])
     with col_inc:
         st.markdown('<div style="padding-top:6px"></div>', unsafe_allow_html=True)
@@ -433,16 +433,16 @@ def _btn_gerar_bloco_com_inc(secao_key: str):
 
 
 def _rodape_secao(secao_key: str, nome_display: str | None = None):
-    """Renderiza a barra de ações de uma seção: [toggle Output | ✨ Gerar | 💾 Salvar | Limpar]."""
+    """Renderiza a barra de ações de uma seção: [Output | 🔍 Comparar | 💾 Salvar | Limpar]."""
     from modules import agentes_secoes
     nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
-    col_inc, col_gerar, col_salvar, col_limpar = st.columns([1, 2, 1, 1])
+    col_inc, col_cmp, col_salvar, col_limpar = st.columns([1, 2, 1, 1])
     with col_inc:
         st.checkbox(
             "Output",
             key=f"inc_{secao_key}",
         )
-    with col_gerar:
+    with col_cmp:
         _btn_gerar_bloco(secao_key)
     with col_salvar:
         _btn_salvar_secao(secao_key, nome)

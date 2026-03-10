@@ -306,7 +306,7 @@ st.write("")
 # DIALOGS (definidos antes dos handlers que os chamam)
 # ==============================================================================
 
-@st.dialog("🔍 Gerar Bloco", width="large")
+@st.dialog("🔍 Comparar Seção", width="large")
 def _modal_gerar_bloco():
     from modules import agentes_secoes as _as
     key     = st.session_state.get("_bloco_secao_key", "")
