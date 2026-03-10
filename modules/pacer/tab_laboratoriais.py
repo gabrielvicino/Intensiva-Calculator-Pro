@@ -435,6 +435,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
                 with col:
                     if st.form_submit_button(
                         label, use_container_width=True,
+                        key=f"_btn_del_main_{slot}",
                         help=f"Apaga todos os dados desta coleta",
                     ):
                         st.session_state[f"_lab_clear_slot_{slot}"] = True
@@ -458,6 +459,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
                             if st.form_submit_button(
                                 f"Apagar {data or f'#{slot}'}",
                                 use_container_width=True,
+                                key=f"_btn_del_rest_{slot}",
                             ):
                                 st.session_state[f"_lab_clear_slot_{slot}"] = True
         else:
