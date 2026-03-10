@@ -8,16 +8,14 @@ Duas funções públicas:
 Formato aceito por parse_lab_deterministico:
 
   DD/MM/YYYY – Hb 8,8 | Ht 27% | VCM 96 | ... | Urn: Den: 1.010 / Leu Est: Neg / ...
-  externo – Hb 8,8 | Ht 27% | ...   (ou admissão, adm, admissionais, externos → slot 4)
 
-- Começa com data (DD/MM/YYYY) ou palavra-chave (admissão/adm/admissionais/externo/externos)
+- Começa com data (DD/MM/YYYY)
 - Pares Sigla Valor separados por |
 - Leuco pode ter diferencial entre parênteses
 - Urn: tem sub-pares Den: x / Leu Est: x / ...
 
 Atribuição de slot por ORDEM DE APARIÇÃO no texto:
-  Linhas com data: 1ª → slot 1, 2ª → slot 2, 3ª → slot 3, 4ª → slot 5, ... (slot 4 reservado)
-  Linhas admissão/externo: sempre slot 4 (independente da posição)
+  1ª linha → slot 1, 2ª → slot 2, 3ª → slot 3, etc. (todas iguais)
 """
 import re
 from datetime import datetime, date
@@ -34,14 +32,6 @@ def _parse_data_br(data_str: str) -> Optional[str]:
         except ValueError:
             continue
     return None
-
-
-_LAB_EXTERNO_KEYWORDS = frozenset(
-    w.lower() for w in [
-        "admissão", "admissao", "adm", "admissionais", "admissional",
-        "externo", "externos", "externa", "externas",
-    ]
-)
 
 
 # Ordem: siglas mais longas primeiro (Prot Tot antes de Prot)
@@ -101,17 +91,15 @@ def _parse_urn(resto: str) -> dict[str, str]:
     return out
 
 
-def _parse_linha_exame(linha: str) -> tuple[str, dict[str, str], int | None] | None:
+def _parse_linha_exame(linha: str) -> tuple[str, dict[str, str]] | None:
     """
-    Parseia uma linha no formato: DD/MM/YYYY – Hb 8,8 | ... ou externo – Hb 8,8 | ...
-    Retorna (prefix_str, dict de campo->valor, slot_fixo) ou None.
-    slot_fixo: None = calcular por data; 4 = forçar slot 4 (admissão/externo).
+    Parseia uma linha no formato: DD/MM/YYYY – Hb 8,8 | ...
+    Retorna (prefix_str, dict de campo->valor) ou None.
     """
     linha = linha.strip()
     if not linha:
         return None
 
-    # Formato: PREFIX – resto (PREFIX = data ou palavra-chave)
     m = re.match(r"^([^\s–\-]+(?:\s+[^\s–\-]+)?)\s*[–\-]\s*(.*)$", linha, re.DOTALL)
     if not m:
         return None
@@ -119,26 +107,17 @@ def _parse_linha_exame(linha: str) -> tuple[str, dict[str, str], int | None] | N
     prefix = m.group(1).strip()
     resto = m.group(2).strip()
 
-    # Verifica se é palavra-chave para slot 4 (admissão/externo)
-    primeira = prefix.split()[0].lower() if prefix else ""
-    if primeira in _LAB_EXTERNO_KEYWORDS:
-        data_str = prefix  # ex: "Externo" ou "Admissão"
-        slot_fixo = 4
-    else:
-        # Tenta interpretar como data
-        data_str = prefix
-        slot_fixo = None
+    data_str = prefix
     if not resto:
-        return (data_str, {}, slot_fixo)
+        return (data_str, {})
 
     resultado = {}
 
-    # Tokens separados por |
     tokens = [t.strip() for t in resto.split("|") if t.strip()]
 
     for tok in tokens:
         if tok.startswith("Urn:"):
-            urn_bloco = tok[4:].strip()  # remove "Urn:"
+            urn_bloco = tok[4:].strip()
             for k, v in _parse_urn(urn_bloco).items():
                 resultado[k] = v
             continue
@@ -146,7 +125,7 @@ def _parse_linha_exame(linha: str) -> tuple[str, dict[str, str], int | None] | N
         for campo, valor in pares:
             resultado[campo] = valor
 
-    return (data_str, resultado, slot_fixo)
+    return (data_str, resultado)
 
 
 _SLOTS_DATA_ORDEM = list(range(1, 31))
@@ -173,7 +152,7 @@ def parse_lab_deterministico(
         parsed = _parse_linha_exame(ln)
         if not parsed:
             continue
-        data_str, campos, slot_fixo = parsed
+        data_str, campos = parsed
 
         if not data_str:
             continue

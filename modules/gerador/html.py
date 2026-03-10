@@ -46,16 +46,43 @@ def gerar_html_labs() -> str:
         v = _get(f"lab_{i}_{campo}")
         return str(v).strip() if v else ""
 
-    SLOTS = [i for i in range(1, 31)
-             if any(_v(i, k) for k in ("data", "hb", "cr", "na", "tp", "plaq", "gas_ph"))]
+    def _sort_key(s):
+        d = _v(s, "data")
+        h = _v(s, "hora")
+        try:
+            p = d.split("/")
+            d_iso = f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 else ""
+        except (IndexError, ValueError):
+            d_iso = ""
+        try:
+            h_int = int(h.split(":")[0]) if ":" in h else 0
+        except (ValueError, IndexError):
+            h_int = 0
+        return (d_iso, h_int)
+
+    SLOTS = sorted(
+        [i for i in range(1, 31)
+         if any(_v(i, k) for k in ("data", "hb", "cr", "na", "tp", "plaq", "gas_ph"))],
+        key=_sort_key,
+    )
     if not SLOTS:
         return ""
 
-    _T = {1: "Hoje", 2: "Ontem", 3: "Anteontem"}
-    headers = []
+    date_groups: list[tuple[str, int]] = []
+    headers: list[str] = []
     for i in SLOTS:
         d = _v(i, "data")
-        headers.append(_fmt_data_hdr(d) if d else _T.get(i, f"S{i}"))
+        date_str = _fmt_data_hdr(d) if d else "—"
+        h = _v(i, "hora")
+        try:
+            hc = int(h.split(":")[0]) if ":" in h else None
+        except (ValueError, IndexError):
+            hc = None
+        headers.append(f"{hc:02d}h" if hc is not None else "—")
+        if date_groups and date_groups[-1][0] == date_str:
+            date_groups[-1] = (date_str, date_groups[-1][1] + 1)
+        else:
+            date_groups.append((date_str, 1))
 
     # rows: list of (label, values | None, is_sep)
     rows: list = []
@@ -155,7 +182,11 @@ def gerar_html_labs() -> str:
     if not any(not is_sep for _, _, is_sep in rows):
         return ""
 
-    return _build_html_table(headers, rows)
+    has_any_hora = any(h != "—" for h in headers)
+    return _build_html_table(
+        headers, rows,
+        date_groups=date_groups if has_any_hora else None,
+    )
 
 
 def gerar_html_controles() -> str:
@@ -235,33 +266,94 @@ def gerar_html_controles() -> str:
     return _build_html_table(headers, rows)
 
 
-def _build_html_table(headers: list, rows: list, max_height: str = "74vh") -> str:
-    """Monta string HTML de tabela comparativa a partir de headers e rows."""
+def _build_html_table(
+    headers: list, rows: list, max_height: str = "74vh",
+    date_groups: list | None = None,
+) -> str:
+    """Monta string HTML de tabela comparativa.
+
+    date_groups: lista de (date_label, colspan) para header de 2 níveis.
+    Se fornecido, a 1ª linha do header mostra datas agrupadas e a 2ª mostra horas.
+    """
     n = len(headers)
-    colgroup = f'<colgroup><col style="width:130px">{"<col>" * n}</colgroup>'
-    th = "".join(f"<th>{h}</th>" for h in headers)
+    has_dg = date_groups and len(date_groups) > 0
+    min_col = "minmax(68px,1fr)" if n > 6 else "1fr"
+    colgroup = (
+        f'<colgroup><col style="width:120px">'
+        + "".join(f'<col style="min-width:58px">' for _ in range(n))
+        + '</colgroup>'
+    )
+
+    sticky_row2 = ""
+    if has_dg:
+        sticky_row2 = (
+            ".ct thead tr:first-child th{position:sticky;top:0;z-index:3}"
+            ".ct thead tr:nth-child(2) th{position:sticky;top:28px;z-index:2}"
+        )
+
     css = (
         "<style>"
-        ".ct{border-collapse:collapse;width:100%;font-size:0.83rem;font-family:sans-serif;table-layout:fixed}"
-        ".ct th,.ct td{border:1px solid #e0e0e0;padding:4px 8px;text-align:center;"
+        ".ct{border-collapse:collapse;width:100%;font-size:0.82rem;"
+        "font-family:'Segoe UI',system-ui,sans-serif;table-layout:fixed}"
+        ".ct th,.ct td{border:1px solid #e0e0e0;padding:3px 6px;text-align:center;"
         "overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
-        ".ct th{background:#1a73e8;color:#fff;font-weight:600;position:sticky;top:0;z-index:1}"
-        ".ct td:first-child{text-align:left;font-weight:500;color:#202124;background:#f8f9fa}"
+        ".ct th{background:#1a73e8;color:#fff;font-weight:600}"
+        + (sticky_row2 if has_dg else
+           ".ct th{position:sticky;top:0;z-index:2}")
+        + ".ct td:first-child{text-align:left;font-weight:500;color:#202124;"
+        "background:#f8f9fa;position:sticky;left:0;z-index:1}"
         ".ct tr:hover td{background:#e8f0fe!important}"
         ".ct tr.sp td{background:#1a73e8;color:#fff;font-size:0.7rem;font-weight:700;"
-        "letter-spacing:.08em;text-transform:uppercase;padding:3px 8px}"
-        ".ct tr:nth-child(even):not(.sp) td:first-child{background:#f1f3f4}"
+        "letter-spacing:.08em;text-transform:uppercase;padding:3px 6px}"
+        ".ct tbody tr:nth-child(even):not(.sp) td{background:#fafbfc}"
+        ".ct tbody tr:nth-child(even):not(.sp) td:first-child{background:#f1f3f4}"
+        ".ct .dg-border{border-left:2px solid #0d47a1}"
         "</style>"
     )
+
+    if has_dg:
+        date_ths = []
+        for d, cnt in date_groups:
+            date_ths.append(
+                f'<th colspan="{cnt}" style="border-bottom:2px solid #1565c0;'
+                f'font-size:0.85rem;padding:4px 4px">{d}</th>'
+            )
+        date_th = "".join(date_ths)
+        hour_th = "".join(
+            f'<th style="font-size:0.78rem;font-weight:500;padding:2px 4px">{h}</th>'
+            for h in headers
+        )
+        thead = (
+            f'<thead>'
+            f'<tr><th rowspan="2" style="vertical-align:middle">Parâmetro</th>{date_th}</tr>'
+            f'<tr>{hour_th}</tr>'
+            f'</thead>'
+        )
+    else:
+        th = "".join(f"<th>{h}</th>" for h in headers)
+        thead = f'<thead><tr><th>Parâmetro</th>{th}</tr></thead>'
+
+    # Pré-calcular índices de coluna que abrem um novo grupo de data (borda esquerda)
+    dg_starts: set[int] = set()
+    if has_dg:
+        idx = 0
+        for i, (_, cnt) in enumerate(date_groups):
+            if i > 0:
+                dg_starts.add(idx)
+            idx += cnt
+
     parts = [css, f'<div style="overflow:auto;max-height:{max_height}">',
-             f'<table class="ct">{colgroup}<thead><tr><th>Parâmetro</th>{th}</tr></thead><tbody>']
+             f'<table class="ct">{colgroup}{thead}<tbody>']
     for lbl, vals, is_sep in rows:
         if is_sep:
             label = lbl if lbl and lbl != "─" else "&nbsp;"
             parts.append(f'<tr class="sp"><td colspan="{n+1}">{label}</td></tr>')
         else:
-            tds = "".join(f"<td>{'—' if v == '-' else v}</td>" for v in vals)
-            parts.append(f"<tr><td>{lbl}</td>{tds}</tr>")
+            tds = []
+            for ci, v in enumerate(vals):
+                cls = ' class="dg-border"' if ci in dg_starts else ""
+                tds.append(f"<td{cls}>{'—' if v == '-' else v}</td>")
+            parts.append(f'<tr><td>{lbl}</td>{"".join(tds)}</tr>')
     parts.append("</tbody></table></div>")
     return "".join(parts)
 
@@ -315,16 +407,20 @@ def gerar_html_comparativo() -> tuple[str, str]:
     ctrl_dias = [d for d in _DIAS_CTRL if _dia_tem_dado(d)]
 
     # ── 3. Cabeçalhos independentes ───────────────────────────────────────────
-    def _lab_hdr(s):
+    lab_date_groups: list[tuple[str, int]] = []
+    lab_headers: list[str] = []
+    for s in lab_slots:
         d = _fmt_data_hdr((_get(f"lab_{s}_data") or "").strip())
         h = (_get(f"lab_{s}_hora") or "").strip()
         try:
             hc = int(h.split(":")[0]) if ":" in h else None
         except (ValueError, IndexError):
             hc = None
-        return f"{d} {hc:02d}h" if hc is not None else d
-
-    lab_headers  = [_lab_hdr(s) for s in lab_slots]
+        lab_headers.append(f"{hc:02d}h" if hc is not None else "—")
+        if lab_date_groups and lab_date_groups[-1][0] == d:
+            lab_date_groups[-1] = (d, lab_date_groups[-1][1] + 1)
+        else:
+            lab_date_groups.append((d, 1))
     ctrl_headers = [_fmt_data_hdr((_get(f"ctrl_{d}_data") or "").strip()) for d in ctrl_dias]
 
     # ── 4. Linhas de labs ─────────────────────────────────────────────────────
@@ -415,8 +511,11 @@ def gerar_html_comparativo() -> tuple[str, str]:
                    ("Cet","ur_cet"),("Glic(U)","ur_glic")]: _add_l(lbl, k)
     _sep_l_set("Não Transcritos"); _add_l("Outros", "outros")
 
-    html_labs = _build_html_table(lab_headers, lab_rows, "60vh") if any(
-        not s for _, _, s in lab_rows) else ""
+    _has_hora_l = any(h != "—" for h in lab_headers)
+    html_labs = _build_html_table(
+        lab_headers, lab_rows, "60vh",
+        date_groups=lab_date_groups if _has_hora_l else None,
+    ) if any(not s for _, _, s in lab_rows) else ""
 
     # ── 5. Linhas de controles ────────────────────────────────────────────────
     _VITAIS_C = [("PAS","pas"),("PAD","pad"),("PAM","pam"),("FC","fc"),

@@ -114,6 +114,9 @@ Descarte completamente os valores mais antigos do mesmo exame.
 12. Pi (1 casa decimal)
 13. CaT (1 casa decimal)
 14. Cai (2 casas decimais)
+    ⚠️ ATENÇÃO: Para CaI, IGNORE completamente qualquer resultado cujo título/seção
+    contenha "HEMODIÁLISE" (ex: "CÁLCIO IÔNICO HEMODIÁLISE CONTÍNUA").
+    Use APENAS CaI de bioquímica convencional ou de gasometria arterial/venosa.
 
 # EXEMPLO DE SAÍDA (TEMPLATE)
 Hb 8,0 | Ht 24% | VCM 82 | HCM 27 | RDW 15 | Leuco 12.500 (Blast 0% / Mie 0% / Meta 1% / Bast 2% / Seg 68% / Linf 20% / Mon 6% / Eos 4% / Bas 0%) | Plaq 150.000 | Cr 1,2 | Ur 45 | Na 138 | K 4,0 | Mg 1,8 | Pi 3,5 | CaT 8,9 | Cai 1,01
@@ -335,7 +338,8 @@ Se o mesmo exame aparecer mais de uma vez, liste o nome apenas UMA vez
 
 # CATEGORIAS JÁ COBERTAS (IGNORE COMPLETAMENTE)
 - Hemograma / Hemato: Hb, Ht, VCM, HCM, RDW, Leucócitos (e diferencial: Seg, Bast, Linf, Mon, Eos, Bas), Plaquetas
-- Renal / Eletrólitos: Creatinina, Ureia, Sódio, Potássio, Magnésio, Fósforo, Cálcio Total, Cálcio Iônico, CaT, CaI, CaI, Pi, Mg, Na, K, Cr, Ur
+- Renal / Eletrólitos: Creatinina, Ureia, Sódio, Potássio, Magnésio, Fósforo, Cálcio Total, Cálcio Iônico, CaT, CaI, Pi, Mg, Na, K, Cr, Ur
+- Hemodiálise / CRRT (IGNORE SEMPRE, independentemente do valor): Cálcio Iônico Hemodiálise, Cálcio Iônico Hemodiálise Contínua, CÁLCIO IÔNICO HEMODIÁLISE CONTÍNUA (SANGUE), ou qualquer exame cujo título contenha a palavra "HEMODIÁLISE"
 - Hepático / Pancreático: TGP, TGO, ALT, AST, FAL, GGT, Bilirrubinas (BT, BD, BI), Proteínas Totais, Albumina, Amilase, Lipase
 - Cardio / Coag / Inflamação: CPK, CK-MB, BNP, NT-proBNP, Troponina, PCR, VHS, TP, TAP, RNI, TTPa, TTPA
 - Urina (EAS): Urina Tipo I, EAS, Elementos Anormais, Urocultura (apenas a parte do sumário/EAS)

@@ -447,12 +447,13 @@ def _secao_sistemas() -> list[str]:
     # ── RENAL ────────────────────────────────────────────────────────────────
     renal = []
 
-    diurese  = _s("sis_renal_diurese"); balanco = _s("sis_renal_balanco"); bal_ac = _s("sis_renal_balanco_acum")
+    diurese  = _s("sis_renal_diurese"); balanco = _s("sis_renal_balanco"); bal_ac = _s("sis_renal_bacum_hoje")
+    _bacum_show = st.session_state.get("sis_renal_bacum_show", False)
     _ml = lambda v: f"{v} mL" if v and "ml" not in str(v).lower() else v
     bh = [p for p in [
         f"Diurese {_ml(diurese)}" if diurese else None,
         f"BH {_ml(balanco)}" if balanco else None,
-        f"BH Acumulado {_ml(bal_ac)}" if bal_ac else None,
+        f"BH Acumulado: {_ml(bal_ac)}" if bal_ac and _bacum_show else None,
     ] if p]
     if bh: renal.append(" | ".join(bh))
 
@@ -460,6 +461,7 @@ def _secao_sistemas() -> list[str]:
     if volemia: renal.append(volemia)
 
     _renal_evo = [
+        _evo("BH Acumulado", "sis_renal_bacum", "sis_renal_bacum_show"),
         _evo("Bal. Hídrico", "sis_renal_bh",  "sis_renal_bh_show"),
         _evo("Diurese",    "sis_renal_diu", "sis_renal_diu_show"),
         _evo("Cr",         "sis_renal_cr",  "sis_renal_cr_show"),

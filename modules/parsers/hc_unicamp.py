@@ -79,7 +79,7 @@ _BIOQ_PATTERNS: list[tuple[str, str]] = [
     (r'PROTE[IÍ]NA(?:S)? TOTAIS?:\s*([\d,\.]+)',      'prot_tot'),
     (r'C[AÁ]LCIO TOTAL:\s*([\d,\.]+)',                'cat'),
     (r'C[AÁ]LCIO I[OÔ]NICO:\s*([\d,\.]+)',           'cai'),
-    (r'LACTATO[^:]*:\s*([\d,\.]+)',                    'lac'),
+    (r'LACTATO\s+S[EÉ]RICO:\s*([\d,\.]+)',             'lac'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,31 +188,27 @@ def _parse_bioq(texto: str, col: _Collector) -> None:
 
 
 def _parse_gas(texto: str, col: _Collector) -> None:
-    """Extrai bloco de gasometria (formato inline sem ':'). """
-    gas_m = re.search(
+    """Extrai TODOS os blocos de gasometria (formato inline sem ':')."""
+    for gas_m in re.finditer(
         r'(GASOMETRIA\s+(ARTERIAL|VENOSA|CAPILAR).+?)(?=LABORAT[ÓO]RIO DE PATOLOGIA|$)',
         texto, re.DOTALL | re.IGNORECASE,
-    )
-    if not gas_m:
-        return
+    ):
+        bloco = gas_m.group(1)
+        pos_base = gas_m.start()
+        tipo = gas_m.group(2).strip().capitalize()
 
-    bloco = gas_m.group(1)
-    pos_base = gas_m.start()
-    tipo = gas_m.group(2).strip().capitalize()
+        col.add(pos_base, 'gas_tipo', tipo)
 
-    col.add(pos_base, 'gas_tipo', tipo)
+        gas_hora_m = re.search(
+            r'Recebimento material:\s*\d{2}/\d{2}/\d{2,4}\s+(\d{2}:\d{2})', bloco
+        )
+        if gas_hora_m:
+            h, mi = gas_hora_m.group(1).split(":")
+            col.add(pos_base, 'gas_hora', f"{int(h):02d}h")
 
-    hora_m = re.search(r'^Método:.*$', bloco, re.MULTILINE)
-    gas_hora_m = re.search(
-        r'Recebimento material:\s*\d{2}/\d{2}/\d{2,4}\s+(\d{2}:\d{2})', bloco
-    )
-    if gas_hora_m:
-        h, mi = gas_hora_m.group(1).split(":")
-        col.add(pos_base, 'gas_hora', f"{int(h):02d}h")
-
-    for pat, field in _GAS_PATTERNS:
-        for gm in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
-            col.add(pos_base + gm.start(), field, _n(gm.group(1)))
+        for pat, field in _GAS_PATTERNS:
+            for gm in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
+                col.add(pos_base + gm.start(), field, _n(gm.group(1)))
 
 
 def _parse_hemo(texto: str, col: _Collector) -> None:

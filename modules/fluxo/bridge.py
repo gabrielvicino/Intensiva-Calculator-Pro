@@ -124,9 +124,49 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
     _set("sis_renal_diurese", _limpar(st.session_state.get("ctrl_hoje_diurese", "")))
     _set("sis_renal_balanco",  _limpar(st.session_state.get("ctrl_hoje_balanco", "")))
 
+    # 1b. BH Acumulado por slot — soma cumulativa do mais antigo para hoje
+    def _bh_num(slot_ctrl: str) -> float | None:
+        """Retorna BH do slot como número ou None se vazio/não-numérico."""
+        raw = _limpar(st.session_state.get(f"ctrl_{slot_ctrl}_balanco", ""))
+        if not raw:
+            return None
+        try:
+            return float(raw.replace(",", ".").replace("+", "").strip())
+        except ValueError:
+            return None
+
+    _bh_slots_ctrl = ["ant5", "ant4", "anteontem", "ontem", "hoje"]  # mais antigo → mais novo
+    _bh_slots_sis  = ["ant5", "ant4",  "antepen",   "ult",  "hoje"]  # sufixos sis correspondentes
+    _bh_acum: float = 0.0
+    _bh_acum_por_slot: dict = {}
+    for _ctrl_slot, _sis_slot in zip(_bh_slots_ctrl, _bh_slots_sis):
+        _v = _bh_num(_ctrl_slot)
+        if _v is not None:
+            _bh_acum += _v
+        _bh_acum_por_slot[_sis_slot] = _bh_acum if any(
+            _bh_num(s) is not None for s in _bh_slots_ctrl[:_bh_slots_ctrl.index(_ctrl_slot) + 1]
+        ) else None
+
+    def _fmt_acum(val: float | None) -> str:
+        if val is None:
+            return ""
+        sign = "+" if val >= 0 else ""
+        return f"{sign}{val:,.0f}".replace(",", ".")
+
+    for _sis_slot, _acum_val in _bh_acum_por_slot.items():
+        _formatted = _fmt_acum(_acum_val)
+        if _formatted:
+            staging[f"sis_renal_bacum_{_sis_slot}"] = _formatted
+            cnt[0] += 1
+
+    # Se tiver pelo menos 1 slot preenchido, ativa o checkbox
+    if any(_bh_acum_por_slot.values()):
+        staging["sis_renal_bacum_show"] = True
+        cnt[0] += 1
+
     # 2. Mapeamento por slots: Lab + Ctrl → Sistemas
-    #    Labs: pega os slots ativos ordenados cronologicamente (mais antigo→mais novo)
-    #    e inverte para que o ÚLTIMO (mais recente) seja mapeado como "hoje".
+    #    Cada coleta é uma posição, da mais recente para a mais antiga.
+    #    Posição 0 = hoje (mais recente), 1 = ult, 2 = antepen, etc.
     from modules.secoes.laboratoriais import get_active_slots_sorted as _get_lab_slots
     lab_slots_recentes = list(reversed(_get_lab_slots()))  # [mais_novo, ..., mais_antigo]
 
