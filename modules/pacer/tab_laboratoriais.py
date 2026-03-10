@@ -200,24 +200,22 @@ def _extrair_data_hora_texto(texto: str) -> tuple[str, str]:
 def _processar_texto_hibrido(
     texto: str, api_key: str, modelo: str, provider: str = "",
     openai_api_key: str = "",
-) -> list[dict]:
+) -> tuple[list[dict], str]:
     """
     Processa texto de laudo com fluxo híbrido:
       1. Parser HC Unicamp → se detectado
          + agente OpenAI complementar para não-transcritos
-      2. LLM fallback (7 agentes)
-    Retorna lista de coletas (dicts bare).
+      2. LLM fallback (7 agentes em paralelo)
+    Retorna (lista de coletas, caminho usado: "regex" | "ia").
     """
     from modules.parsers.hc_unicamp import parsear as _parsear_unicamp
 
     coletas = _parsear_unicamp(texto)
     if coletas:
-        # Chama agente não-transcritos em paralelo para complementar
         nao_trans = _extrair_nao_transcritos(texto, openai_api_key)
         if nao_trans:
-            # Adiciona na primeira coleta (os não-transcritos são do laudo inteiro)
             coletas[0]["outros"] = nao_trans
-        return coletas
+        return coletas, "regex"
 
     from modules.parsers.lab import parse_agentes_bare
 
@@ -233,7 +231,7 @@ def _processar_texto_hibrido(
             resultados[nome] = saida
 
     if not any(v for v in resultados.values()):
-        return []
+        return [], "ia"
 
     coleta = parse_agentes_bare(resultados)
 
@@ -249,14 +247,15 @@ def _processar_texto_hibrido(
     except (ValueError, IndexError):
         coleta["hora_cheia"] = 0
 
-    return [coleta] if any(v for k, v in coleta.items() if k not in ("data", "hora", "hora_cheia")) else []
+    result = [coleta] if any(v for k, v in coleta.items() if k not in ("data", "hora", "hora_cheia")) else []
+    return result, "ia"
 
 
 def _extrair_com_ia(
     api_key: str, modelo: str, provider: str = "",
     openai_api_key: str = "", placeholder=None,
 ) -> None:
-    """Extrai dos 4 campos de input, adiciona como coletas."""
+    """Extrai dos 4 campos de input em paralelo, adiciona como coletas."""
     textos = []
     for i in range(4):
         txt = (st.session_state.get(f"_lab_input_{i}") or "").strip()
@@ -271,37 +270,59 @@ def _extrair_com_ia(
 
     if placeholder is not None:
         with placeholder.container():
-            st.info(f"🔬 Processando {len(textos)} laudo(s)...")
+            st.info(f"🔬 Processando {len(textos)} laudo(s) em paralelo...")
+
+    # Processa todos os laudos em paralelo
+    def _processar_um(idx_texto):
+        idx, texto = idx_texto
+        coletas, caminho = _processar_texto_hibrido(
+            texto, api_key, modelo, provider, openai_api_key=openai_api_key
+        )
+        return idx, coletas, caminho
+
+    resultados_paralelos = {}
+    with ThreadPoolExecutor(max_workers=len(textos)) as ex:
+        futures = {ex.submit(_processar_um, t): t[0] for t in textos}
+        for f in as_completed(futures):
+            idx, coletas, caminho = f.result()
+            resultados_paralelos[idx] = (coletas, caminho)
+
+    if placeholder is not None:
+        placeholder.empty()
 
     n_total = 0
     erros = []
+    logs = []
 
     for idx, texto in textos:
-        coletas = _processar_texto_hibrido(
-            texto, api_key, modelo, provider, openai_api_key=openai_api_key
-        )
+        coletas, caminho = resultados_paralelos.get(idx, ([], "?"))
+        icone = "⚡" if caminho == "regex" else "🤖"
         if coletas:
+            n_coletas = 0
             for coleta in coletas:
                 slot = adicionar_coleta(coleta)
                 if slot is not None:
                     n_campos = len([v for k, v in coleta.items()
                                     if v and k not in ("data", "hora", "hora_cheia")])
                     n_total += n_campos
+                    n_coletas += 1
                 else:
                     erros.append(f"Laudo {idx + 1}: limite de {MAX_SLOTS} coletas atingido.")
+            via = "Parser regex (HC Unicamp)" if caminho == "regex" else f"IA ({modelo})"
+            logs.append(f"{icone} Laudo {idx + 1}: {n_coletas} coleta(s) via {via}")
             st.session_state.pop(f"_lab_input_{idx}", None)
             st.session_state[f"_lab_input_{idx}"] = ""
         else:
             erros.append(f"Laudo {idx + 1}: nenhum campo extraído.")
 
-    if placeholder is not None:
-        placeholder.empty()
-
     if n_total > 0:
         st.toast(f"✅ {n_total} campos extraídos!", icon="🧪")
 
+    avisos = [f"ℹ️ {lg}" for lg in logs]
     if erros:
-        st.session_state["_lab_avisos"] = [f"⚠️ {e}" for e in erros]
+        avisos += [f"⚠️ {e}" for e in erros]
+    if avisos:
+        st.session_state["_lab_avisos"] = avisos
 
 
 # ==============================================================================
