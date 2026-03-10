@@ -58,28 +58,30 @@ def _hora_cheia(hora: str) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _BIOQ_PATTERNS: list[tuple[str, str]] = [
-    (r'UR[EÉ]IA:\s*([\d,\.]+)',                        'ur'),
-    (r'CREATININA:\s*([\d,\.]+)',                       'cr'),
-    (r'S[OÓ]DIO:\s*([\d,\.]+)',                        'na'),
-    (r'POT[AÁ]SSIO:\s*([\d,\.]+)',                     'k'),
-    (r'MAGN[EÉ]SIO:\s*([\d,\.]+)',                     'mg'),
-    (r'F[OÓ]SFORO:\s*([\d,\.]+)',                      'pi'),
-    (r'PROTE[IÍ]NA C REATIVA:\s*([\d,\.]+)',           'pcr'),
-    (r'ASPARTATO AMINOTRANSFERASE:\s*(\d[\d,\.]*)',    'tgo'),
-    (r'ALANINA AMINOTRANSFERASE:\s*(\d[\d,\.]*)',      'tgp'),
-    (r'BILIRRUBINAS TOTAIS:\s*([\d,\.]+)',             'bt'),
-    (r'BILIRRUBINA DIRETA\s*:\s*([\d,\.]+)',           'bd'),
-    (r'ALBUMINA:\s*([\d,\.]+)',                         'alb'),
-    (r'DESIDROGENASE L[AÁ]C?TICA?:\s*([\d,\.]+)',     'ldh'),
-    (r'FOSFATASE ALCALINA:\s*([\d,\.]+)',              'fal'),
-    (r'GAMA[- ]?GLUTAMIL[^\n:]*:\s*([\d,\.]+)',       'ggt'),
-    (r'AMILASE:\s*([\d,\.]+)',                          'amil'),
-    (r'LIPASE:\s*([\d,\.]+)',                           'lipas'),
-    (r'TROPONINA[^\n:]*:\s*([\d,\.]+)',                'trop'),
-    (r'PROTE[IÍ]NA(?:S)? TOTAIS?:\s*([\d,\.]+)',      'prot_tot'),
-    (r'C[AÁ]LCIO TOTAL:\s*([\d,\.]+)',                'cat'),
-    (r'C[AÁ]LCIO I[OÔ]NICO:\s*([\d,\.]+)',           'cai'),
-    (r'LACTATO\s+S[EÉ]RICO:\s*([\d,\.]+)',             'lac'),
+    (r'UR[EÉ]IA:\s*([\d,\.]+)',                                'ur'),
+    (r'CREATININA:\s*([\d,\.]+)',                               'cr'),
+    (r'S[OÓ]DIO:\s*([\d,\.]+)',                                'na'),
+    (r'POT[AÁ]SSIO:\s*([\d,\.]+)',                             'k'),
+    (r'MAGN[EÉ]SIO:\s*([\d,\.]+)',                             'mg'),
+    (r'F[OÓ]SFORO:\s*([\d,\.]+)',                              'pi'),
+    (r'PROTE[IÍ]NA C REATIVA:\s*([\d,\.]+)',                   'pcr'),
+    (r'ASPARTATO AMINOTRANSFERASE:\s*(\d[\d,\.]*)',            'tgo'),
+    (r'ALANINA AMINOTRANSFERASE:\s*(\d[\d,\.]*)',              'tgp'),
+    (r'BILIRRUBINAS TOTAIS:\s*([\d,\.]+)',                     'bt'),
+    (r'BILIRRUBINA DIRETA\s*:\s*([\d,\.]+)',                   'bd'),
+    (r'ALBUMINA:\s*([\d,\.]+)',                                 'alb'),
+    (r'DESIDROGENASE L[AÁ]C?TICA?:\s*([\d,\.]+)',             'ldh'),
+    (r'\bLDH:\s*([\d,\.]+)',                                    'ldh'),
+    (r'FOSFATASE ALCALINA(?:\s+TOTAL)?:\s*([\d,\.]+)',         'fal'),
+    (r'GAMA[- ]?GLUTAMIL[^\n:]*:\s*([\d,\.]+)',               'ggt'),
+    (r'AMILASE:\s*([\d,\.]+)',                                  'amil'),
+    (r'LIPASE:\s*([\d,\.]+)',                                   'lipas'),
+    (r'TROPONINA[^\n:]*:\s*([\d,\.]+)',                        'trop'),
+    (r'PROTE[IÍ]NA(?:S)? TOTAIS?:\s*([\d,\.]+)',              'prot_tot'),
+    (r'C[AÁ]LCIO TOTAL:\s*([\d,\.]+)',                        'cat'),
+    (r'C[AÁ]LCIO I[OÔ]NICO:\s*([\d,\.]+)',                   'cai'),
+    (r'LACTATO\s+S[EÉ]RICO:\s*([\d,\.]+)',                     'lac'),
+    (r'^GLICOSE:\s*([\d,\.]+)\s*mg/dL\b',                      'glic'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -99,6 +101,8 @@ _GAS_PATTERNS: list[tuple[str, str]] = [
     (r'^CLORO\s+([\d,\.]+)',             'gas_cl'),
     (r'^SODIO\s+([\d,\.]+)',             'gas_na'),
     (r'^POTASSIO\s+([\d,\.]+)',          'gas_k'),
+    (r'^HEMOGLOBINA\s+([\d,\.]+)',        'hb'),
+    (r'^HEMATOCRITO\s+([\d,\.]+)',        'ht'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,13 +110,18 @@ _GAS_PATTERNS: list[tuple[str, str]] = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 _HEMO_PATTERNS: list[tuple[str, str]] = [
-    (r'^WBC:\s*([\d,\.]+)',   'leuco'),
-    (r'^HB:\s*([\d,\.]+)',    'hb'),
-    (r'^HT:\s*([\d,\.]+)',    'ht'),
-    (r'^VCM:\s*([\d,\.]+)',   'vcm'),
-    (r'^HCM:\s*([\d,\.]+)',   'hcm'),
-    (r'^RDW:\s*([\d,\.]+)',   'rdw'),
-    (r'^PLT:\s*([\d,\.]+)',   'plaq'),
+    (r'^WBC\s*:\s*([\d,\.]+)',   'leuco'),
+    (r'^HB\s*:\s*([\d,\.]+)',    'hb'),
+    (r'^HT\s*:\s*([\d,\.]+)',    'ht'),
+    (r'^VCM\s*:\s*([\d,\.]+)',   'vcm'),
+    (r'^HCM\s*:\s*([\d,\.]+)',   'hcm'),
+    (r'^RDW\s*:\s*([\d,\.]+)',   'rdw'),
+    (r'^PLT\s*:\s*([\d,\.]+)',   'plaq'),
+    (r'^SEG\s*:\s*([\d,\.]+)',   'seg'),
+    (r'^BAST[ÕO]ES\s*:\s*([\d,\.]+)',  'bast'),
+    (r'^LINFO\s*:\s*([\d,\.]+)', 'linfo'),
+    (r'^MONO\s*:\s*([\d,\.]+)',  'mono'),
+    (r'^EOSINO\s*:\s*([\d,\.]+)', 'eosino'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -180,11 +189,25 @@ class _Collector:
 # Seções de parsing
 # ─────────────────────────────────────────────────────────────────────────────
 
+_RE_LIQUIDO_BIOLOGICO = re.compile(
+    r'L[IÍ]QUIDO(?:S)?\s+BIOL[OÓ]GICO|L[IÍ]Q(?:UIDO)?\.\s*ASC[IÍ]TICO|'
+    r'Material\s+LIQUIDO\s+DE\s+ASCITE|Material\s+LIQUIDO\s+PLEURAL',
+    re.IGNORECASE,
+)
+
+
 def _parse_bioq(texto: str, col: _Collector) -> None:
-    """Extrai exames bioquímicos (formato NOME: VALOR)."""
+    """Extrai exames bioquímicos (formato NOME: VALOR).
+    Ignora seções de Líquidos Biológicos (ascítico, pleural)."""
+    liq_ranges = [(m.start(), m.start() + 3000) for m in _RE_LIQUIDO_BIOLOGICO.finditer(texto)]
+
+    def _in_liquido(pos: int) -> bool:
+        return any(s <= pos <= e for s, e in liq_ranges)
+
     for pat, field in _BIOQ_PATTERNS:
-        for m in re.finditer(pat, texto, re.IGNORECASE):
-            col.add(m.start(), field, _n(m.group(1)))
+        for m in re.finditer(pat, texto, re.IGNORECASE | re.MULTILINE):
+            if not _in_liquido(m.start()):
+                col.add(m.start(), field, _n(m.group(1)))
 
 
 def _parse_gas(texto: str, col: _Collector) -> None:
@@ -212,20 +235,17 @@ def _parse_gas(texto: str, col: _Collector) -> None:
 
 
 def _parse_hemo(texto: str, col: _Collector) -> None:
-    """Extrai hemograma do bloco GLOBAIS."""
-    hemo_m = re.search(
-        r'(GLOBAIS:.+?)(?=LABORAT[ÓO]RIO DE PATOLOGIA|$)',
+    """Extrai hemograma — aceita GLOBAIS: ou HEMOGRAMA COMPLETO :"""
+    for hemo_m in re.finditer(
+        r'((?:GLOBAIS|HEMOGRAMA\s+COMPLETO)\s*:.+?)(?=LABORAT[ÓO]RIO DE PATOLOGIA|$)',
         texto, re.DOTALL | re.IGNORECASE,
-    )
-    if not hemo_m:
-        return
+    ):
+        bloco = hemo_m.group(1)
+        pos_base = hemo_m.start()
 
-    bloco = hemo_m.group(1)
-    pos_base = hemo_m.start()
-
-    for pat, field in _HEMO_PATTERNS:
-        for hm in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
-            col.add(pos_base + hm.start(), field, _n(hm.group(1)))
+        for pat, field in _HEMO_PATTERNS:
+            for hm in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
+                col.add(pos_base + hm.start(), field, _n(hm.group(1)))
 
 
 def _parse_coag(texto: str, col: _Collector) -> None:
