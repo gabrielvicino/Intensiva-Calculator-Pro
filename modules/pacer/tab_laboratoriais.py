@@ -289,6 +289,7 @@ def _extrair_com_ia(
                     n_total += n_campos
                 else:
                     erros.append(f"Laudo {idx + 1}: limite de {MAX_SLOTS} coletas atingido.")
+            st.session_state.pop(f"_lab_input_{idx}", None)
             st.session_state[f"_lab_input_{idx}"] = ""
         else:
             erros.append(f"Laudo {idx + 1}: nenhum campo extraído.")
