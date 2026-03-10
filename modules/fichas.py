@@ -272,8 +272,6 @@ def _campos_base() -> dict:
         'inc_culturas':        True,
         'inc_antibioticos':    True,
         'inc_complementares':  True,
-        'inc_laboratoriais':   True,
-        'inc_controles':       True,
         'inc_evolucao':        True,
         'inc_sistemas':        True,
         'inc_prescricao':      True,
@@ -646,21 +644,6 @@ def render_formulario_completo():
             + "</div>",
             unsafe_allow_html=True,
         )
-
-        # ── Incluir Laboratoriais e Controles na saída ──────────────────────
-        _c_inc_l, _c_inc_c = st.columns(2)
-        with _c_inc_l:
-            st.checkbox(
-                "Incluir Laboratoriais na saída",
-                key="inc_laboratoriais",
-                help="Quando desmarcado, a seção Laboratoriais não aparece no Prontuário Completo",
-            )
-        with _c_inc_c:
-            st.checkbox(
-                "Incluir Controles & BH na saída",
-                key="inc_controles",
-                help="Quando desmarcado, a seção Controles & BH não aparece no Prontuário Completo",
-            )
 
         st.divider()
         # ── 13. Evolução Clínica ────────────────────────────────────────────
