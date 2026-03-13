@@ -277,55 +277,36 @@ def _auditar_deterministico(texto: str, coletas: list[dict]) -> list[str]:
 # Fragment assíncrono — auditoria GPT (não bloqueia a tabela principal)
 # ==============================================================================
 
-@st.fragment
-def _fragment_auditoria_gpt(openai_api_key: str) -> None:
-    """Executa auditoria GPT-4o-mini de forma independente da tabela principal.
-
-    Fase A (1º render do fragment): mostra indicador visual e dispara re-run do fragment.
-    Fase B (2º render do fragment): executa GPT, atualiza session_state, re-roda a app.
-    O resultado: tabela aparece imediatamente após o parser; auditoria atualiza
-    apenas a área do fragment, sem bloquear o render principal.
-    """
+def _executar_auditoria_gpt(openai_api_key: str) -> None:
+    """Executa auditoria GPT-4o-mini se houver pendências."""
     if "_lab_auditoria_pendente" not in st.session_state:
         return
 
-    if not st.session_state.get("_lab_auditoria_fase2"):
-        st.session_state["_lab_auditoria_fase2"] = True
-        st.caption("🤖 Auditando laudos (GPT-4o-mini)...")
-        st.rerun(scope="fragment")
-        return
-
-    # Fase B — executa GPT audit
-    pending = st.session_state["_lab_auditoria_pendente"]
+    pending = st.session_state.pop("_lab_auditoria_pendente")
+    st.session_state.pop("_lab_auditoria_fase2", None)
     logs_gpt: list[str] = []
 
-    with st.spinner("🤖 Auditando laudos (GPT-4o-mini)..."):
-        with ThreadPoolExecutor(max_workers=max(len(pending), 1)) as ex:
-            futs = {
-                ex.submit(_auditar_laudo_gpt, txt, colts, openai_api_key): (slot, idx)
-                for idx, txt, slot, colts in pending
-            }
-            for f in as_completed(futs):
-                slot, idx_text = futs[f]
-                try:
-                    nao_trans, cobertos = f.result()
-                    if nao_trans:
-                        st.session_state[f"lab_{slot}_outros"] = nao_trans
-                    if cobertos:
-                        logs_gpt.append(
-                            f"🔍 Laudo {idx_text + 1}: GPT — verificar: {', '.join(cobertos)}"
-                        )
-                except Exception:
-                    pass
-
-    st.session_state.pop("_lab_auditoria_pendente", None)
-    st.session_state.pop("_lab_auditoria_fase2", None)
+    with ThreadPoolExecutor(max_workers=max(len(pending), 1)) as ex:
+        futs = {
+            ex.submit(_auditar_laudo_gpt, txt, colts, openai_api_key): (slot, idx)
+            for idx, txt, slot, colts in pending
+        }
+        for f in as_completed(futs):
+            slot, idx_text = futs[f]
+            try:
+                nao_trans, cobertos = f.result()
+                if nao_trans:
+                    st.session_state[f"lab_{slot}_outros"] = nao_trans
+                if cobertos:
+                    logs_gpt.append(
+                        f"🔍 Laudo {idx_text + 1}: GPT — verificar: {', '.join(cobertos)}"
+                    )
+            except Exception:
+                pass
 
     if logs_gpt:
         existing = st.session_state.get("_lab_avisos", [])
         st.session_state["_lab_avisos"] = existing + [f"ℹ️ {lg}" for lg in logs_gpt]
-
-    st.rerun(scope="app")
 
 
 # ==============================================================================
@@ -568,8 +549,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
     _fragment_prontuario()
     _confirmar_novo_prontuario()
 
-    # ── Auditoria GPT assíncrona (roda independentemente da tabela) ─────────
-    _fragment_auditoria_gpt(openai_api_key=openai_api_key)
+    # ── Auditoria GPT (processa pendências do ciclo anterior) ───────────
+    _executar_auditoria_gpt(openai_api_key=openai_api_key)
 
     st.write("")
     prontuario = st.session_state.get("prontuario", "").strip()

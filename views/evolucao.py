@@ -466,6 +466,21 @@ def _modal_comparar_labs():
             st.info("Nenhum dado de controles preenchido.")
 
 
+@st.dialog("🗑️ Confirmar limpeza", width="small")
+def _modal_limpar_tudo():
+    st.warning("Isso limpará os dados **não salvos** do formulário. Tem certeza?")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Sim, limpar tudo", type="primary", use_container_width=True):
+            fluxo.limpar_tudo()
+            st.session_state.pop("_limpar_confirmar_pendente", None)
+            st.rerun()
+    with col2:
+        if st.button("Cancelar", use_container_width=True):
+            st.session_state.pop("_limpar_confirmar_pendente", None)
+            st.rerun()
+
+
 @st.dialog("🔍 Comparar Prontuário", width="large")
 def _modal_comparar():
     original = st.session_state.get("texto_bruto_original", "").strip()
@@ -602,6 +617,9 @@ with col_salvar:
                 st.success(f"✅ Evolução salva com sucesso! Prontuário: {prontuario}")
 
 with col_limpar:
-    st.button("🗑️ Limpar Tudo", on_click=fluxo.limpar_tudo, use_container_width=True)
+    if st.button("🗑️ Limpar Tudo", use_container_width=True, help="Limpa todos os dados do formulário"):
+        st.session_state["_limpar_confirmar_pendente"] = True
+    if st.session_state.get("_limpar_confirmar_pendente"):
+        _modal_limpar_tudo()
 
 mostrar_rodape()
