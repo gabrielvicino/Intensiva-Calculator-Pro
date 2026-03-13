@@ -4,43 +4,29 @@ import streamlit as st
 import pandas as pd
 import json
 from datetime import datetime
+from pathlib import Path
 from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
+
+# Carrega .env antes de qualquer acesso a variáveis de ambiente
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=False)
+except ImportError:
+    pass
 
 # ── Conexão PostgreSQL (Supabase direto) ──────────────────────────────────────
 
 def _get_supabase_url() -> str:
-    """Lê SUPABASE_DB_URL de st.secrets, variável de ambiente ou secrets.toml direto."""
-    # 1. st.secrets
+    """Lê SUPABASE_DB_URL de st.secrets ou variável de ambiente (.env já carregado no topo)."""
+    # 1. st.secrets (Streamlit Cloud ou secrets.toml local)
     try:
         val = st.secrets["SUPABASE_DB_URL"]
         if val:
             return str(val)
     except Exception:
         pass
-
-    # 2. Variável de ambiente
-    val = os.getenv("SUPABASE_DB_URL", "")
-    if val:
-        return val
-
-    # 3. Leitura direta do secrets.toml (fallback para casos de cache/path)
-    try:
-        from pathlib import Path
-        for base in (Path(__file__).parent, Path.cwd()):
-            p = base / ".streamlit" / "secrets.toml"
-            if p.exists():
-                text = p.read_text(encoding="utf-8")
-                for line in text.splitlines():
-                    line = line.strip()
-                    if line.startswith("SUPABASE_DB_URL"):
-                        _, _, v = line.partition("=")
-                        v = v.strip().strip('"').strip("'")
-                        if v:
-                            return v
-    except Exception:
-        pass
-
-    return ""
+    # 2. Variável de ambiente / .env (carregado via load_dotenv no topo do módulo)
+    return os.getenv("SUPABASE_DB_URL", "")
 
 
 def _get_conn():
