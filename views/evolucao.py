@@ -99,6 +99,20 @@ def _aplicar_dados_prontuario(dados: dict, silencioso: bool = False) -> bool:
 
 @st.fragment
 def _fragment_busca():
+    # Fase 2 — executa a busca com spinner visível (após rerun do fragment)
+    if st.session_state.get("_busca_loading"):
+        busca = st.session_state.pop("_busca_loading")
+        with st.spinner(f"🔍 Buscando prontuário {busca}..."):
+            dados = load_evolucao(busca)
+        if dados is not None:
+            _aplicar_dados_prontuario(dados)
+            st.rerun()
+        else:
+            st.session_state["_busca_pendente_criar"] = busca
+            st.rerun()
+        return
+
+    # Fase 1 — exibe o formulário normalmente
     with st.form(key="form_busca_paciente"):
         c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
         with c_input:
@@ -109,7 +123,7 @@ def _fragment_busca():
             )
         with c_btn:
             btn_buscar = st.form_submit_button(
-                "Buscar", use_container_width=True, type="primary"
+                "🔍 Buscar", use_container_width=True, type="primary"
             )
 
         busca = busca_input.strip() if busca_input else ""
@@ -117,14 +131,8 @@ def _fragment_busca():
             if not busca:
                 st.warning("Informe o número do prontuário para continuar.")
             else:
-                with st.spinner("Consultando banco de dados..."):
-                    dados = load_evolucao(busca)
-                if dados is not None:
-                    _aplicar_dados_prontuario(dados)
-                    st.rerun()
-                else:
-                    st.session_state["_busca_pendente_criar"] = busca
-                    st.rerun()
+                st.session_state["_busca_loading"] = busca
+                st.rerun(scope="fragment")
 
 _fragment_busca()
 
@@ -135,7 +143,8 @@ if (_pront_autoload
         and not st.session_state.get("nome", "").strip()
         and not st.session_state.get("_autoload_feito")):
     st.session_state["_autoload_feito"] = True
-    _dados_auto = load_evolucao(_pront_autoload)
+    with st.spinner(f"🔍 Carregando prontuário {_pront_autoload}..."):
+        _dados_auto = load_evolucao(_pront_autoload)
     if _dados_auto and _aplicar_dados_prontuario(_dados_auto, silencioso=True):
         st.rerun()
 

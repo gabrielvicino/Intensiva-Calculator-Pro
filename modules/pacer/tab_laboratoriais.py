@@ -43,6 +43,20 @@ def _fragment_prontuario() -> None:
         st.session_state["_lab_pront_input"] = _pront_atual
         st.session_state["_lab_pront_last_sync"] = _pront_atual
 
+    # Fase 2 — executa a busca com spinner visível (após rerun do fragment)
+    if st.session_state.get("_lab_busca_loading"):
+        busca = st.session_state.pop("_lab_busca_loading")
+        with st.spinner(f"🔍 Buscando prontuário {busca}..."):
+            dados = load_evolucao(busca)
+        if dados is not None:
+            _aplicar_dados_prontuario(dados, fichas)
+            st.rerun()
+        else:
+            st.session_state["_lab_pront_pendente"] = busca
+            st.rerun()
+        return
+
+    # Fase 1 — exibe o formulário normalmente
     with st.form(key="form_busca_lab"):
         c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
         with c_input:
@@ -53,7 +67,7 @@ def _fragment_prontuario() -> None:
             )
         with c_btn:
             btn_buscar = st.form_submit_button(
-                "Buscar", use_container_width=True, type="primary"
+                "🔍 Buscar", use_container_width=True, type="primary"
             )
 
         busca = busca_input.strip() if busca_input else ""
@@ -61,14 +75,8 @@ def _fragment_prontuario() -> None:
             if not busca:
                 st.warning("Informe o número do prontuário.")
             else:
-                with st.spinner("Consultando banco de dados..."):
-                    dados = load_evolucao(busca)
-                if dados is not None:
-                    _aplicar_dados_prontuario(dados, fichas)
-                    st.rerun()
-                else:
-                    st.session_state["_lab_pront_pendente"] = busca
-                    st.rerun()
+                st.session_state["_lab_busca_loading"] = busca
+                st.rerun(scope="fragment")
 
 
 def _aplicar_dados_prontuario(dados: dict, fichas_mod) -> None:
