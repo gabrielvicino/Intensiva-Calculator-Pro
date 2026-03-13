@@ -7,38 +7,75 @@ from datetime import datetime
 from pathlib import Path
 from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 
-# Carrega .env antes de qualquer acesso a variáveis de ambiente
+_PROJECT_DIR = Path(__file__).resolve().parent
 try:
     from dotenv import load_dotenv
-    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=False)
+    load_dotenv(dotenv_path=_PROJECT_DIR / ".env", override=False)
 except ImportError:
     pass
 
-# ── Conexão PostgreSQL (Supabase direto) ──────────────────────────────────────
+# ── Supabase (via SDK HTTPS — sem psycopg2, sem problemas de porta/IPv4) ─────
 
-def _get_supabase_url() -> str:
-    """Lê SUPABASE_DB_URL de st.secrets ou variável de ambiente (.env já carregado no topo)."""
-    # 1. st.secrets (Streamlit Cloud ou secrets.toml local)
+_SB_CLIENT = None
+
+
+def _read_key_from_file(filepath: Path, key: str) -> str:
+    """Lê uma chave de um arquivo .env ou .toml linha por linha."""
     try:
-        val = st.secrets["SUPABASE_DB_URL"]
+        if not filepath.exists():
+            return ""
+        for line in filepath.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if s.startswith("#") or "=" not in s:
+                continue
+            k, _, v = s.partition("=")
+            if k.strip().strip('"').strip("'") == key:
+                return v.strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return ""
+
+
+def _resolve_key(key: str) -> str:
+    """Resolve uma chave de configuração: st.secrets → os.getenv → .env → secrets.toml."""
+    try:
+        val = st.secrets[key]
         if val:
             return str(val)
     except Exception:
         pass
-    # 2. Variável de ambiente / .env (carregado via load_dotenv no topo do módulo)
-    return os.getenv("SUPABASE_DB_URL", "")
+    val = os.getenv(key, "")
+    if val:
+        return val
+    val = _read_key_from_file(_PROJECT_DIR / ".env", key)
+    if val:
+        return val
+    val = _read_key_from_file(_PROJECT_DIR / ".streamlit" / "secrets.toml", key)
+    return val
 
 
-def _get_conn():
-    """Retorna conexão psycopg2 ao Supabase."""
-    import psycopg2
-    url = _get_supabase_url()
-    if not url:
-        raise RuntimeError("SUPABASE_DB_URL não configurada em secrets.toml")
-    return psycopg2.connect(url, connect_timeout=10)
+def _get_sb():
+    """Retorna cliente Supabase (singleton). Usa SUPABASE_URL + SUPABASE_KEY."""
+    global _SB_CLIENT
+    if _SB_CLIENT is not None:
+        return _SB_CLIENT
+
+    from supabase import create_client
+
+    url = _resolve_key("SUPABASE_URL")
+    key = _resolve_key("SUPABASE_KEY")
+
+    if not url or not key:
+        raise RuntimeError(
+            "SUPABASE_URL e/ou SUPABASE_KEY não configuradas. "
+            "Defina em .env ou .streamlit/secrets.toml"
+        )
+
+    _SB_CLIENT = create_client(url, key)
+    return _SB_CLIENT
 
 
-# ── Helpers de serialização ───────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _limpar_dados(dados: dict) -> dict:
     """Remove chaves com valores vazios — armazena apenas campos preenchidos."""
@@ -51,10 +88,9 @@ def _limpar_dados(dados: dict) -> dict:
 # ── Rate Limiting ──────────────────────────────────────────────────────────────
 
 def _rate_config() -> tuple[int, int]:
-    """Lê limites de st.secrets ou usa defaults: (max_calls, janela_minutos)."""
     try:
-        max_calls  = int(st.secrets.get("RATE_MAX_CALLS",  15))
-        janela_min = int(st.secrets.get("RATE_JANELA_MIN",  8))
+        max_calls = int(_resolve_key("RATE_MAX_CALLS") or 15)
+        janela_min = int(_resolve_key("RATE_JANELA_MIN") or 8)
         return max_calls, janela_min
     except Exception:
         return 15, 8
@@ -78,9 +114,9 @@ def verificar_rate_limit() -> tuple[bool, str]:
 
     if contagem >= max_calls:
         mais_antigo = st.session_state["_rate_timestamps"][0]
-        restante    = int(janela_seg - (agora - mais_antigo))
-        minutos     = restante // 60
-        segundos    = restante % 60
+        restante = int(janela_seg - (agora - mais_antigo))
+        minutos = restante // 60
+        segundos = restante % 60
         return False, (
             f"Limite de {max_calls} chamadas por {janela_min} min atingido. "
             f"Aguarde {minutos}m {segundos}s antes de nova chamada à IA."
@@ -95,7 +131,6 @@ def uso_rate_limit() -> tuple[int, int, int]:
     max_calls, janela_min = _rate_config()
     janela_seg = janela_min * 60
     agora = time.time()
-
     timestamps = [
         t for t in st.session_state.get("_rate_timestamps", [])
         if agora - t < janela_seg
@@ -107,55 +142,34 @@ def uso_rate_limit() -> tuple[int, int, int]:
 
 def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
     """Carrega chave de API dos secrets do Streamlit ou variável de ambiente."""
-    try:
-        if hasattr(st, "secrets") and nome_secret in st.secrets:
-            return st.secrets[nome_secret]
-    except Exception:
-        pass
-    return os.getenv(nome_env, "")
+    return _resolve_key(nome_secret) or _resolve_key(nome_env) or ""
 
 
-# ── Evoluções — save / load ───────────────────────────────────────────────────
+# ── Evoluções — save / load (Supabase REST API) ──────────────────────────────
 
 def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
     """
-    Salva evolução no Supabase (PostgreSQL).
-    - Tabela `evolucoes`: upsert — mantém sempre o estado mais recente.
-    - Tabela `evolucoes_historico`: append — preserva histórico completo.
-    Apenas campos não-vazios são armazenados (compacto, sem gzip).
+    Salva evolução no Supabase via REST.
+    - Tabela `evolucoes`: upsert (mantém estado mais recente).
+    - Tabela `evolucoes_historico`: append (preserva histórico completo).
     """
-    pront      = str(prontuario).strip().replace(".0", "")
-    nome_      = str(nome).strip()
-    data_hora  = datetime.now().strftime("%d/%m/%Y %H:%M")
+    pront = str(prontuario).strip().replace(".0", "")
+    nome_ = str(nome).strip()
+    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
     dados_limpos = _limpar_dados(dados)
-    dados_json   = json.dumps(dados_limpos, ensure_ascii=False, default=str)
 
     try:
-        conn = _get_conn()
-        with conn:
-            with conn.cursor() as cur:
-                # Upsert na tabela principal
-                cur.execute(
-                    """
-                    INSERT INTO evolucoes (prontuario, nome, dados, atualizado)
-                    VALUES (%s, %s, %s::jsonb, now())
-                    ON CONFLICT (prontuario)
-                    DO UPDATE SET
-                        nome      = EXCLUDED.nome,
-                        dados     = EXCLUDED.dados,
-                        atualizado = now()
-                    """,
-                    (pront, nome_, dados_json),
-                )
-                # Append no histórico
-                cur.execute(
-                    """
-                    INSERT INTO evolucoes_historico (prontuario, dados, salvo_em)
-                    VALUES (%s, %s::jsonb, now())
-                    """,
-                    (pront, dados_json),
-                )
-        conn.close()
+        sb = _get_sb()
+        sb.table("evolucoes").upsert({
+            "prontuario": pront,
+            "nome": nome_,
+            "dados": dados_limpos,
+            "atualizado": datetime.now().isoformat(),
+        }).execute()
+        sb.table("evolucoes_historico").insert({
+            "prontuario": pront,
+            "dados": dados_limpos,
+        }).execute()
         return True
     except Exception as e:
         st.error(f"❌ Erro ao salvar no banco: {e}")
@@ -163,31 +177,30 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
 
 
 def load_evolucao(prontuario: str) -> dict | None:
-    """
-    Carrega o estado mais recente de um paciente.
-    Retorna dict com todos os campos, ou None se não encontrado.
-    O campo '_data_hora' indica quando foi salvo.
-    """
+    """Carrega o estado mais recente de um paciente."""
     pront = str(prontuario).strip().replace(".0", "")
     try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT dados, atualizado FROM evolucoes WHERE prontuario = %s",
-                (pront,),
-            )
-            row = cur.fetchone()
-        conn.close()
-
-        if row is None:
-            return None
-
-        dados = row[0] if isinstance(row[0], dict) else json.loads(row[0])
-        dados["_data_hora"] = (
-            row[1].strftime("%d/%m/%Y %H:%M") if hasattr(row[1], "strftime") else str(row[1])
+        sb = _get_sb()
+        resp = (
+            sb.table("evolucoes")
+            .select("dados, atualizado")
+            .eq("prontuario", pront)
+            .maybe_single()
+            .execute()
         )
+        if not resp.data:
+            return None
+        row = resp.data
+        dados = row["dados"] if isinstance(row["dados"], dict) else json.loads(row["dados"])
+        atualizado = row.get("atualizado", "")
+        if atualizado and "T" in str(atualizado):
+            try:
+                dt = datetime.fromisoformat(str(atualizado).replace("Z", "+00:00"))
+                atualizado = dt.strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                pass
+        dados["_data_hora"] = str(atualizado)
         return dados
-
     except Exception as e:
         st.error(f"❌ Erro ao buscar no banco: {e}")
         return None
@@ -197,35 +210,28 @@ def check_evolucao_exists(prontuario: str) -> bool:
     """Verifica se já existe registro para o prontuário."""
     pront = str(prontuario).strip().replace(".0", "")
     try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM evolucoes WHERE prontuario = %s LIMIT 1",
-                (pront,),
-            )
-            exists = cur.fetchone() is not None
-        conn.close()
-        return exists
+        sb = _get_sb()
+        resp = (
+            sb.table("evolucoes")
+            .select("prontuario")
+            .eq("prontuario", pront)
+            .limit(1)
+            .execute()
+        )
+        return bool(resp.data)
     except Exception:
         return False
 
 
-# ── Supabase — dados de referência (IOT e Infusão) ───────────────────────────
+# ── Dados de referência (IOT e Infusão) via Supabase REST ────────────────────
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_db_iot() -> pd.DataFrame:
     """Carrega tabela db_iot do Supabase com cache de 1 hora."""
     try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT nome_formatado, conc, dose_min, dose_hab, dose_max "
-                "FROM db_iot ORDER BY id"
-            )
-            rows = cur.fetchall()
-            cols = ["nome_formatado", "conc", "dose_min", "dose_hab", "dose_max"]
-        conn.close()
-        return pd.DataFrame(rows, columns=cols)
+        sb = _get_sb()
+        resp = sb.table("db_iot").select("nome_formatado, conc, dose_min, dose_hab, dose_max").execute()
+        return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
     except Exception as e:
         st.error(f"❌ Erro ao carregar DB_IOT: {e}")
         return pd.DataFrame()
@@ -235,21 +241,12 @@ def load_db_iot() -> pd.DataFrame:
 def load_db_infusao() -> pd.DataFrame:
     """Carrega tabela db_infusao do Supabase com cache de 1 hora."""
     try:
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT nome_formatado, mg_amp, vol_amp, dose_min, dose_max_hab, "
-                "       dose_max_tol, unidade, qtd_amp_padrao, diluente_padrao "
-                "FROM db_infusao ORDER BY id"
-            )
-            rows = cur.fetchall()
-            cols = [
-                "nome_formatado", "mg_amp", "vol_amp", "dose_min",
-                "dose_max_hab", "dose_max_tol", "unidade",
-                "qtd_amp_padrao", "diluente_padrao",
-            ]
-        conn.close()
-        return pd.DataFrame(rows, columns=cols)
+        sb = _get_sb()
+        resp = sb.table("db_infusao").select(
+            "nome_formatado, mg_amp, vol_amp, dose_min, dose_max_hab, "
+            "dose_max_tol, unidade, qtd_amp_padrao, diluente_padrao"
+        ).execute()
+        return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
     except Exception as e:
         st.error(f"❌ Erro ao carregar DB_INFUSAO: {e}")
         return pd.DataFrame()
@@ -313,7 +310,7 @@ def save_data_append(worksheet_name, new_data_row):
             existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
 
         qtd_planilha = len(existing_data.columns)
-        qtd_codigo   = len(new_data_row)
+        qtd_codigo = len(new_data_row)
 
         if qtd_codigo != qtd_planilha:
             st.error(
@@ -322,8 +319,8 @@ def save_data_append(worksheet_name, new_data_row):
             )
             return False
 
-        new_df   = pd.DataFrame([new_data_row], columns=existing_data.columns)
-        updated  = pd.concat([existing_data, new_df], ignore_index=True)
+        new_df = pd.DataFrame([new_data_row], columns=existing_data.columns)
+        updated = pd.concat([existing_data, new_df], ignore_index=True)
         conn = st.connection("gsheets", type=GSheetsConnection)
         conn.update(spreadsheet=SHEET_URL, worksheet=worksheet_name, data=updated)
         return True
