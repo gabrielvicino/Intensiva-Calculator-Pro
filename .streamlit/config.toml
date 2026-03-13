@@ -7,10 +7,13 @@ enableXsrfProtection = false
 enableCORS = false
 # Mantém a conexão WebSocket ativa
 enableWebsocketCompression = false
-# Aumenta timeout da sessão (em segundos)
+# Aumenta limite de upload e mensagem
 maxUploadSize = 200
+maxMessageSize = 200
 # Porta padrão
 port = 8501
+# Modo headless (necessário para cloud)
+headless = true
 
 # ===================================
 # CONFIGURAÇÕES DE CLIENTE/BROWSER
