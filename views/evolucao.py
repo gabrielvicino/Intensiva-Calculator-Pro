@@ -97,42 +97,46 @@ def _aplicar_dados_prontuario(dados: dict, silencioso: bool = False) -> bool:
     return True
 
 
+def _on_buscar_click():
+    """Callback executado ANTES do rerun — garante resposta imediata do botão."""
+    busca = st.session_state.get("busca_input_field", "").strip()
+    if busca:
+        st.session_state["_busca_loading"] = busca
+
+
 @st.fragment
 def _fragment_busca():
-    # Fase 2 — executa a busca com spinner visível (após rerun do fragment)
+    # Fase 2 — executa a busca com spinner visível
     if st.session_state.get("_busca_loading"):
         busca = st.session_state.pop("_busca_loading")
         with st.spinner(f"🔍 Buscando prontuário {busca}..."):
+            st.session_state.pop("_db_error", None)
             dados = load_evolucao(busca)
         if dados is not None:
             _aplicar_dados_prontuario(dados)
             st.rerun()
+        elif st.session_state.pop("_db_error", False):
+            return
         else:
             st.session_state["_busca_pendente_criar"] = busca
             st.rerun()
         return
 
-    # Fase 1 — exibe o formulário normalmente
     with st.form(key="form_busca_paciente"):
         c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
         with c_input:
-            busca_input = st.text_input(
+            st.text_input(
                 "Número do Prontuário",
                 placeholder="Ex.: 1234567",
                 key="busca_input_field",
             )
         with c_btn:
-            btn_buscar = st.form_submit_button(
-                "🔍 Buscar", use_container_width=True, type="primary"
+            st.form_submit_button(
+                "🔍 Buscar",
+                use_container_width=True,
+                type="primary",
+                on_click=_on_buscar_click,
             )
-
-        busca = busca_input.strip() if busca_input else ""
-        if btn_buscar:
-            if not busca:
-                st.warning("Informe o número do prontuário para continuar.")
-            else:
-                st.session_state["_busca_loading"] = busca
-                st.rerun(scope="fragment")
 
 _fragment_busca()
 

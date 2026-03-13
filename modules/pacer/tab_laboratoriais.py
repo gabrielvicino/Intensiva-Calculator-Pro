@@ -32,6 +32,13 @@ _COLS_VISIVEL = 6
 # Prontuário — busca e salvamento (espelho da Evolução Diária)
 # ==============================================================================
 
+def _on_lab_buscar_click():
+    """Callback executado ANTES do rerun — garante resposta imediata."""
+    busca = st.session_state.get("_lab_pront_input", "").strip()
+    if busca:
+        st.session_state["_lab_busca_loading"] = busca
+
+
 @st.fragment
 def _fragment_prontuario() -> None:
     from utils import load_evolucao
@@ -43,40 +50,36 @@ def _fragment_prontuario() -> None:
         st.session_state["_lab_pront_input"] = _pront_atual
         st.session_state["_lab_pront_last_sync"] = _pront_atual
 
-    # Fase 2 — executa a busca com spinner visível (após rerun do fragment)
     if st.session_state.get("_lab_busca_loading"):
         busca = st.session_state.pop("_lab_busca_loading")
         with st.spinner(f"🔍 Buscando prontuário {busca}..."):
+            st.session_state.pop("_db_error", None)
             dados = load_evolucao(busca)
         if dados is not None:
             _aplicar_dados_prontuario(dados, fichas)
             st.rerun()
+        elif st.session_state.pop("_db_error", False):
+            return
         else:
             st.session_state["_lab_pront_pendente"] = busca
             st.rerun()
         return
 
-    # Fase 1 — exibe o formulário normalmente
     with st.form(key="form_busca_lab"):
         c_input, c_btn = st.columns([5, 1], vertical_alignment="bottom")
         with c_input:
-            busca_input = st.text_input(
+            st.text_input(
                 "Número do Prontuário",
                 placeholder="Ex.: 1234567",
                 key="_lab_pront_input",
             )
         with c_btn:
-            btn_buscar = st.form_submit_button(
-                "🔍 Buscar", use_container_width=True, type="primary"
+            st.form_submit_button(
+                "🔍 Buscar",
+                use_container_width=True,
+                type="primary",
+                on_click=_on_lab_buscar_click,
             )
-
-        busca = busca_input.strip() if busca_input else ""
-        if btn_buscar:
-            if not busca:
-                st.warning("Informe o número do prontuário.")
-            else:
-                st.session_state["_lab_busca_loading"] = busca
-                st.rerun(scope="fragment")
 
 
 def _aplicar_dados_prontuario(dados: dict, fichas_mod) -> None:

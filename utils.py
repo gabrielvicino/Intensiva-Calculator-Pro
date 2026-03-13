@@ -180,11 +180,12 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
         return True
     except Exception as e:
         st.error(f"❌ Erro ao salvar no banco: {e}")
+        st.session_state["_db_error"] = True
         return False
 
 
 def load_evolucao(prontuario: str) -> dict | None:
-    """Carrega o estado mais recente de um paciente."""
+    """Carrega o estado mais recente de um paciente. Retorna None se não encontrado."""
     pront = str(prontuario).strip().replace(".0", "")
     try:
         sb = _get_sb()
@@ -210,6 +211,7 @@ def load_evolucao(prontuario: str) -> dict | None:
         return dados
     except Exception as e:
         st.error(f"❌ Erro ao buscar no banco: {e}")
+        st.session_state["_db_error"] = True
         return None
 
 
