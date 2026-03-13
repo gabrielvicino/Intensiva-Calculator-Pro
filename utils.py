@@ -8,16 +8,48 @@ from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 
 # ── Conexão PostgreSQL (Supabase direto) ──────────────────────────────────────
 
-def _get_conn():
-    """Retorna conexão psycopg2 ao Supabase. Usa SUPABASE_DB_URL dos secrets."""
-    import psycopg2
+def _get_supabase_url() -> str:
+    """Lê SUPABASE_DB_URL de st.secrets, variável de ambiente ou secrets.toml direto."""
+    # 1. st.secrets
     try:
-        url = st.secrets["SUPABASE_DB_URL"]
+        val = st.secrets["SUPABASE_DB_URL"]
+        if val:
+            return str(val)
     except Exception:
-        url = os.getenv("SUPABASE_DB_URL", "")
+        pass
+
+    # 2. Variável de ambiente
+    val = os.getenv("SUPABASE_DB_URL", "")
+    if val:
+        return val
+
+    # 3. Leitura direta do secrets.toml (fallback para casos de cache/path)
+    try:
+        from pathlib import Path
+        for base in (Path(__file__).parent, Path.cwd()):
+            p = base / ".streamlit" / "secrets.toml"
+            if p.exists():
+                text = p.read_text(encoding="utf-8")
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line.startswith("SUPABASE_DB_URL"):
+                        _, _, v = line.partition("=")
+                        v = v.strip().strip('"').strip("'")
+                        if v:
+                            return v
+    except Exception:
+        pass
+
+    return ""
+
+
+def _get_conn():
+    """Retorna conexão psycopg2 ao Supabase."""
+    import psycopg2
+    url = _get_supabase_url()
     if not url:
         raise RuntimeError("SUPABASE_DB_URL não configurada em secrets.toml")
-    return psycopg2.connect(str(url), connect_timeout=10)
+    return psycopg2.connect(url, connect_timeout=10)
 
 
 # ── Helpers de serialização ───────────────────────────────────────────────────
