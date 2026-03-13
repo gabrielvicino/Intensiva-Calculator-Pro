@@ -16,12 +16,20 @@ def _limpar_leuco(v) -> str:
     return _limpar(v).split("(")[0].strip()
 
 def _extrair_parenteses(v) -> str:
-    """Extrai valor entre parenteses; se ausente, aplica _limpar.
-    Ex: '14.2s (1.10)' -> '1.10'  |  '39,6s (1,41)' -> '1,41'
+    """Extrai ratio de coagulação — suporta múltiplos formatos.
+    Parser:  '14.2s (1.10)' → '1.10'  |  '39,6s (1,41)' → '1,41'
+    IA:      'AP 32% RNI 2.17' → '2.17'  |  'R 1.08' → '1.08'
     """
+    import re
     s = str(v or "").strip()
     if "(" in s and ")" in s:
         return s.split("(")[1].split(")")[0].strip()
+    m = re.search(r'(?:RNI|INR)\s*([0-9]+[.,][0-9]+)', s)
+    if m:
+        return m.group(1).replace(",", ".")
+    m = re.search(r'\bR\s+([0-9]+[.,][0-9]+)', s)
+    if m:
+        return m.group(1).replace(",", ".")
     return _limpar(s)
 
 

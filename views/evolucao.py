@@ -406,6 +406,13 @@ if "_secoes_recortadas" in st.session_state:
 ui.render_header_secao("2. Dados Clínicos", "✍️", "#f59e0b")
 ui.render_guia_navegacao()
 
+_inc_defaults = {k: v for k, v in fichas._get_campos_base_cached().items() if k.startswith("inc_")}
+for _k, _v in _inc_defaults.items():
+    if st.session_state.get(_k) is False and _v is True:
+        if _k in st.session_state:
+            del st.session_state[_k]
+        st.session_state[_k] = True
+
 with st.form("form_dados_clinicos"):
     fichas.render_formulario_completo()
 
@@ -550,23 +557,25 @@ ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
 if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_width=True):
     _pront_gerar = st.session_state.get("prontuario", "").strip()
     if _pront_gerar:
+        import threading as _thr_gen
         _dados_gerar = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
-        with st.spinner("💾 Salvando antes de gerar..."):
-            save_evolucao(_pront_gerar, st.session_state.get("nome", "").strip(), _dados_gerar)
+        _thr_gen.Thread(
+            target=save_evolucao,
+            args=(_pront_gerar, st.session_state.get("nome", "").strip(), _dados_gerar),
+            daemon=True,
+        ).start()
     st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
     st.rerun()
 
+_texto_gerado = st.session_state.get("texto_final_gerado", "")
 with st.container(border=True):
-    # Sem key= para não vincular ao session_state como widget —
-    # isso permite que o _modal_comparar atualize texto_final_gerado livremente.
-    st.text_area(
-        "Final",
-        value=st.session_state.get("texto_final_gerado", ""),
-        height=200,
+    _editado = st.text_area(
+        "Prontuário Gerado", value=_texto_gerado, height=250,
         label_visibility="collapsed",
         placeholder="Clique em Prontuário Completo para gerar o texto.",
-        disabled=True,
     )
+    if _editado != _texto_gerado:
+        st.session_state["texto_final_gerado"] = _editado
 
 _c_copy_esp, _c_copy_btn = st.columns([4, 1])
 with _c_copy_btn:

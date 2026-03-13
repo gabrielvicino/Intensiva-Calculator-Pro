@@ -126,9 +126,9 @@ def render(motor: str, api_key: str, modelo: str):
         if _dados_autoload:
             _dados_autoload.pop("_data_hora", None)
             _dados_autoload = fichas.migrar_schema_legado(_dados_autoload)
-            campos_validos = set(fichas.get_todos_campos_keys())
+            _PRESC_PREFIXES = ("presc_", "prescricao_")
             for k, v in _dados_autoload.items():
-                if k in campos_validos and (v or not st.session_state.get(k)):
+                if k.startswith(_PRESC_PREFIXES) and (v or not st.session_state.get(k)):
                     st.session_state[k] = v
             if st.session_state.get("prescricao_formatada", "").strip():
                 st.toast("Prescrição carregada do prontuário.", icon="💊")

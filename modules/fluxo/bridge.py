@@ -180,6 +180,20 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
     from modules.secoes.laboratoriais import get_active_slots_sorted as _get_lab_slots
     lab_slots_recentes = list(reversed(_get_lab_slots()))  # [mais_novo, ..., mais_antigo]
 
+    if not lab_slots_recentes:
+        _pront = st.session_state.get("prontuario", "").strip()
+        if _pront:
+            try:
+                from utils import load_evolucao as _load_ev_bridge
+                _db = _load_ev_bridge(_pront)
+                if _db:
+                    for _k, _v in _db.items():
+                        if _k.startswith("lab_") and _v:
+                            st.session_state[_k] = _v
+                    lab_slots_recentes = list(reversed(_get_lab_slots()))
+            except Exception:
+                pass
+
     for dest_pat, suf_lab, fn in _BRIDGE_LAB:
         valores: list[str] = []
         for lab_idx in lab_slots_recentes:

@@ -463,16 +463,15 @@ def render_formulario_completo():
 
     # ── Reload silencioso de lab_*/ctrl_* ──────────────────────────────────────
     # DEVE ficar aqui, antes de qualquer widget ser criado.
-    # Se ficar depois do Bloco 10/11, os widgets lab_*/ctrl_* já existem e a
-    # atribuição levanta StreamlitAPIException (engolida pelo try/except antigo),
-    # fazendo o session_state ficar vazio e o bridge não encontrar nenhum valor.
+    # Roda sempre que labs estão vazios no session_state mas há um prontuário.
+    # Isso garante que labs salvos no PACER apareçam na Evolução mesmo que o
+    # usuário não tenha recarregado a página manualmente.
     _pront_rl = st.session_state.get("prontuario", "").strip()
     _labs_vazios_rl = not any(
         st.session_state.get(f"lab_{s}_data")
         for s in range(1, 7)
     )
-    if _labs_vazios_rl and _pront_rl and st.session_state.get("_ac_pront_reloaded", "") != _pront_rl:
-        st.session_state["_ac_pront_reloaded"] = _pront_rl
+    if _labs_vazios_rl and _pront_rl:
         try:
             from utils import load_evolucao as _load_ev
             _dados_rl = _load_ev(_pront_rl)
