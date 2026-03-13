@@ -229,12 +229,15 @@ def _parse_bioq(texto: str, col: _Collector) -> None:
                 col.add(m.start(), field, _n(m.group(1)))
 
 
+_GAS_SLOT_PREFIXES = ["gas", "gas2", "gas3"]
+
+
 def _parse_gas(texto: str, col: _Collector) -> None:
     """Extrai TODOS os blocos de gasometria (formato inline sem ':').
-    O terminador usa 'Conferência por Vídeo' (assinatura do laudo) em vez
-    do cabeçalho de página, resolvendo o bug de quebra de página quando
-    GASOMETRIA ARTERIAL cai no fim de uma folha e os dados ficam na seguinte.
+    Suporta pareada: 1ª gas → gas_*, 2ª → gas2_*, 3ª → gas3_*.
     """
+    _slot_count: dict[str, int] = {}
+
     for gas_m in re.finditer(
         r'(GASOMETRIA\s+(ARTERIAL|VENOSA|CAPILAR).+?'
         r'(?:Confer[eê]ncia\s+por\s+V[íi]deo|$))',
@@ -244,18 +247,30 @@ def _parse_gas(texto: str, col: _Collector) -> None:
         pos_base = gas_m.start()
         tipo = gas_m.group(2).strip().capitalize()
 
-        col.add(pos_base, 'gas_tipo', tipo)
+        data, hora = _ts_for(pos_base, col._ts)
+        if not data:
+            continue
+        ck = f"{data}_{_hora_cheia(hora):02d}"
+
+        idx = _slot_count.get(ck, 0)
+        if idx >= len(_GAS_SLOT_PREFIXES):
+            continue
+        pfx = _GAS_SLOT_PREFIXES[idx]
+        _slot_count[ck] = idx + 1
+
+        col.add(pos_base, f'{pfx}_tipo', tipo)
 
         gas_hora_m = re.search(
             r'Recebimento material:\s*\d{2}/\d{2}/\d{2,4}\s+(\d{2}:\d{2})', bloco
         )
         if gas_hora_m:
-            h, mi = gas_hora_m.group(1).split(":")
-            col.add(pos_base, 'gas_hora', f"{int(h):02d}h")
+            h, _mi = gas_hora_m.group(1).split(":")
+            col.add(pos_base, f'{pfx}_hora', f"{int(h):02d}h")
 
         for pat, field in _GAS_PATTERNS:
+            mapped = field.replace("gas_", f"{pfx}_", 1)
             for gm in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
-                col.add(pos_base + gm.start(), field, _n(gm.group(1)))
+                col.add(pos_base + gm.start(), mapped, _n(gm.group(1)))
 
 
 def _parse_hemo(texto: str, col: _Collector) -> None:
