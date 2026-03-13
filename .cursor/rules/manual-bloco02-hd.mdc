@@ -6,8 +6,8 @@ alwaysApply: false
 
 # Bloco 2 — HD (Hipóteses Diagnósticas): Manual de Campos
 
-> 8 slots (`hd_1..hd_8`). Slots 1–4: diagnósticos atuais; 5–8: resolvidos.
-> Agente usa prefixo diferente (`diag_atual_1..4` / `diag_resolv_1..4`) e mapeamento inverso.
+> 8 slots (`hd_1..hd_8`). Qualquer slot pode ser Atual ou Resolvida.
+> Agente usa prefixo sequencial `diag_1..8` e mapeia direto para `hd_1..8`. Todos entram como "Atual" — classificação é responsabilidade do usuário.
 
 ---
 
@@ -57,13 +57,10 @@ Mais campo global: `hd_notas` (nunca preenchido pelo agente).
 - [ ] Campo vazio → não gera linha
 
 ### 3. `modules/agentes_secoes/hd.py`
-- [ ] **`_PROMPT_HD`**: adicionar em `<VARIAVEIS>` — **usando prefixo `diag_atual_{i}_novo`** e `diag_resolv_{i}_novo`
-- [ ] **`preencher_hd()`**: mapear AMBOS os prefixos para `hd_{i}_novo`:
+- [ ] **`_PROMPT_HD`**: adicionar em `<VARIAVEIS>` — usando prefixo `diag_{i}_novo` (sequencial 1-8)
+- [ ] **`preencher_hd()`**: mapear diretamente para `hd_{i}_novo`:
   ```python
-  # Atuais (i=1..4) → hd_1..hd_4:
-  resultado[f"hd_{i}_novo"] = diag_atual[i].get("novo", "")
-  # Resolvidos (i=1..4) → hd_5..hd_8:
-  resultado[f"hd_{i+4}_novo"] = diag_resolv[i].get("novo", "")
+  resultado[f"hd_{i}_novo"] = _s(f"diag_{i}_novo")
   ```
 
 ---
@@ -89,7 +86,7 @@ Mais campo global: `hd_notas` (nunca preenchido pelo agente).
 
 ## Regras Especiais
 
-- Agente usa nomes de chave DIFERENTES (`diag_atual_1..4_*` / `diag_resolv_1..4_*`) — mapeamento obrigatório em `preencher_hd()`; atuais → `hd_1..4`, resolvidos → `hd_5..8`
+- Agente usa prefixo sequencial `diag_1..8_*` → mapeia direto para `hd_1..8_*`. Todos entram como status "Atual" — o **usuário** classifica manualmente como "Resolvida" se necessário
 - **Datas preservadas como no texto original**: o agente NÃO reformata datas. "1999" → "1999", "01/2022" → "01/2022" (regra prioritária sobre `_REGRA_DATA` global)
 - **Sub-itens (>> linhas)**: vão para o campo `_obs` do diagnóstico pai, NÃO como diagnósticos separados
 - **CAPS → Title Case**: agente converte texto em CAIXA ALTA para Title Case, mantendo siglas médicas em maiúsculas (POT, UTI, etc.)
