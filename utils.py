@@ -189,8 +189,52 @@ def check_evolucao_exists(prontuario: str) -> bool:
         return False
 
 
-# ── Google Sheets — dados de referência (infusão) ─────────────────────────────
-# Mantidos no Sheets pois são dados estáticos de referência, lidos com cache.
+# ── Supabase — dados de referência (IOT e Infusão) ───────────────────────────
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_db_iot() -> pd.DataFrame:
+    """Carrega tabela db_iot do Supabase com cache de 1 hora."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT nome_formatado, conc, dose_min, dose_hab, dose_max "
+                "FROM db_iot ORDER BY id"
+            )
+            rows = cur.fetchall()
+            cols = ["nome_formatado", "conc", "dose_min", "dose_hab", "dose_max"]
+        conn.close()
+        return pd.DataFrame(rows, columns=cols)
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar DB_IOT: {e}")
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_db_infusao() -> pd.DataFrame:
+    """Carrega tabela db_infusao do Supabase com cache de 1 hora."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT nome_formatado, mg_amp, vol_amp, dose_min, dose_max_hab, "
+                "       dose_max_tol, unidade, qtd_amp_padrao, diluente_padrao "
+                "FROM db_infusao ORDER BY id"
+            )
+            rows = cur.fetchall()
+            cols = [
+                "nome_formatado", "mg_amp", "vol_amp", "dose_min",
+                "dose_max_hab", "dose_max_tol", "unidade",
+                "qtd_amp_padrao", "diluente_padrao",
+            ]
+        conn.close()
+        return pd.DataFrame(rows, columns=cols)
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar DB_INFUSAO: {e}")
+        return pd.DataFrame()
+
+
+# ── Google Sheets — mantido apenas para save_data_append legado ───────────────
 
 from streamlit_gsheets import GSheetsConnection
 from gspread import service_account_from_dict

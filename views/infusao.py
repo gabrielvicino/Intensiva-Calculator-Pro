@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import load_data, mostrar_rodape
+from utils import load_db_infusao, mostrar_rodape
 
 # ==============================================================================
 # CSS
@@ -150,9 +150,9 @@ def _render_simulador(
 # ==============================================================================
 st.header("💉 Calculadora de Infusão")
 
-df_inf = load_data("DB_INFUSAO")
+df_inf = load_db_infusao()
 if df_inf.empty:
-    st.error("Banco de dados não encontrado. Verifique a conexão com o Google Sheets (aba DB_INFUSAO).")
+    st.error("Banco de dados não encontrado. Verifique a conexão com o Supabase (tabela db_infusao).")
     st.stop()
 
 col_nome = "nome_formatado" if "nome_formatado" in df_inf.columns else "apresentacao"

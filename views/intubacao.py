@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import load_data, mostrar_rodape
+from utils import load_db_iot, mostrar_rodape
 
 # ==============================================================================
 # CSS
@@ -94,9 +94,9 @@ def _estilizar_tabela(df: pd.DataFrame):
 # ==============================================================================
 st.header("⚡ Intubação Orotraqueal")
 
-df_iot = load_data("DB_IOT")
+df_iot = load_db_iot()
 if df_iot.empty:
-    st.error("Banco de dados não encontrado. Verifique a conexão com o Google Sheets (aba DB_IOT).")
+    st.error("Banco de dados não encontrado. Verifique a conexão com o Supabase (tabela db_iot).")
     st.stop()
 
 # Inputs
