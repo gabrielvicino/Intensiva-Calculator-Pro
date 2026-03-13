@@ -218,6 +218,21 @@ if "_busca_pendente_criar" in st.session_state:
 
 # ── Gate: bloqueia o restante da página até um prontuário ser informado ───────
 if not st.session_state.get("prontuario", "").strip():
+    # Pré-importa módulos pesados em background enquanto o usuário vê a tela de cadeado.
+    # Python cacheia em sys.modules — quando o prontuário for digitado, estarão prontos.
+    if not st.session_state.get("_preload_started"):
+        import threading
+        def _preload():
+            try:
+                from modules import ia_extrator
+                from modules.ia_config import get_ia_config
+                from modules.parsers.hc_unicamp import parsear
+                from modules.gerador.html import gerar_html_comparativo
+            except Exception:
+                pass
+        threading.Thread(target=_preload, daemon=True).start()
+        st.session_state["_preload_started"] = True
+
     st.markdown(
         '<div style="text-align:center;padding:80px 20px;color:#9e9e9e">'
         '<p style="font-size:2.5rem;margin-bottom:4px">🔒</p>'
