@@ -234,15 +234,18 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
         return
 
     with st.status(
-        f"Processando {n_tarefas} {'seção' if n_tarefas == 1 else 'seções'} com IA...",
+        f"⚡ Processando {n_tarefas} {'seção' if n_tarefas == 1 else 'seções'} em paralelo...",
         expanded=False,
     ) as _status_agentes:
-        progresso  = st.progress(0, text="Aguardando resposta...")
+        progresso = st.progress(0, text="Iniciando...")
+        concluidas: list[str] = []
 
         def _on_progress(concluidos, total, nome):
-            pct  = int(concluidos / total * 100)
-            txt  = f"{nome} — {concluidos}/{total}" if nome else f"{concluidos}/{total} concluídos"
-            progresso.progress(concluidos / total, text=txt)
+            if nome:
+                concluidas.append(nome)
+            pct = concluidos / total
+            txt = f"✅ {nome} concluída — {concluidos}/{total}" if nome else f"{concluidos}/{total} concluídas"
+            progresso.progress(pct, text=txt)
 
         n_ok, erros = fluxo.rodar_agentes_paralelo(
             secoes, GOOGLE_API_KEY, OPENAI_API_KEY,
@@ -253,7 +256,7 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
 
         if erros:
             _status_agentes.update(
-                label=f"Concluído com {len(erros)} {'erro' if len(erros) == 1 else 'erros'} — {n_ok} {'seção preenchida' if n_ok == 1 else 'seções preenchidas'}",
+                label=f"⚠️ {n_ok} seções preenchidas — {len(erros)} com erro",
                 state="error",
                 expanded=True,
             )
@@ -261,7 +264,7 @@ def _aplicar_agentes_paralelo(secoes: list[str]):
                 st.warning(e)
         else:
             _status_agentes.update(
-                label=f"{n_ok} {'seção preenchida' if n_ok == 1 else 'seções preenchidas'} com IA",
+                label=f"✅ {n_ok} {'seção preenchida' if n_ok == 1 else 'seções preenchidas'} com IA",
                 state="complete",
                 expanded=False,
             )
