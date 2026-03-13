@@ -10,67 +10,74 @@ from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 _PROJECT_DIR = Path(__file__).resolve().parent
 try:
     from dotenv import load_dotenv
-    load_dotenv(dotenv_path=_PROJECT_DIR / ".env", override=False)
+    load_dotenv(dotenv_path=_PROJECT_DIR / ".env", override=True)
 except ImportError:
     pass
 
-# ── Supabase (via SDK HTTPS — sem psycopg2, sem problemas de porta/IPv4) ─────
+# ── Supabase — resolução de chaves no nível do módulo (mais robusto) ──────────
 
 _SB_CLIENT = None
+_SB_URL = ""
+_SB_KEY = ""
 
-
-def _read_key_from_file(filepath: Path, key: str) -> str:
-    """Lê uma chave de um arquivo .env ou .toml linha por linha."""
+def _load_env_key(name: str) -> str:
+    """Lê uma chave de todos os locais possíveis."""
+    # 1) st.secrets
     try:
-        if not filepath.exists():
-            return ""
-        for line in filepath.read_text(encoding="utf-8").splitlines():
-            s = line.strip()
-            if s.startswith("#") or "=" not in s:
-                continue
-            k, _, v = s.partition("=")
-            if k.strip().strip('"').strip("'") == key:
-                return v.strip().strip('"').strip("'")
+        v = st.secrets[name]
+        if v:
+            return str(v)
     except Exception:
         pass
+    # 2) os.environ (populado pelo load_dotenv acima)
+    v = os.environ.get(name, "")
+    if v:
+        return v
+    # 3) Leitura direta dos arquivos
+    for fpath in [_PROJECT_DIR / ".env", _PROJECT_DIR / ".streamlit" / "secrets.toml"]:
+        try:
+            if not fpath.exists():
+                continue
+            for line in fpath.read_text(encoding="utf-8").splitlines():
+                s = line.strip()
+                if s.startswith("#") or "=" not in s:
+                    continue
+                k, _, val = s.partition("=")
+                if k.strip().strip('"').strip("'") == name:
+                    return val.strip().strip('"').strip("'")
+        except Exception:
+            continue
     return ""
+
+_SB_URL = _load_env_key("SUPABASE_URL")
+_SB_KEY = _load_env_key("SUPABASE_KEY")
 
 
 def _resolve_key(key: str) -> str:
-    """Resolve uma chave de configuração: st.secrets → os.getenv → .env → secrets.toml."""
-    try:
-        val = st.secrets[key]
-        if val:
-            return str(val)
-    except Exception:
-        pass
-    val = os.getenv(key, "")
-    if val:
-        return val
-    val = _read_key_from_file(_PROJECT_DIR / ".env", key)
-    if val:
-        return val
-    val = _read_key_from_file(_PROJECT_DIR / ".streamlit" / "secrets.toml", key)
-    return val
+    """Resolve chave de configuração genérica."""
+    return _load_env_key(key)
 
 
 def _get_sb():
-    """Retorna cliente Supabase (singleton). Usa SUPABASE_URL + SUPABASE_KEY."""
+    """Retorna cliente Supabase (singleton)."""
     global _SB_CLIENT
     if _SB_CLIENT is not None:
         return _SB_CLIENT
 
-    from supabase import create_client
-
-    url = _resolve_key("SUPABASE_URL")
-    key = _resolve_key("SUPABASE_KEY")
+    url = _SB_URL
+    key = _SB_KEY
 
     if not url or not key:
         raise RuntimeError(
-            "SUPABASE_URL e/ou SUPABASE_KEY não configuradas. "
-            "Defina em .env ou .streamlit/secrets.toml"
+            "Supabase não configurado.\n"
+            f"  SUPABASE_URL: {'OK' if url else 'VAZIA'}\n"
+            f"  SUPABASE_KEY: {'OK' if key else 'VAZIA'}\n"
+            f"  .env: {(_PROJECT_DIR / '.env').exists()}\n"
+            f"  secrets.toml: {(_PROJECT_DIR / '.streamlit' / 'secrets.toml').exists()}\n"
+            f"  Diretório: {_PROJECT_DIR}"
         )
 
+    from supabase import create_client
     _SB_CLIENT = create_client(url, key)
     return _SB_CLIENT
 
@@ -254,14 +261,21 @@ def load_db_infusao() -> pd.DataFrame:
 
 # ── Google Sheets — mantido apenas para save_data_append legado ───────────────
 
-from streamlit_gsheets import GSheetsConnection
-from gspread import service_account_from_dict
+try:
+    from streamlit_gsheets import GSheetsConnection
+    from gspread import service_account_from_dict
+    _GSHEETS_OK = True
+except ImportError:
+    _GSHEETS_OK = False
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/15Rxc1tYYmgG7Sikn2UOvz-GFN6jvneMHnA-l-O8keNs/edit?gid=0#gid=0"
 
 
 def sync_infusao_to_sheet() -> bool:
     """Envia dados padrão de infusão para a aba DB_INFUSAO no Google Sheets."""
+    if not _GSHEETS_OK:
+        st.warning("Google Sheets não disponível (pacotes não instalados).")
+        return False
     try:
         df = pd.DataFrame(_DADOS_INFUSAO_PADRAO)
         conn = st.connection("gsheets", type=GSheetsConnection)
@@ -274,7 +288,10 @@ def sync_infusao_to_sheet() -> bool:
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_data(worksheet_name: str) -> pd.DataFrame:
-    """Carrega dados do Google Sheets com cache de 10 minutos."""
+    """Carrega dados do Google Sheets com cache de 10 minutos (legado)."""
+    if not _GSHEETS_OK:
+        st.warning("Google Sheets não disponível.")
+        return pd.DataFrame()
     try:
         df = _read_worksheet_gspread(worksheet_name)
         if df is not None:
@@ -288,6 +305,8 @@ def load_data(worksheet_name: str) -> pd.DataFrame:
 
 def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
     """Lê qualquer aba do Sheets via gspread. Retorna DataFrame ou None."""
+    if not _GSHEETS_OK:
+        return None
     try:
         gs = st.secrets.get("connections", {}).get("gsheets", {})
         if not gs or gs.get("type") != "service_account":
@@ -303,6 +322,9 @@ def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
 
 
 def save_data_append(worksheet_name, new_data_row):
+    if not _GSHEETS_OK:
+        st.warning("Google Sheets não disponível.")
+        return False
     try:
         existing_data = _read_worksheet_gspread(worksheet_name)
         if existing_data is None:
