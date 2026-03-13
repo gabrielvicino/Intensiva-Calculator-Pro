@@ -21,17 +21,54 @@ GOOGLE_API_KEY = carregar_chave_api("GOOGLE_API_KEY", "GOOGLE_API_KEY")
 ui.carregar_css()
 fichas.inicializar_estado()
 
+# ── Validação de chaves de API (cache de 10 min — evita chamada a cada rerun) ──
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _testar_openai(key: str) -> tuple[bool, str]:
+    if not key or len(key) < 10:
+        return False, "Chave não configurada"
+    try:
+        from openai import OpenAI
+        OpenAI(api_key=key).models.list()
+        return True, ""
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg or "Incorrect API key" in msg:
+            return False, "Chave inválida (401)"
+        if "429" in msg or "quota" in msg.lower() or "billing" in msg.lower():
+            return False, "Créditos esgotados (429)"
+        return False, msg[:60]
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _testar_google(key: str) -> tuple[bool, str]:
+    if not key or len(key) < 10:
+        return False, "Chave não configurada"
+    try:
+        from google import genai as _g
+        _g.Client(api_key=key).models.list()
+        return True, ""
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg or "403" in msg or "API_KEY_INVALID" in msg:
+            return False, "Chave inválida"
+        if "429" in msg or "quota" in msg.lower():
+            return False, "Cota esgotada (429)"
+        return False, msg[:60]
+
 # ── Sidebar: status das chaves de API ─────────────────────────────────────────
 with st.sidebar:
     with st.popover("​", use_container_width=True):
-        if GOOGLE_API_KEY and len(GOOGLE_API_KEY) > 10:
+        _ok_google, _err_google = _testar_google(GOOGLE_API_KEY)
+        if _ok_google:
             st.success(f"✅ Google: ...{GOOGLE_API_KEY[-8:]}")
         else:
-            st.error("❌ Google API Key não carregada!")
-        if OPENAI_API_KEY and len(OPENAI_API_KEY) > 10:
+            st.error(f"❌ Google: {_err_google}")
+
+        _ok_openai, _err_openai = _testar_openai(OPENAI_API_KEY)
+        if _ok_openai:
             st.success(f"✅ OpenAI: ...{OPENAI_API_KEY[-8:]}")
         else:
-            st.error("❌ OpenAI API Key não carregada!")
+            st.error(f"❌ OpenAI: {_err_openai}")
 
 # ── Título ─────────────────────────────────────────────────────────────────────
 st.title("📝 Evolução Diária")
