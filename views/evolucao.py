@@ -2,10 +2,9 @@ import streamlit as st
 import json
 import streamlit.components.v1 as components
 from pathlib import Path
-from modules import ui, fichas, gerador, fluxo, ia_extrator, agentes_secoes
-from modules.ia_config import get_ia_config
+from modules import ui, fichas, gerador, fluxo, agentes_secoes
 from modules.secoes.condutas import render_condutas_registradas as _render_condutas_reg
-from utils import load_data, save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
+from utils import save_evolucao, load_evolucao, mostrar_rodape, carregar_chave_api, verificar_rate_limit, uso_rate_limit
 
 # ── Chaves de API (secrets.toml → .env → vazio) ───────────────────────────────
 try:
@@ -312,6 +311,8 @@ with st.container(border=True):
                 st.error(f"🚫 {_msg}")
             else:
                 with st.spinner("Extraindo seções com IA..."):
+                    from modules.ia_config import get_ia_config
+                    from modules import ia_extrator
                     _ext_key, _ext_prov, _ext_mod = get_ia_config("ia_extrator", GOOGLE_API_KEY, OPENAI_API_KEY)
                     dados_notas = ia_extrator.extrair_dados_prontuario(
                         texto_bruto=texto_input,

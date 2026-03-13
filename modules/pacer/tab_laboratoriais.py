@@ -23,7 +23,15 @@ from modules.secoes.laboratoriais import (
     render_chrono_headers,
     limpar_slot,
 )
-from modules.pacer.pdf_extractor import _chamar_agente, _AGENTES
+_chamar_agente = None
+_AGENTES = None
+
+def _ensure_pdf_extractor():
+    global _chamar_agente, _AGENTES
+    if _chamar_agente is None:
+        from modules.pacer.pdf_extractor import _chamar_agente as _ca, _AGENTES as _ag
+        _chamar_agente = _ca
+        _AGENTES = _ag
 
 _COLS_VISIVEL = 6
 
@@ -363,6 +371,8 @@ def _processar_texto_hibrido(
 
     resultados: dict[str, str | None] = {}
 
+    _ensure_pdf_extractor()
+
     def _worker(nome: str, prompt: str):
         return nome, _chamar_agente(prompt, texto, api_key, modelo, provider)
 
@@ -682,8 +692,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
         st.rerun()
 
     if btn_salvar:
-        _msg_topo.info("💾 Salvando exames...")
-        # Usa cache do último load (evita round-trip ao Google Sheets).
+        # Usa cache do último load (evita round-trip extra).
         # Fallback para load_evolucao apenas se o cache não existir
         # (ex.: sessão nova sem auto-load).
         base = st.session_state.get("_lab_db_cache")
@@ -695,11 +704,12 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
         for k in list(st.session_state.keys()):
             if k.startswith("lab_"):
                 base[k] = st.session_state[k]
-        ok = save_evolucao(
-            prontuario,
-            st.session_state.get("nome", "").strip(),
-            base,
-        )
+        with st.spinner("💾 Salvando exames..."):
+            ok = save_evolucao(
+                prontuario,
+                st.session_state.get("nome", "").strip(),
+                base,
+            )
         if ok:
             # Atualiza cache com os dados recém-salvos
             st.session_state["_lab_db_cache"] = {k: v for k, v in base.items()}

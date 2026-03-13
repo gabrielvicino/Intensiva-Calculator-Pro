@@ -186,6 +186,7 @@ from modules.secoes import sistemas           # 12
 from modules.secoes import controles          # 13
 from modules.secoes import prescricao         # 14
 from modules.secoes import condutas           # 15
+from modules import agentes_secoes as _agentes_secoes
 
 # Mapa secao_key → módulo (usado para limpar campos individualmente)
 _SECOES_MODULOS: dict = {}  # preenchido lazily para evitar imports circulares
@@ -355,8 +356,7 @@ def _sanitizar_radios():
 def _btn_gerar_bloco(secao_key: str):
     """Renderiza o botão 'Comparar' para uma seção específica (dentro de um form).
     Gera deterministicamente a saída da seção e abre modal lado a lado com as notas."""
-    from modules import agentes_secoes
-    nome = agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    nome = _agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
     if st.form_submit_button(
         f"🔍 Comparar {nome}",
         key=f"_fsbtn_gerar_{secao_key}",
@@ -373,8 +373,7 @@ def _btn_agente(secao_key: str):
     O botão roda apenas o agente daquela seção sem afetar o restante.
     """
     def _render():
-        from modules import agentes_secoes
-        nome_secao = agentes_secoes.NOMES_SECOES.get(secao_key, secao_key)
+        nome_secao = _agentes_secoes.NOMES_SECOES.get(secao_key, secao_key)
 
         clicked = st.form_submit_button(
             "Completar Campos",
@@ -391,8 +390,7 @@ def _btn_limpar_secao(secao_key: str, nome_display: str | None = None):
     """Renderiza o botão 'Limpar Seção' dentro de um form.
     Define a flag _limpar_secao_pendente que é processada fora do form.
     """
-    from modules import agentes_secoes
-    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    nome = nome_display or _agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
     if st.form_submit_button(
         "Limpar",
         key=f"_fsbtn_limpar_{secao_key}",
@@ -407,8 +405,7 @@ def _btn_salvar_secao(secao_key: str, nome_display: str | None = None):
     Renderiza o botão 'Salvar Seção' dentro de um form.
     Salva todo o session_state (garante consistência) mas indica qual seção foi salva.
     """
-    from modules import agentes_secoes
-    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    nome = nome_display or _agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
     if st.form_submit_button(
         "💾 Salvar",
         key=f"_fsbtn_save_{secao_key}",
@@ -434,8 +431,7 @@ def _btn_gerar_bloco_com_inc(secao_key: str):
 
 def _rodape_secao(secao_key: str, nome_display: str | None = None):
     """Renderiza a barra de ações de uma seção: [Output | 🔍 Comparar | 💾 Salvar | Limpar]."""
-    from modules import agentes_secoes
-    nome = nome_display or agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
+    nome = nome_display or _agentes_secoes.NOMES_SECOES.get(secao_key, secao_key.capitalize())
     col_inc, col_cmp, col_salvar, col_limpar = st.columns([1, 2, 1, 1])
     with col_inc:
         st.checkbox(
@@ -472,10 +468,8 @@ def render_formulario_completo():
     # fazendo o session_state ficar vazio e o bridge não encontrar nenhum valor.
     _pront_rl = st.session_state.get("prontuario", "").strip()
     _labs_vazios_rl = not any(
-        (st.session_state.get(f"lab_{s}_hb") or "").strip()
-        or (st.session_state.get(f"lab_{s}_data") or "").strip()
-        or (st.session_state.get(f"lab_{s}_cr") or "").strip()
-        for s in range(1, 31)
+        st.session_state.get(f"lab_{s}_data")
+        for s in range(1, 7)
     )
     if _labs_vazios_rl and _pront_rl and st.session_state.get("_ac_pront_reloaded", "") != _pront_rl:
         st.session_state["_ac_pront_reloaded"] = _pront_rl

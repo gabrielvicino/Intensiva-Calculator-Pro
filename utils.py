@@ -20,19 +20,24 @@ except ImportError:
 _SB_CLIENT = None
 _SB_URL = ""
 _SB_KEY = ""
+_ENV_CACHE: dict[str, str] = {}
 
 def _load_env_key(name: str) -> str:
-    """Lê uma chave de todos os locais possíveis."""
+    """Lê uma chave de todos os locais possíveis (resultado cacheado por nome)."""
+    if name in _ENV_CACHE:
+        return _ENV_CACHE[name]
     # 1) st.secrets
     try:
         v = st.secrets[name]
         if v:
-            return str(v)
+            _ENV_CACHE[name] = str(v)
+            return _ENV_CACHE[name]
     except Exception:
         pass
     # 2) os.environ (populado pelo load_dotenv acima)
     v = os.environ.get(name, "")
     if v:
+        _ENV_CACHE[name] = v
         return v
     # 3) Leitura direta dos arquivos
     for fpath in [_PROJECT_DIR / ".env", _PROJECT_DIR / ".streamlit" / "secrets.toml"]:
@@ -45,9 +50,11 @@ def _load_env_key(name: str) -> str:
                     continue
                 k, _, val = s.partition("=")
                 if k.strip().strip('"').strip("'") == name:
-                    return val.strip().strip('"').strip("'")
+                    _ENV_CACHE[name] = val.strip().strip('"').strip("'")
+                    return _ENV_CACHE[name]
         except Exception:
             continue
+    _ENV_CACHE[name] = ""
     return ""
 
 _SB_URL = _load_env_key("SUPABASE_URL")
