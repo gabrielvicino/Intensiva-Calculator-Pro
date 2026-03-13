@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 import streamlit as st
 import pandas as pd
 import json
@@ -52,6 +53,14 @@ def _load_env_key(name: str) -> str:
 _SB_URL = _load_env_key("SUPABASE_URL")
 _SB_KEY = _load_env_key("SUPABASE_KEY")
 
+# Cria o cliente no import — elimina cold start na primeira busca
+if _SB_URL and _SB_KEY:
+    try:
+        from supabase import create_client as _create_client
+        _SB_CLIENT = _create_client(_SB_URL, _SB_KEY)
+    except Exception:
+        _SB_CLIENT = None
+
 
 def _resolve_key(key: str) -> str:
     """Resolve chave de configuração genérica."""
@@ -64,21 +73,18 @@ def _get_sb():
     if _SB_CLIENT is not None:
         return _SB_CLIENT
 
-    url = _SB_URL
-    key = _SB_KEY
-
-    if not url or not key:
+    if not _SB_URL or not _SB_KEY:
         raise RuntimeError(
             "Supabase não configurado.\n"
-            f"  SUPABASE_URL: {'OK' if url else 'VAZIA'}\n"
-            f"  SUPABASE_KEY: {'OK' if key else 'VAZIA'}\n"
+            f"  SUPABASE_URL: {'OK' if _SB_URL else 'VAZIA'}\n"
+            f"  SUPABASE_KEY: {'OK' if _SB_KEY else 'VAZIA'}\n"
             f"  .env: {(_PROJECT_DIR / '.env').exists()}\n"
             f"  secrets.toml: {(_PROJECT_DIR / '.streamlit' / 'secrets.toml').exists()}\n"
             f"  Diretório: {_PROJECT_DIR}"
         )
 
     from supabase import create_client
-    _SB_CLIENT = create_client(url, key)
+    _SB_CLIENT = create_client(_SB_URL, _SB_KEY)
     return _SB_CLIENT
 
 
@@ -154,15 +160,25 @@ def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
 
 # ── Evoluções — save / load (Supabase REST API) ──────────────────────────────
 
+def _inserir_historico(pront: str, dados_limpos: dict) -> None:
+    """Insere no histórico em background — não bloqueia o save principal."""
+    try:
+        _get_sb().table("evolucoes_historico").insert({
+            "prontuario": pront,
+            "dados": dados_limpos,
+        }).execute()
+    except Exception:
+        pass
+
+
 def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
     """
     Salva evolução no Supabase via REST.
-    - Tabela `evolucoes`: upsert (mantém estado mais recente).
-    - Tabela `evolucoes_historico`: append (preserva histórico completo).
+    - Tabela `evolucoes`: upsert síncrono (estado mais recente).
+    - Tabela `evolucoes_historico`: insert assíncrono em thread (não bloqueia).
     """
     pront = str(prontuario).strip().replace(".0", "")
     nome_ = str(nome).strip()
-    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
     dados_limpos = _limpar_dados(dados)
 
     try:
@@ -173,10 +189,12 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
             "dados": dados_limpos,
             "atualizado": datetime.now().isoformat(),
         }).execute()
-        sb.table("evolucoes_historico").insert({
-            "prontuario": pront,
-            "dados": dados_limpos,
-        }).execute()
+        # Histórico em background — não adiciona latência perceptível
+        threading.Thread(
+            target=_inserir_historico, args=(pront, dados_limpos), daemon=True
+        ).start()
+        # Invalida cache local para este prontuário
+        st.session_state.pop(f"_cache_evolucao_{pront}", None)
         return True
     except Exception as e:
         st.error(f"❌ Erro ao salvar no banco: {e}")
@@ -185,8 +203,16 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
 
 
 def load_evolucao(prontuario: str) -> dict | None:
-    """Carrega o estado mais recente de um paciente. Retorna None se não encontrado."""
+    """
+    Carrega o estado mais recente de um paciente.
+    Usa cache em session_state (TTL 60s) para evitar roundtrips redundantes.
+    """
     pront = str(prontuario).strip().replace(".0", "")
+    cache_key = f"_cache_evolucao_{pront}"
+    cached = st.session_state.get(cache_key)
+    if cached and time.time() - cached.get("_ts", 0) < 60:
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
     try:
         sb = _get_sb()
         resp = (
@@ -208,6 +234,8 @@ def load_evolucao(prontuario: str) -> dict | None:
             except Exception:
                 pass
         dados["_data_hora"] = str(atualizado)
+        # Salva no cache com timestamp
+        st.session_state[cache_key] = {**dados, "_ts": time.time()}
         return dados
     except Exception as e:
         st.error(f"❌ Erro ao buscar no banco: {e}")
