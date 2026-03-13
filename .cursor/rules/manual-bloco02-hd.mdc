@@ -72,20 +72,27 @@ Mais campo global: `hd_notas` (nunca preenchido pelo agente).
 
 ```
 # Diagnósticos Atuais
-1- Choque Séptico; Foco Pulmonar; 10/01
-> Em uso de aminas vasoativas, otimizando...
-
-2- Insuficiência Respiratória Aguda; PAV; 10/01
+1- Polipose Adenomatosa Familiar; 1999
+> POT Retocolectomia Total com Reservatório Ileal - 1999
+> POT Reconstrução de Trânsito - 2001
+2- Adenoma em Pólipo Duodenal de Baixo Grau; 2019
+3- Adenoma em Pólipo Duodenal de Alto Grau de 1,2 cm; 01/2022
 
 # Diagnósticos Resolvidos
-3- IVU; 05/01 - 09/01
+1- IVU; 05/01 - 09/01
 ```
+
+- **Sem** linha em branco entre diagnósticos (apenas entre seções Atuais/Resolvidos)
+- Numeração sequencial dentro de cada grupo (reinicia em Resolvidos)
 
 ---
 
 ## Regras Especiais
 
 - Agente usa nomes de chave DIFERENTES (`diag_atual_1..4_*` / `diag_resolv_1..4_*`) — mapeamento obrigatório em `preencher_hd()`; atuais → `hd_1..4`, resolvidos → `hd_5..8`
+- **Datas preservadas como no texto original**: o agente NÃO reformata datas. "1999" → "1999", "01/2022" → "01/2022" (regra prioritária sobre `_REGRA_DATA` global)
+- **Sub-itens (>> linhas)**: vão para o campo `_obs` do diagnóstico pai, NÃO como diagnósticos separados
+- **CAPS → Title Case**: agente converte texto em CAIXA ALTA para Title Case, mantendo siglas médicas em maiúsculas (POT, UTI, etc.)
 - `_obs` passa por `_obs_para_linhas()` com `excluir_conduta=True` — linhas que começam com "Conduta:" são removidas do prontuário
 - `_obs_para_linhas()` aplica `_caps_obs_linha()` (normaliza CAPS, preserva nomenclatura bacteriana Gênero espécie)
 - Gerador não inclui `_obs` de slot com nome vazio — se nome ausente, slot é ignorado completamente

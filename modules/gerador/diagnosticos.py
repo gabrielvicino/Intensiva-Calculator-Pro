@@ -52,16 +52,13 @@ def _secao_diagnosticos() -> list[str]:
         for i, bloco in enumerate(atuais, 1):
             corpo.append(f"{i}- {bloco[0]}")
             corpo.extend(bloco[1:])
-            corpo.append("")
 
     if resolvidos:
-        if corpo and corpo[-1] != "":
-            corpo.append("")
+        corpo.append("")
         corpo.append("# Diagnósticos Resolvidos")
         for i, bloco in enumerate(resolvidos, 1):
             corpo.append(f"{i}- {bloco[0]}")
             corpo.extend(bloco[1:])
-            corpo.append("")
 
     while corpo and corpo[-1] == "":
         corpo.pop()

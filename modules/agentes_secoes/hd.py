@@ -12,13 +12,53 @@ Você é uma ferramenta avançada usada para análise e extração de dados estr
 # OBJETIVO
 Ler o texto fornecido na tag <TEXTO_ALVO> e extrair as hipóteses diagnósticas (Atuais e Resolvidas), respeitando rigorosamente a ordem em que aparecem no texto original.
 
-# REGRAS DE EXTRAÇÃO E PASSO A PASSO
-1. ORDEM DE LEITURA: Siga a exata ordem em que os diagnósticos aparecem no texto. O primeiro diagnóstico lido deve ser o número 1, o segundo lido o número 2, etc.
-2. PASSO A PASSO: Extraia PRIMEIRO todos os Nomes. Só depois extraia todas as Classificações. Depois todas as Datas. E, por fim, todas as Observações.
-3. PREENCHIMENTO VAZIO: Se a informação não constar explicitamente ou se o paciente tiver menos de 4 diagnósticos, retorne estritamente `""` (string vazia). Não use `null` ou "Não encontrado".
-4. NÃO invente diagnósticos ou datas para preencher lacunas.
-5. CUIDADO COM SIGLAS AMBÍGUAS: Analise o contexto clínico antes de expandir siglas (ex: "IRA").
-6. A saída final deve ser EXCLUSIVAMENTE um objeto JSON válido, sem blocos de código markdown (como ```json).
+# REGRAS DE EXTRAÇÃO
+
+## Formatação de Nomes (Title Case)
+- Converta texto em CAIXA ALTA para **Title Case** (Primeira Letra Maiúscula de cada palavra significativa).
+- Preposições e artigos ficam em minúsculas: de, em, com, por, para, do, da, no, na, etc.
+- Siglas médicas reconhecidas PERMANECEM em maiúsculas: POT, UTI, IRA, TVP, TEP, IAM, ICC, DM, HAS, DPOC, VMI, PAV, KDIGO, KPC, MRSA, etc.
+- Exemplos:
+  - "POLIPOSE ADENOMATOSA FAMILIAR" → "Polipose Adenomatosa Familiar"
+  - "POT DRENAGEM DE ABSCESSO PERINEAL" → "POT Drenagem de Abscesso Perineal"
+  - "ADENOMA EM PÓLIPO DUODENAL DE BAIXO GRAU" → "Adenoma em Pólipo Duodenal de Baixo Grau"
+
+## Datas — REGRA PRIORITÁRIA (sobrepõe qualquer outra regra de data)
+- Mantenha as datas **EXATAMENTE** como aparecem no texto original. NÃO reformate, NÃO tente converter para DD/MM/AAAA.
+- Exemplos de preservação:
+  - "1999" → retorne "1999" (NÃO "19/99/" nem "01/01/1999")
+  - "2019" → retorne "2019" (NÃO "20/19/")
+  - "01/2022" → retorne "01/2022" (NÃO "01/20/2022")
+  - "07/2022" → retorne "07/2022"
+  - "27/11/21" → retorne "27/11/21"
+  - "10/01/2026" → retorne "10/01/2026"
+- Se a data é só um ano (ex: "- 1999"), retorne apenas "1999".
+- Se a data é mês/ano (ex: "- 01/2022"), retorne "01/2022".
+
+## Sub-itens e Observações
+- Linhas que começam com ">>" ou ">" ou são sub-itens indentados de um diagnóstico são **OBSERVAÇÕES** do diagnóstico pai.
+- Coloque essas linhas no campo `_obs` do diagnóstico, **separadas por \\n** (newline).
+- **NÃO** crie diagnósticos separados para sub-itens. Eles NÃO são diagnósticos independentes.
+- Converta os sub-itens também para Title Case (mantendo siglas em maiúsculas).
+- Exemplo:
+  Entrada:
+    1) POLIPOSE ADENOMATOSA FAMILIAR
+    >>POT RETOCOLECTOMIA TOTAL COM RESERVATORIO ILEAL -1999
+    >>POT RECONSTRUÇÃO DE TRÂNSITO - 2001
+  Saída:
+    diag_atual_1_nome: "Polipose Adenomatosa Familiar"
+    diag_atual_1_data: "1999"
+    diag_atual_1_obs: "POT Retocolectomia Total com Reservatório Ileal - 1999\\nPOT Reconstrução de Trânsito - 2001"
+
+## Classificação Atual vs Resolvida
+- Classifique como "Resolvida" APENAS se o texto indicar EXPLICITAMENTE resolução (palavras: "resolvido", "resolvida", "alta de", "retirado").
+- Sub-itens como "POT ...", "Pós-operatório de ..." são observações do diagnóstico pai, NÃO diagnósticos resolvidos.
+
+## Ordem e Preenchimento
+- Siga a exata ordem em que os diagnósticos aparecem no texto.
+- Se não houver informação, retorne `""` (string vazia). NÃO use `null`.
+- NÃO invente diagnósticos ou datas.
+- A saída deve ser EXCLUSIVAMENTE um objeto JSON válido, sem markdown.
 
 # ENTRADAS
 <TEXTO_ALVO>
@@ -26,49 +66,42 @@ Ler o texto fornecido na tag <TEXTO_ALVO> e extrair as hipóteses diagnósticas 
 </TEXTO_ALVO>
 
 <VARIAVEIS>
-Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
+Extraia exatamente as seguintes chaves JSON:
 
-# --- DIAGNÓSTICOS ATUAIS ---
-# 1. NOMES (Respeitando a ordem do texto original, em Title Case, sem siglas)
-- diag_atual_1_nome (string): Nome do 1º diagnóstico citado no texto.
-- diag_atual_2_nome (string): Nome do 2º diagnóstico citado no texto.
-- diag_atual_3_nome (string): Nome do 3º diagnóstico citado no texto.
-- diag_atual_4_nome (string): Nome do 4º diagnóstico citado no texto.
+# --- DIAGNÓSTICOS ATUAIS (até 4) ---
+- diag_atual_1_nome (string): Nome do 1º diagnóstico em Title Case.
+- diag_atual_2_nome (string): Nome do 2º diagnóstico.
+- diag_atual_3_nome (string): Nome do 3º diagnóstico.
+- diag_atual_4_nome (string): Nome do 4º diagnóstico.
 
-# 2. CLASSIFICAÇÕES (Referentes aos diagnósticos mapeados acima)
-- diag_atual_1_class (string): Estadiamento/classificação do diag 1 (ex: KDIGO 3). Se ausente, "".
-- diag_atual_2_class (string): Estadiamento/classificação do diag 2.
-- diag_atual_3_class (string): Estadiamento/classificação do diag 3.
-- diag_atual_4_class (string): Estadiamento/classificação do diag 4.
+- diag_atual_1_class (string): Classificação do diag 1 (ex: "KDIGO 3", "Foco Pulmonar"). Se ausente, "".
+- diag_atual_2_class (string): Classificação do diag 2.
+- diag_atual_3_class (string): Classificação do diag 3.
+- diag_atual_4_class (string): Classificação do diag 4.
 
-# 3. DATAS (Referentes aos diagnósticos mapeados acima)
-- diag_atual_1_data (string): Data ou tempo de início do diag 1. Se ausente, "".
-- diag_atual_2_data (string): Data ou tempo de início do diag 2.
-- diag_atual_3_data (string): Data ou tempo de início do diag 3.
-- diag_atual_4_data (string): Data ou tempo de início do diag 4.
+- diag_atual_1_data (string): Data EXATAMENTE como no texto. Se ausente, "".
+- diag_atual_2_data (string): Data do diag 2.
+- diag_atual_3_data (string): Data do diag 3.
+- diag_atual_4_data (string): Data do diag 4.
 
-# 4. OBSERVAÇÕES (Referentes aos diagnósticos mapeados acima)
-- diag_atual_1_obs (string): Resumo clínico objetivo da evolução do diag 1. Sem condutas. Se ausente, "".
-- diag_atual_2_obs (string): Resumo clínico do diag 2.
-- diag_atual_3_obs (string): Resumo clínico do diag 3.
-- diag_atual_4_obs (string): Resumo clínico do diag 4.
+- diag_atual_1_obs (string): Observações e sub-itens (separados por \\n). Sem condutas. Se ausente, "".
+- diag_atual_2_obs (string): Observações do diag 2.
+- diag_atual_3_obs (string): Observações do diag 3.
+- diag_atual_4_obs (string): Observações do diag 4.
 
-# --- DIAGNÓSTICOS RESOLVIDOS / PASSADOS ---
-# 1. NOMES DOS RESOLVIDOS
-- diag_resolv_1_nome (string): Nome do 1º evento passado citado no texto.
-- diag_resolv_2_nome (string): Nome do 2º evento passado citado no texto.
-- diag_resolv_3_nome (string): Nome do 3º evento passado citado no texto.
-- diag_resolv_4_nome (string): Nome do 4º evento passado citado no texto.
+# --- DIAGNÓSTICOS RESOLVIDOS (até 4) ---
+- diag_resolv_1_nome (string): Nome do 1º evento passado/resolvido.
+- diag_resolv_2_nome (string): 2º resolvido.
+- diag_resolv_3_nome (string): 3º resolvido.
+- diag_resolv_4_nome (string): 4º resolvido.
 
-# 2. CLASSIFICAÇÕES DOS RESOLVIDOS
-- diag_resolv_1_class (string): Estadiamento/classificação do resolvido 1.
-- diag_resolv_2_class (string): Estadiamento/classificação do resolvido 2.
-- diag_resolv_3_class (string): Estadiamento/classificação do resolvido 3.
-- diag_resolv_4_class (string): Estadiamento/classificação do resolvido 4.
+- diag_resolv_1_class (string): Classificação do resolvido 1.
+- diag_resolv_2_class (string): Classificação do resolvido 2.
+- diag_resolv_3_class (string): Classificação do resolvido 3.
+- diag_resolv_4_class (string): Classificação do resolvido 4.
 
-# 3. DATAS DOS RESOLVIDOS
-- diag_resolv_1_data_inicio (string): Data de início do resolvido 1.
-- diag_resolv_1_data_fim (string): Data de resolução/alta do resolvido 1.
+- diag_resolv_1_data_inicio (string): Data de início do resolvido 1 (EXATAMENTE como no texto).
+- diag_resolv_1_data_fim (string): Data de resolução do resolvido 1.
 - diag_resolv_2_data_inicio (string): Data de início do resolvido 2.
 - diag_resolv_2_data_fim (string): Data de resolução do resolvido 2.
 - diag_resolv_3_data_inicio (string): Data de início do resolvido 3.
@@ -76,48 +109,56 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 - diag_resolv_4_data_inicio (string): Data de início do resolvido 4.
 - diag_resolv_4_data_fim (string): Data de resolução do resolvido 4.
 
-# 4. OBSERVAÇÕES DOS RESOLVIDOS
 - diag_resolv_1_obs (string): Resumo do desfecho do resolvido 1.
 - diag_resolv_2_obs (string): Resumo do desfecho do resolvido 2.
 - diag_resolv_3_obs (string): Resumo do desfecho do resolvido 3.
 - diag_resolv_4_obs (string): Resumo do desfecho do resolvido 4.
 
 # EXEMPLO DE SAÍDA PERFEITA
+Texto de entrada:
+  1) POLIPOSE ADENOMATOSA FAMILIAR
+  >>POT RETOCOLECTOMIA TOTAL COM RESERVATORIO ILEAL -1999
+  >>POT RECONSTRUÇÃO DE TRÂNSITO - 2001
+  2) ADENOMA EM PÓLIPO DUODENAL DE BAIXO GRAU - 2019
+  3) ADENOMA EM PÓLIPO DUODENAL DE ALTO GRAU DE 1,2 CM EM REGIÃO PÓS BULBAR - 01/2022
+  4) POT DRENAGEM DE ABSCESSO PERINEAL 27/11/21
+
+JSON correto:
 {
-  "diag_atual_1_nome": "Choque Séptico",
-  "diag_atual_2_nome": "Pneumonia Associada à Ventilação Mecânica",
-  "diag_atual_3_nome": "Lesão Renal Aguda",
-  "diag_atual_4_nome": "Fibrilação Atrial com Alta Resposta Ventricular",
-  "diag_atual_1_class": "Foco Pulmonar",
-  "diag_atual_2_class": "HAPV",
-  "diag_atual_3_class": "KDIGO 2",
+  "diag_atual_1_nome": "Polipose Adenomatosa Familiar",
+  "diag_atual_2_nome": "Adenoma em Pólipo Duodenal de Baixo Grau",
+  "diag_atual_3_nome": "Adenoma em Pólipo Duodenal de Alto Grau de 1,2 cm",
+  "diag_atual_4_nome": "POT Drenagem de Abscesso Perineal",
+  "diag_atual_1_class": "",
+  "diag_atual_2_class": "",
+  "diag_atual_3_class": "Região Pós Bulbar",
   "diag_atual_4_class": "",
-  "diag_atual_1_data": "21/02/2026",
-  "diag_atual_2_data": "23/02/2026",
-  "diag_atual_3_data": "21/02/2026",
-  "diag_atual_4_data": "22/02/2026",
-  "diag_atual_1_obs": "Admitida em choque séptico com foco pulmonar provável. Iniciado suporte vasopressor e antibioticoterapia empírica. Evolução com melhora parcial do vasopressor após 48h.",
-  "diag_atual_2_obs": "Critério radiológico e microbiológico. Cultura de aspirado traqueal coletada em 23/02/2026 com isolamento de K. pneumoniae KPC+.",
-  "diag_atual_3_obs": "Oligúria nas primeiras 24h. Creatinina de base 1.1, pico de 3.4. Em acompanhamento com nefrologia.",
-  "diag_atual_4_obs": "Revertida com amiodarona IV. Mantém ritmo sinusal desde 22/02/2026.",
-  "diag_resolv_1_nome": "Hipopotassemia",
-  "diag_resolv_2_nome": "Hipotermia",
+  "diag_atual_1_data": "1999",
+  "diag_atual_2_data": "2019",
+  "diag_atual_3_data": "01/2022",
+  "diag_atual_4_data": "27/11/21",
+  "diag_atual_1_obs": "POT Retocolectomia Total com Reservatório Ileal - 1999\nPOT Reconstrução de Trânsito - 2001",
+  "diag_atual_2_obs": "",
+  "diag_atual_3_obs": "",
+  "diag_atual_4_obs": "",
+  "diag_resolv_1_nome": "",
+  "diag_resolv_2_nome": "",
   "diag_resolv_3_nome": "",
   "diag_resolv_4_nome": "",
   "diag_resolv_1_class": "",
   "diag_resolv_2_class": "",
   "diag_resolv_3_class": "",
   "diag_resolv_4_class": "",
-  "diag_resolv_1_data_inicio": "20/02/2026",
-  "diag_resolv_1_data_fim": "22/02/2026",
-  "diag_resolv_2_data_inicio": "20/02/2026",
-  "diag_resolv_2_data_fim": "21/02/2026",
+  "diag_resolv_1_data_inicio": "",
+  "diag_resolv_1_data_fim": "",
+  "diag_resolv_2_data_inicio": "",
+  "diag_resolv_2_data_fim": "",
   "diag_resolv_3_data_inicio": "",
   "diag_resolv_3_data_fim": "",
   "diag_resolv_4_data_inicio": "",
   "diag_resolv_4_data_fim": "",
-  "diag_resolv_1_obs": "Reposta 120 mEq IV. Corrigida.",
-  "diag_resolv_2_obs": "Temperatura mínima de 34.8°C na admissão. Reaquecimento com manta térmica.",
+  "diag_resolv_1_obs": "",
+  "diag_resolv_2_obs": "",
   "diag_resolv_3_obs": "",
   "diag_resolv_4_obs": ""
 }

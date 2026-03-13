@@ -1,13 +1,33 @@
 from ._base import *
+import re as _re
 import streamlit as st
+
+_SIGLAS_UPPER = {
+    "eda", "tc", "rm", "rx", "usg", "eco", "ecott", "ecote", "cate",
+    "bnp", "pet", "eeg", "emg", "enmg", "rnm", "dvp", "pam", "bva",
+}
+
+
+def _normalizar_nome_exame(nome: str) -> str:
+    """Converte nome de exame para formato correto: siglas em maiúsculas, resto em Title Case."""
+    palavras = nome.split()
+    resultado = []
+    for p in palavras:
+        if p.lower() in _SIGLAS_UPPER:
+            resultado.append(p.upper())
+        elif p.upper() == p and len(p) <= 4:
+            resultado.append(p.upper())
+        else:
+            resultado.append(p.capitalize())
+    return " ".join(resultado)
+
 
 def _secao_complementares() -> list[str]:
     """
     Gera as linhas da seção Exames Complementares.
-    Formato por exame:
+    Formato por exame (sem linha em branco entre exames):
         {i}- {Nome do Exame} (data)
         Laudo
-    Linha em branco entre exames.
     """
     ordem = st.session_state.get("comp_ordem", list(range(1, 9)))
 
@@ -19,7 +39,7 @@ def _secao_complementares() -> list[str]:
         laudo = _get(f"comp_{idx}_laudo").strip()
         if not exame and not laudo:
             continue
-        nome = exame or "Exame complementar"
+        nome = _normalizar_nome_exame(exame) if exame else "Exame Complementar"
         cabecalho = f"{contador}- {nome} ({data})" if data else f"{contador}- {nome}"
         bloco = [cabecalho]
         if laudo:
@@ -31,9 +51,7 @@ def _secao_complementares() -> list[str]:
         return []
 
     resultado = ["# Exames Complementares"]
-    for i, bloco in enumerate(blocos):
+    for bloco in blocos:
         resultado.extend(bloco)
-        if i < len(blocos) - 1:
-            resultado.append("")
 
     return resultado

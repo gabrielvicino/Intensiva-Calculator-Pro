@@ -67,17 +67,16 @@ Mais campo global: `complementares_notas` (input manual, agente nunca preenche).
 
 ```
 # Exames Complementares
-
 1- Ecocardiograma TT (20/01/2025)
 FE preservada (55%). Disfunção diastólica grau I.
-
 2- TC Tórax (21/01/2025)
 Consolidação em lobo inferior direito.
 ```
 
 - Cabeçalho: `{n}- {exame} ({data})` ou `{n}- {exame}` se sem data
 - Laudo: linha(s) abaixo, texto livre
-- Linha em branco entre exames
+- **Sem** linha em branco entre exames
+- Siglas de exames (EDA, TC, RX, RM, USG, etc.) são convertidas para **MAIÚSCULAS** automaticamente
 
 ---
 

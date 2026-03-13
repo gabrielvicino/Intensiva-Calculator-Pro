@@ -272,6 +272,8 @@ def _campos_base() -> dict:
         'inc_culturas':        True,
         'inc_antibioticos':    True,
         'inc_complementares':  True,
+        'inc_laboratoriais':   True,
+        'inc_controles':       False,
         'inc_evolucao':        True,
         'inc_sistemas':        True,
         'inc_prescricao':      True,
