@@ -11,17 +11,13 @@ from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 def _get_conn():
     """Retorna conexão psycopg2 ao Supabase. Usa SUPABASE_DB_URL dos secrets."""
     import psycopg2
-    url = ""
     try:
-        if hasattr(st, "secrets") and "SUPABASE_DB_URL" in st.secrets:
-            url = st.secrets["SUPABASE_DB_URL"]
+        url = st.secrets["SUPABASE_DB_URL"]
     except Exception:
-        pass
-    if not url:
         url = os.getenv("SUPABASE_DB_URL", "")
     if not url:
         raise RuntimeError("SUPABASE_DB_URL não configurada em secrets.toml")
-    return psycopg2.connect(url, connect_timeout=10)
+    return psycopg2.connect(str(url), connect_timeout=10)
 
 
 # ── Helpers de serialização ───────────────────────────────────────────────────
