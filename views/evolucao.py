@@ -216,6 +216,19 @@ if "_busca_pendente_criar" in st.session_state:
                 st.session_state.pop("_busca_pendente_criar", None)
                 st.rerun()
 
+# ── Gate: bloqueia o restante da página até um prontuário ser informado ───────
+if not st.session_state.get("prontuario", "").strip():
+    st.markdown(
+        '<div style="text-align:center;padding:80px 20px;color:#9e9e9e">'
+        '<p style="font-size:2.5rem;margin-bottom:4px">🔒</p>'
+        '<p style="font-size:1.1rem;font-weight:600;color:#666">Digite o número do prontuário para começar</p>'
+        '<p style="font-size:0.85rem">Busque um prontuário existente ou crie um novo acima.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    mostrar_rodape()
+    st.stop()
+
 # ── Barra de identificação do paciente ────────────────────────────────────────
 ui.render_barra_paciente()
 
