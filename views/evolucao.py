@@ -128,6 +128,14 @@ def _aplicar_dados_prontuario(dados: dict, silencioso: bool = False) -> bool:
             if sec in _as._AGENTES
         }
 
+    # Persiste prontuário na URL para sobreviver a reconexões do Streamlit Cloud
+    _pront_url = st.session_state.get("prontuario", "").strip()
+    if _pront_url:
+        try:
+            st.query_params["p"] = _pront_url
+        except Exception:
+            pass
+
     if not silencioso:
         st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
     return True
@@ -177,13 +185,23 @@ def _fragment_busca():
 _fragment_busca()
 
 # ── Auto-reload: recupera dados se sessão reiniciou (ex: Streamlit Cloud restart) ──
-# Condição: prontuário definido, mas nome vazio (session_state recém-zerado)
+# Condição 1: prontuário ainda no session_state mas nome sumiu (reconexão parcial)
+# Condição 2: session_state zerado, mas prontuário salvo na URL (?p=XXXXX)
 _pront_autoload = st.session_state.get("prontuario", "").strip()
+if not _pront_autoload:
+    # Fallback: tenta recuperar da URL (sobrevive a reconexões completas)
+    try:
+        _pront_autoload = st.query_params.get("p", "").strip()
+    except Exception:
+        _pront_autoload = ""
+    if _pront_autoload:
+        st.session_state["prontuario"] = _pront_autoload
+
 if (_pront_autoload
         and not st.session_state.get("nome", "").strip()
         and not st.session_state.get("_autoload_feito")):
     st.session_state["_autoload_feito"] = True
-    with st.spinner(f"🔍 Carregando prontuário {_pront_autoload}..."):
+    with st.spinner(f"🔍 Recarregando prontuário {_pront_autoload}..."):
         _dados_auto = load_evolucao(_pront_autoload)
     if _dados_auto and _aplicar_dados_prontuario(_dados_auto, silencioso=True):
         st.rerun()
@@ -205,6 +223,10 @@ if "_busca_pendente_criar" in st.session_state:
             ):
                 st.session_state.pop("_busca_pendente_criar", None)
                 st.session_state["prontuario"] = pend
+                try:
+                    st.query_params["p"] = str(pend).strip()
+                except Exception:
+                    pass
                 with st.spinner("Registrando novo prontuário..."):
                     save_evolucao(pend, "", {"prontuario": pend})
                 st.toast(f"Prontuário {pend} registrado com sucesso.", icon="✅")

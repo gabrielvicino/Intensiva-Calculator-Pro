@@ -81,4 +81,10 @@ def limpar_tudo():
     st.session_state["comp_ordem"] = list(range(1, 9))
     st.session_state["muc_ordem"] = list(range(1, 21))
     st.session_state["atb_ordem"] = list(range(1, 9))
+    # Remove prontuário da URL para não recarregar após limpar
+    try:
+        import streamlit as _st
+        _st.query_params.clear()
+    except Exception:
+        pass
     st.toast("Todos os campos foram limpos.", icon="🗑️")
