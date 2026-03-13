@@ -193,12 +193,12 @@ def load_evolucao(prontuario: str) -> dict | None:
             sb.table("evolucoes")
             .select("dados, atualizado")
             .eq("prontuario", pront)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
         if not resp.data:
             return None
-        row = resp.data
+        row = resp.data[0]
         dados = row["dados"] if isinstance(row["dados"], dict) else json.loads(row["dados"])
         atualizado = row.get("atualizado", "")
         if atualizado and "T" in str(atualizado):
