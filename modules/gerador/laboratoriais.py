@@ -24,7 +24,7 @@ def _secao_laboratoriais() -> list[str]:
         ("HCM",   "hcm"),   ("RDW",   "rdw"),   ("Leuco","__leuco_dif__"),
         ("Plaq",  "plaq"),  ("Cr",    "cr"),     ("Ur",   "ur"),
         ("Na",    "na"),    ("K",     "k"),      ("Mg",   "mg"),
-        ("Pi",    "pi"),    ("CaT",   "cat"),    ("CaI",  "cai"),
+        ("Pi",    "pi"),    ("CaT",   "cat"),    ("CaI",  "cai"),  ("Glic", "glic"),
         ("TGO",   "tgo"),   ("TGP",   "tgp"),   ("FAL",  "fal"),
         ("GGT",   "ggt"),   ("BT",    "__bt_bd__"), ("Prot Tot", "prot_tot"),
         ("Amil",  "amil"),  ("Lipas", "lipas"),  ("Alb",  "alb"),   ("LDH",  "ldh"),

@@ -19,7 +19,7 @@ _LAB_SUFIXOS = [
     "leuco", "leuco_bla", "leuco_mie", "leuco_meta",
     "leuco_bast", "leuco_seg", "leuco_linf", "leuco_mon", "leuco_eos", "leuco_bas",
     "plaq",
-    "cr", "ur", "na", "k", "mg", "pi", "cat", "cai",
+    "cr", "ur", "na", "k", "mg", "pi", "cat", "cai", "glic",
     "tgp", "tgo", "fal", "ggt", "bt", "bd", "prot_tot", "alb", "ldh", "amil", "lipas",
     "cpk", "cpk_mb", "bnp", "trop", "pcr", "vhs", "lac", "tp", "ttpa", "fbrn",
     "ur_dens", "ur_le", "ur_nit", "ur_leu", "ur_hm", "ur_prot", "ur_cet", "ur_glic",
@@ -269,6 +269,7 @@ def _render_labs_table(slots: list, show_header: bool = True, show_conduta: bool
     _row("Pi",  "pi")
     _row("CaT", "cat")
     _row("CaI", "cai")
+    _row("Glic", "glic")
 
     # ── Hepático / Pancreático ────────────────────────────────────
     _sec("Hepático / Pancreático")

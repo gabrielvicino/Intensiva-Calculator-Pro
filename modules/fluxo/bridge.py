@@ -83,6 +83,15 @@ _SLOTS_CTRL = [
 # Sufixos de destino em ordem: mais recente → mais antigo
 _SLOTS_SIS_ORDEM = ["hoje", "ult", "antepen", "ant4", "ant5"]
 
+# Mapeamento completo (sis_suf, ctrl_dia, lab_idx) — usado pelo botão "Evolução Diária"
+_SLOTS = [
+    ("hoje",    "hoje",      1),
+    ("ult",     "ontem",     2),
+    ("antepen", "anteontem", 3),
+    ("ant4",    "ant4",      4),
+    ("ant5",    "ant5",      5),
+]
+
 
 def _lac_do_dia(lab_idx: int) -> str:
     """Retorna lactato da primeira gasometria disponível do dia (gas → gas2 → gas3)."""

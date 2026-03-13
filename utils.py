@@ -91,10 +91,12 @@ def _get_sb():
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _limpar_dados(dados: dict) -> dict:
-    """Remove chaves com valores vazios — armazena apenas campos preenchidos."""
+    """Remove chaves com valores vazios — armazena apenas campos preenchidos.
+    Preserva False para chaves inc_* (toggles de inclusão de seção)."""
     return {
         k: v for k, v in dados.items()
-        if v is not None and v != "" and v is not False and v != []
+        if v is not None and v != "" and v != []
+        and (v is not False or k.startswith("inc_"))
     }
 
 

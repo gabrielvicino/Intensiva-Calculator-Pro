@@ -224,13 +224,16 @@ def extrair_dados_prontuario(texto_bruto: str, api_key: str, provider: str = "Op
                 return _extrair_json_robusto(response.text or "")
 
         except json.JSONDecodeError as e:
+            if attempt < 2:
+                time.sleep(5)
+                continue
             return {"_erro": f"JSON inválido retornado pela IA: {e}"}
         except Exception as e:
             err_str = str(e)
             is_rate_limit = "429" in err_str or "rate_limit" in err_str.lower()
-            if is_rate_limit and attempt < 2:
-                time.sleep(20 * (attempt + 1))   # 20 s, depois 40 s
+            if (is_rate_limit or "500" in err_str) and attempt < 2:
+                time.sleep(20 * (attempt + 1))
                 continue
             return {"_erro": err_str}
 
-    return {"_erro": "Rate limit: máximo de tentativas atingido"}
+    return {"_erro": "Máximo de tentativas atingido"}

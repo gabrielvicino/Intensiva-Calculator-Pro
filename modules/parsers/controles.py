@@ -115,6 +115,11 @@ def _parse_balanco(linha: str, dia: str, resultado: dict) -> None:
     if m_diur:
         resultado[f"ctrl_{dia}_diurese"] = m_diur.group(1).strip()
 
+    # Evacuação
+    m_evac = re.search(r"evacua[çc][ãa]o:\s*([^|\n]+)", linha, re.IGNORECASE)
+    if m_evac:
+        resultado[f"ctrl_{dia}_evacuacao"] = m_evac.group(1).strip()
+
 
 def parse_controles_dia(texto: str, dia: str) -> dict:
     """
