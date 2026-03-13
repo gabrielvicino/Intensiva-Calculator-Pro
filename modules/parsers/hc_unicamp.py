@@ -15,7 +15,6 @@ Fluxo:
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 
 def detectar(texto: str) -> bool:
@@ -27,6 +26,15 @@ def detectar(texto: str) -> bool:
 def _n(s: str) -> str:
     """Normaliza valor numérico: vírgula → ponto, strip."""
     return s.strip().replace(",", ".") if s else ""
+
+
+def _fmt(s: str, decimals: int) -> str:
+    """Formata valor numérico para N casas decimais. Preserva strings não-numéricas."""
+    try:
+        f = float(s)
+        return str(int(round(f))) if decimals == 0 else f"{f:.{decimals}f}"
+    except (ValueError, TypeError):
+        return s
 
 
 def _normalizar_data(raw: str) -> str:
@@ -65,6 +73,8 @@ _BIOQ_PATTERNS: list[tuple[str, str]] = [
     (r'MAGN[EÉ]SIO:\s*([\d,\.]+)',                             'mg'),
     (r'F[OÓ]SFORO:\s*([\d,\.]+)',                              'pi'),
     (r'PROTE[IÍ]NA C REATIVA:\s*([\d,\.]+)',                   'pcr'),
+    (r'\bVHS:\s*([\d,\.]+)',                                    'vhs'),
+    (r'FIBROGEN[IÍ]O:\s*([\d,\.]+)',                           'fbrn'),
     (r'ASPARTATO AMINOTRANSFERASE:\s*(\d[\d,\.]*)',            'tgo'),
     (r'ALANINA AMINOTRANSFERASE:\s*(\d[\d,\.]*)',              'tgp'),
     (r'BILIRRUBINAS TOTAIS:\s*([\d,\.]+)',                     'bt'),
@@ -96,13 +106,17 @@ _GAS_PATTERNS: list[tuple[str, str]] = [
     (r'^BE\s+([+-]?[\d,\.]+)',           'gas_be'),
     (r'^SO2\s+([\d,\.]+)',               'gas_sat'),
     (r'^LACTATO\s+([\d,\.]+)',           'gas_lac'),
-    (r'^CALCIO IONICO\s+([\d,\.]+)',     'gas_cai'),
-    (r'^ANION GAP \(K\)\s+([\d,\.]+)',   'gas_ag'),
-    (r'^CLORO\s+([\d,\.]+)',             'gas_cl'),
-    (r'^SODIO\s+([\d,\.]+)',             'gas_na'),
-    (r'^POTASSIO\s+([\d,\.]+)',          'gas_k'),
-    (r'^HEMOGLOBINA\s+([\d,\.]+)',        'gas_hb'),
-    (r'^HEMATOCRITO\s+([\d,\.]+)',        'gas_ht'),
+    (r'^CALCIO IONICO\s+([\d,\.]+)',                'gas_cai'),
+    # Gasometria venosa: "Ca Ionico(7,4) 1,10" (temperatura corrigida)
+    (r'^Ca\s+Ionico\(7,4\)\w*\s+([\d,\.]+)',       'gas_cai'),
+    (r'^ANION GAP \(K\)\s+([\d,\.]+)',              'gas_ag'),
+    (r'^CLORO\s+([\d,\.]+)',                        'gas_cl'),
+    (r'^SODIO\s+([\d,\.]+)',                        'gas_na'),
+    (r'^POTASSIO\s+([\d,\.]+)',                     'gas_k'),
+    (r'^HEMOGLOBINA\s+([\d,\.]+)',                  'gas_hb'),
+    # Gasometria venosa: "tHb 6,9 g/dL" (hemoglobina total)
+    (r'^tHb\s+([\d,\.]+)',                          'gas_hb'),
+    (r'^HEMATOCRITO\s+([\d,\.]+)',                  'gas_ht'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -110,18 +124,23 @@ _GAS_PATTERNS: list[tuple[str, str]] = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 _HEMO_PATTERNS: list[tuple[str, str]] = [
-    (r'^WBC\s*:\s*([\d,\.]+)',   'leuco'),
-    (r'^HB\s*:\s*([\d,\.]+)',    'hb'),
-    (r'^HT\s*:\s*([\d,\.]+)',    'ht'),
-    (r'^VCM\s*:\s*([\d,\.]+)',   'vcm'),
-    (r'^HCM\s*:\s*([\d,\.]+)',   'hcm'),
-    (r'^RDW\s*:\s*([\d,\.]+)',   'rdw'),
-    (r'^PLT\s*:\s*([\d,\.]+)',   'plaq'),
-    (r'^SEG\s*:\s*([\d,\.]+)',   'seg'),
-    (r'^BAST[ÕO]ES\s*:\s*([\d,\.]+)',  'bast'),
-    (r'^LINFO\s*:\s*([\d,\.]+)', 'linfo'),
-    (r'^MONO\s*:\s*([\d,\.]+)',  'mono'),
-    (r'^EOSINO\s*:\s*([\d,\.]+)', 'eosino'),
+    (r'^WBC\s*:\s*([\d,\.]+)',             'leuco'),
+    (r'^HB\s*:\s*([\d,\.]+)',              'hb'),
+    (r'^HT\s*:\s*([\d,\.]+)',              'ht'),
+    (r'^VCM\s*:\s*([\d,\.]+)',             'vcm'),
+    (r'^HCM\s*:\s*([\d,\.]+)',             'hcm'),
+    (r'^RDW\s*:\s*([\d,\.]+)',             'rdw'),
+    (r'^PLT\s*:\s*([\d,\.]+)',             'plaq'),
+    # Diferencial — nomes mapeados para os sufixos corretos do session_state
+    (r'^SEG\s*:\s*([\d,\.]+)',             'leuco_seg'),
+    (r'^BAST[ÕO]ES\s*:\s*([\d,\.]+)',     'leuco_bast'),
+    (r'^LINFO\s*:\s*([\d,\.]+)',           'leuco_linf'),
+    (r'^MONO\s*:\s*([\d,\.]+)',            'leuco_mon'),
+    (r'^EOSINO\s*:\s*([\d,\.]+)',          'leuco_eos'),
+    (r'^BASO\s*:\s*([\d,\.]+)',            'leuco_bas'),
+    (r'^BLASTO\s*:\s*([\d,\.]+)',          'leuco_bla'),
+    (r'^MIELO\s*:\s*([\d,\.]+)',           'leuco_mie'),
+    (r'^META\s*:\s*([\d,\.]+)',            'leuco_meta'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -211,9 +230,14 @@ def _parse_bioq(texto: str, col: _Collector) -> None:
 
 
 def _parse_gas(texto: str, col: _Collector) -> None:
-    """Extrai TODOS os blocos de gasometria (formato inline sem ':')."""
+    """Extrai TODOS os blocos de gasometria (formato inline sem ':').
+    O terminador usa 'Conferência por Vídeo' (assinatura do laudo) em vez
+    do cabeçalho de página, resolvendo o bug de quebra de página quando
+    GASOMETRIA ARTERIAL cai no fim de uma folha e os dados ficam na seguinte.
+    """
     for gas_m in re.finditer(
-        r'(GASOMETRIA\s+(ARTERIAL|VENOSA|CAPILAR).+?)(?=LABORAT[ÓO]RIO DE PATOLOGIA|$)',
+        r'(GASOMETRIA\s+(ARTERIAL|VENOSA|CAPILAR).+?'
+        r'(?:Confer[eê]ncia\s+por\s+V[íi]deo|$))',
         texto, re.DOTALL | re.IGNORECASE,
     ):
         bloco = gas_m.group(1)
@@ -235,9 +259,13 @@ def _parse_gas(texto: str, col: _Collector) -> None:
 
 
 def _parse_hemo(texto: str, col: _Collector) -> None:
-    """Extrai hemograma — aceita GLOBAIS: ou HEMOGRAMA COMPLETO :"""
+    """Extrai hemograma — aceita GLOBAIS: ou HEMOGRAMA COMPLETO :
+    Usa 'Conferência por Vídeo' como terminador para corretamente cruzar
+    quebras de página quando o hemograma é divido entre páginas.
+    """
     for hemo_m in re.finditer(
-        r'((?:GLOBAIS|HEMOGRAMA\s+COMPLETO)\s*:.+?)(?=LABORAT[ÓO]RIO DE PATOLOGIA|$)',
+        r'((?:GLOBAIS|HEMOGRAMA\s+COMPLETO)\s*:.+?'
+        r'(?:Confer[eê]ncia\s+por\s+V[íi]deo|$))',
         texto, re.DOTALL | re.IGNORECASE,
     ):
         bloco = hemo_m.group(1)
@@ -249,30 +277,30 @@ def _parse_hemo(texto: str, col: _Collector) -> None:
 
 
 def _parse_coag(texto: str, col: _Collector) -> None:
-    """Extrai coagulação (TTPA, TP, RNI)."""
+    """Extrai coagulação (TTPA, TP, RNI).
+    Formato de saída: "30.1s (R 1.05)" / "25.3s (AP 85% RNI 1.10)"
+    """
     for m in re.finditer(r'TTPA:\s*([\d,\.]+)\s*SEG', texto, re.IGNORECASE):
-        seg = _n(m.group(1))
+        seg = _fmt(_n(m.group(1)), 1)
         r_m = re.search(r'R:\s*([\d,\.]+)', texto[m.end():m.end() + 100])
         if r_m:
-            col.add(m.start(), 'ttpa', f"{seg}s (R {_n(r_m.group(1))})")
+            col.add(m.start(), 'ttpa', f"{seg}s (R {_fmt(_n(r_m.group(1)), 2)})")
         else:
             col.add(m.start(), 'ttpa', f"{seg}s")
 
     for m in re.finditer(r'\bTP:\s*([\d,\.]+)\s*SEG', texto, re.IGNORECASE):
-        seg = _n(m.group(1))
-        parts = [f"{seg}s"]
+        seg = _fmt(_n(m.group(1)), 1)
         window = texto[m.end():m.end() + 200]
-        ap_m = re.search(r'AP:\s*([\d,\.]+)%', window, re.IGNORECASE)
-        if ap_m:
-            parts.append(f"AP {_n(ap_m.group(1))}%")
+        ap_m  = re.search(r'AP:\s*([\d,\.]+)%', window, re.IGNORECASE)
         rni_m = re.search(r'RNI:\s*([\d,\.]+)', window, re.IGNORECASE)
-        if rni_m:
-            parts.append(f"RNI {_n(rni_m.group(1))}")
-        col.add(m.start(), 'tp', " ".join(parts))
+        ap_str  = f"AP {_fmt(_n(ap_m.group(1)), 0)}%"        if ap_m  else ""
+        rni_str = f"RNI {_fmt(_n(rni_m.group(1)), 2)}" if rni_m else ""
+        paren   = " ".join(filter(None, [ap_str, rni_str]))
+        col.add(m.start(), 'tp', f"{seg}s ({paren})" if paren else f"{seg}s")
 
 
 def _parse_urina(texto: str, col: _Collector) -> None:
-    """Extrai EAS/urina se presente no texto."""
+    """Extrai EAS/urina no formato antigo (com dois-pontos)."""
     _URN_PATTERNS = [
         (r'DENSIDADE:\s*([\d,\.]+)',                   'ur_dens'),
         (r'ESTERASE\s+LEUCOCIT[AÁ]RIA:\s*(\S+)',     'ur_le'),
@@ -286,6 +314,96 @@ def _parse_urina(texto: str, col: _Collector) -> None:
     for pat, field in _URN_PATTERNS:
         for m in re.finditer(pat, texto, re.IGNORECASE):
             col.add(m.start(), field, m.group(1).strip())
+
+
+def _parse_urina_analise(texto: str, col: _Collector) -> None:
+    """Extrai EAS no formato URINA I(URINA) — sem dois-pontos.
+
+    Formato típico do HC Unicamp:
+        DENSIDADE 1013  VR: 1010 a 1025
+        LEUCOCITO - ESTERASE NEGATIVO  VR: Negativo
+        HEMÁCIAS 3 /campo  VR: até 5/campo
+        LEUCÓCITOS INFERIOR A 1 /campo  VR: até 5/campo
+    """
+    _URN_ANALISE_PATTERNS: list[tuple[str, str]] = [
+        (r'^DENSIDADE\s+([\d,\.]+)',                                      'ur_dens'),
+        (r'^LEUC[OÓ]CITO\s*[-\s]*ESTERASE\s+(\S+)',                     'ur_le'),
+        (r'^NITRITO\s+(\S+)',                                             'ur_nit'),
+        (r'^PROTE[IÍ]NA\s+(\S+)',                                        'ur_prot'),
+        (r'^GLICOSE\s+(\S+)',                                             'ur_glic'),
+        (r'^CORPOS\s+CET[ÔO]NICOS?\s+(\S+)',                            'ur_cet'),
+        (r'^HEM[AÁ]CIAS\s+(INFERIOR\s+A\s+[\d,\.]+|[\d,\.]+)',         'ur_hm'),
+        (r'^LEUC[ÓO]CITOS?\s+(INFERIOR\s+A\s+[\d,\.]+|[\d,\.]+)',      'ur_leu'),
+    ]
+
+    for urn_m in re.finditer(
+        r'(URINA\s+I\s*\(URINA\).+?(?:Confer[eê]ncia\s+por\s+V[íi]deo|$))',
+        texto, re.DOTALL | re.IGNORECASE,
+    ):
+        bloco = urn_m.group(1)
+        pos_base = urn_m.start()
+
+        for pat, field in _URN_ANALISE_PATTERNS:
+            for m in re.finditer(pat, bloco, re.MULTILINE | re.IGNORECASE):
+                val = m.group(1).strip()
+                inf_m = re.match(r'INFERIOR\s+A\s+([\d,\.]+)', val, re.IGNORECASE)
+                if inf_m:
+                    val = f"< {_n(inf_m.group(1))}"
+                elif re.match(r'^[\d,\.]+$', val):
+                    val = _n(val)
+                col.add(pos_base + m.start(), field, val)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Formatação de saída — casas decimais por campo
+# ─────────────────────────────────────────────────────────────────────────────
+
+_FIELD_DECIMALS: dict[str, int] = {
+    # Hemograma
+    'hb': 1, 'ht': 0, 'vcm': 0, 'hcm': 0, 'rdw': 1,
+    # Renal / Eletrólitos
+    'cr': 1, 'ur': 0, 'na': 0, 'k': 1, 'mg': 1, 'pi': 1, 'cat': 1, 'cai': 2,
+    # Hepático / Pancreático
+    'tgo': 0, 'tgp': 0, 'fal': 0, 'ggt': 0,
+    'bt': 1, 'bd': 1, 'alb': 1, 'prot_tot': 1, 'ldh': 0, 'amil': 0, 'lipas': 0,
+    # Cardio / Inflamatório
+    'pcr': 0, 'vhs': 0, 'lac': 1, 'trop': 2, 'cpk': 0, 'bnp': 0, 'fbrn': 0,
+    # Gasometria
+    'gas_ph': 2, 'gas_pco2': 0, 'gas_po2': 0, 'gas_hco3': 1, 'gas_be': 1,
+    'gas_sat': 0, 'gas_lac': 1, 'gas_ag': 1, 'gas_cl': 0, 'gas_na': 0,
+    'gas_k': 1, 'gas_cai': 2, 'gas_hb': 1, 'gas_ht': 0,
+}
+
+_DIFF_FIELDS = frozenset({
+    'leuco_seg', 'leuco_bast', 'leuco_linf', 'leuco_mon',
+    'leuco_eos', 'leuco_bas', 'leuco_bla', 'leuco_mie', 'leuco_meta',
+})
+
+
+def _aplicar_formato(coletas: list[dict]) -> list[dict]:
+    """Aplica conversão de unidades e formatação de casas decimais às coletas.
+
+    - WBC e PLT: x10³/µL → valor absoluto (ex: 5.01 → 5010)
+    - Diferencial leucocitário: adiciona "%" (ex: 84 → "84%")
+    - Demais campos numéricos: arredonda para casas decimais padrão clínico
+    """
+    for c in coletas:
+        for campo in ('leuco', 'plaq'):
+            if c.get(campo):
+                try:
+                    c[campo] = str(int(round(float(c[campo]) * 1000)))
+                except (ValueError, TypeError):
+                    pass
+
+        for campo in _DIFF_FIELDS:
+            if c.get(campo) and not c[campo].endswith('%'):
+                c[campo] = f"{_fmt(c[campo], 0)}%"
+
+        for field, decimals in _FIELD_DECIMALS.items():
+            if c.get(field):
+                c[field] = _fmt(c[field], decimals)
+
+    return coletas
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -312,6 +430,8 @@ def parsear(texto: str) -> list[dict] | None:
     _parse_hemo(texto, col)
     _parse_coag(texto, col)
     _parse_urina(texto, col)
+    _parse_urina_analise(texto, col)
 
     result = col.result()
+    result = _aplicar_formato(result)
     return result if result else None

@@ -76,6 +76,22 @@ def _aplicar_dados_prontuario(dados: dict, silencioso: bool = False) -> bool:
         if v or not st.session_state.get(k):
             st.session_state[k] = v
     st.session_state["_data_hora_carregado"] = data_hora
+
+    # Reconstrói _secoes_recortadas se algum *_notas tiver conteúdo —
+    # garante que o checklist e o botão "Completar Campos" reapareçam após reload.
+    from modules import agentes_secoes as _as
+    notas_com_conteudo = any(
+        st.session_state.get(_as._NOTAS_MAP[sec], "").strip()
+        for sec in _as._NOTAS_MAP
+        if sec in _as._AGENTES
+    )
+    if notas_com_conteudo:
+        st.session_state["_secoes_recortadas"] = {
+            sec: bool(st.session_state.get(_as._NOTAS_MAP[sec], "").strip())
+            for sec in _as._NOTAS_MAP
+            if sec in _as._AGENTES
+        }
+
     if not silencioso:
         st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
     return True
@@ -251,7 +267,12 @@ with st.container(border=True):
                         modelo=_ext_mod,
                     )
                     fluxo.atualizar_notas_ia(dados_notas)
-                st.toast("Seções extraídas com sucesso.", icon="✅")
+                    # Auto-save: persiste o texto original + notas fatiadas no banco
+                    _pront_fat = st.session_state.get("prontuario", "").strip()
+                    if _pront_fat:
+                        _dados_fat = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+                        save_evolucao(_pront_fat, st.session_state.get("nome", "").strip(), _dados_fat)
+                st.toast("Seções extraídas e salvas com sucesso.", icon="✅")
                 st.session_state["_secoes_recortadas"] = {
                     sec: bool(st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
                     for sec in agentes_secoes._NOTAS_MAP

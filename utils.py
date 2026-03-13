@@ -1,51 +1,30 @@
 import os
 import time
-import gzip
-import base64
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-from gspread import service_account_from_dict
 import pandas as pd
 import json
 from datetime import datetime
 from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 
-_GZ_PREFIX = "GZ1:"  # marcador de versão do formato comprimido
+# ── Conexão PostgreSQL (Supabase direto) ──────────────────────────────────────
+
+def _get_conn():
+    """Retorna conexão psycopg2 ao Supabase. Usa SUPABASE_DB_URL dos secrets."""
+    import psycopg2
+    url = st.secrets.get("SUPABASE_DB_URL") or os.getenv("SUPABASE_DB_URL", "")
+    if not url:
+        raise RuntimeError("SUPABASE_DB_URL não configurada em secrets.toml")
+    return psycopg2.connect(url, connect_timeout=10)
 
 
-def _comprimir_dados(dados: dict) -> str:
-    """
-    Serializa o dict completo para JSON e comprime com gzip+base64.
-    Garante que o resultado caiba no limite de 50.000 chars/célula do Google Sheets
-    (redução típica de 95-97%, mesmo com textos grandes).
-    """
-    json_str = json.dumps(dados, ensure_ascii=False, default=str)
-    compressed = gzip.compress(json_str.encode("utf-8"), compresslevel=9)
-    b64 = base64.b64encode(compressed).decode("ascii")
-    return f"{_GZ_PREFIX}{b64}"
+# ── Helpers de serialização ───────────────────────────────────────────────────
 
-
-def _descomprimir_dados(texto: str) -> dict:
-    """Descomprime JSON salvo por _comprimir_dados. Aceita JSON puro (legado)."""
-    if not texto or not isinstance(texto, str):
-        return {}
-    if texto.startswith(_GZ_PREFIX):
-        b64 = texto[len(_GZ_PREFIX):]
-        compressed = base64.b64decode(b64.encode("ascii"))
-        json_str = gzip.decompress(compressed).decode("utf-8")
-        return json.loads(json_str)
-    # Legado: JSON puro
-    return json.loads(texto)
-
-
-def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
-    """Carrega chave de API dos secrets do Streamlit ou variável de ambiente."""
-    try:
-        if hasattr(st, "secrets") and nome_secret in st.secrets:
-            return st.secrets[nome_secret]
-    except Exception:
-        pass
-    return os.getenv(nome_env, "")
+def _limpar_dados(dados: dict) -> dict:
+    """Remove chaves com valores vazios — armazena apenas campos preenchidos."""
+    return {
+        k: v for k, v in dados.items()
+        if v is not None and v != "" and v is not False and v != []
+    }
 
 
 # ── Rate Limiting ──────────────────────────────────────────────────────────────
@@ -61,14 +40,7 @@ def _rate_config() -> tuple[int, int]:
 
 
 def verificar_rate_limit() -> tuple[bool, str]:
-    """Verifica se a sessão excedeu o limite de chamadas à IA no período.
-
-    Limites configuráveis via st.secrets:
-        RATE_MAX_CALLS  — máximo de chamadas permitidas na janela (default 20)
-        RATE_JANELA_MIN — duração da janela em minutos (default 10)
-
-    Retorna (permitido: bool, mensagem: str).
-    """
+    """Verifica se a sessão excedeu o limite de chamadas à IA no período."""
     max_calls, janela_min = _rate_config()
     janela_seg = janela_min * 60
     agora = time.time()
@@ -76,7 +48,6 @@ def verificar_rate_limit() -> tuple[bool, str]:
     if "_rate_timestamps" not in st.session_state:
         st.session_state["_rate_timestamps"] = []
 
-    # Remove registros fora da janela deslizante
     st.session_state["_rate_timestamps"] = [
         t for t in st.session_state["_rate_timestamps"]
         if agora - t < janela_seg
@@ -109,25 +80,126 @@ def uso_rate_limit() -> tuple[int, int, int]:
         if agora - t < janela_seg
     ]
     contagem = len(timestamps)
-    if timestamps:
-        segundos_reset = int(janela_seg - (agora - timestamps[0]))
-    else:
-        segundos_reset = 0
-
+    segundos_reset = int(janela_seg - (agora - timestamps[0])) if timestamps else 0
     return contagem, max_calls, segundos_reset
 
 
-# Link da sua planilha
+def carregar_chave_api(nome_secret: str, nome_env: str) -> str:
+    """Carrega chave de API dos secrets do Streamlit ou variável de ambiente."""
+    try:
+        if hasattr(st, "secrets") and nome_secret in st.secrets:
+            return st.secrets[nome_secret]
+    except Exception:
+        pass
+    return os.getenv(nome_env, "")
+
+
+# ── Evoluções — save / load ───────────────────────────────────────────────────
+
+def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
+    """
+    Salva evolução no Supabase (PostgreSQL).
+    - Tabela `evolucoes`: upsert — mantém sempre o estado mais recente.
+    - Tabela `evolucoes_historico`: append — preserva histórico completo.
+    Apenas campos não-vazios são armazenados (compacto, sem gzip).
+    """
+    pront      = str(prontuario).strip().replace(".0", "")
+    nome_      = str(nome).strip()
+    data_hora  = datetime.now().strftime("%d/%m/%Y %H:%M")
+    dados_limpos = _limpar_dados(dados)
+    dados_json   = json.dumps(dados_limpos, ensure_ascii=False, default=str)
+
+    try:
+        conn = _get_conn()
+        with conn:
+            with conn.cursor() as cur:
+                # Upsert na tabela principal
+                cur.execute(
+                    """
+                    INSERT INTO evolucoes (prontuario, nome, dados, atualizado)
+                    VALUES (%s, %s, %s::jsonb, now())
+                    ON CONFLICT (prontuario)
+                    DO UPDATE SET
+                        nome      = EXCLUDED.nome,
+                        dados     = EXCLUDED.dados,
+                        atualizado = now()
+                    """,
+                    (pront, nome_, dados_json),
+                )
+                # Append no histórico
+                cur.execute(
+                    """
+                    INSERT INTO evolucoes_historico (prontuario, dados, salvo_em)
+                    VALUES (%s, %s::jsonb, now())
+                    """,
+                    (pront, dados_json),
+                )
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"❌ Erro ao salvar no banco: {e}")
+        return False
+
+
+def load_evolucao(prontuario: str) -> dict | None:
+    """
+    Carrega o estado mais recente de um paciente.
+    Retorna dict com todos os campos, ou None se não encontrado.
+    O campo '_data_hora' indica quando foi salvo.
+    """
+    pront = str(prontuario).strip().replace(".0", "")
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT dados, atualizado FROM evolucoes WHERE prontuario = %s",
+                (pront,),
+            )
+            row = cur.fetchone()
+        conn.close()
+
+        if row is None:
+            return None
+
+        dados = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        dados["_data_hora"] = (
+            row[1].strftime("%d/%m/%Y %H:%M") if hasattr(row[1], "strftime") else str(row[1])
+        )
+        return dados
+
+    except Exception as e:
+        st.error(f"❌ Erro ao buscar no banco: {e}")
+        return None
+
+
+def check_evolucao_exists(prontuario: str) -> bool:
+    """Verifica se já existe registro para o prontuário."""
+    pront = str(prontuario).strip().replace(".0", "")
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM evolucoes WHERE prontuario = %s LIMIT 1",
+                (pront,),
+            )
+            exists = cur.fetchone() is not None
+        conn.close()
+        return exists
+    except Exception:
+        return False
+
+
+# ── Google Sheets — dados de referência (infusão) ─────────────────────────────
+# Mantidos no Sheets pois são dados estáticos de referência, lidos com cache.
+
+from streamlit_gsheets import GSheetsConnection
+from gspread import service_account_from_dict
+
 SHEET_URL = "https://docs.google.com/spreadsheets/d/15Rxc1tYYmgG7Sikn2UOvz-GFN6jvneMHnA-l-O8keNs/edit?gid=0#gid=0"
 
-# Nome da aba de evoluções na planilha
-_ABA_EVOLUCOES = "EVOLUCOES"
 
 def sync_infusao_to_sheet() -> bool:
-    """
-    Envia os dados padrão de infusão para a aba DB_INFUSAO no Google Sheets.
-    Usa os valores embutidos no código (pré-carregamento: ampolas + diluente).
-    """
+    """Envia dados padrão de infusão para a aba DB_INFUSAO no Google Sheets."""
     try:
         df = pd.DataFrame(_DADOS_INFUSAO_PADRAO)
         conn = st.connection("gsheets", type=GSheetsConnection)
@@ -151,38 +223,9 @@ def load_data(worksheet_name: str) -> pd.DataFrame:
         st.error(f"❌ Erro ao conectar com Google Sheets: {e}")
         return pd.DataFrame()
 
-def save_data_append(worksheet_name, new_data_row):
-    try:
-        existing_data = _read_worksheet_gspread(worksheet_name)
-        if existing_data is None:
-            conn = st.connection("gsheets", type=GSheetsConnection)
-            existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
-        
-        # --- DIAGNÓSTICO DE ERRO (Para sabermos o que acontece) ---
-        qtd_planilha = len(existing_data.columns)
-        qtd_codigo = len(new_data_row)
-        
-        # Se os números não baterem, ele vai te contar exatamente o porquê
-        if qtd_codigo != qtd_planilha:
-            st.error(f"❌ ERRO DE CONTAGEM: O código está enviando {qtd_codigo} dados, mas o Python achou {qtd_planilha} colunas na planilha.")
-            st.error("Motivo provável: O cache do Streamlit está lendo a versão antiga da planilha.")
-            return False
-            
-        # Se passou no teste, salva
-        new_df = pd.DataFrame([new_data_row], columns=existing_data.columns)
-        updated_df = pd.concat([existing_data, new_df], ignore_index=True)
-        conn.update(spreadsheet=SHEET_URL, worksheet=worksheet_name, data=updated_df)
-        return True
-        
-    except Exception as e:
-        st.error(f"Erro detalhado do Google: {e}")
-        return False
 
 def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
-    """
-    Lê qualquer aba do Sheets via gspread (sem indicador técnico na UI).
-    Retorna DataFrame ou None em caso de erro.
-    """
+    """Lê qualquer aba do Sheets via gspread. Retorna DataFrame ou None."""
     try:
         gs = st.secrets.get("connections", {}).get("gsheets", {})
         if not gs or gs.get("type") != "service_account":
@@ -197,131 +240,35 @@ def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
         return None
 
 
-def _get_evolucao_worksheet():
-    """Retorna a aba EVOLUCOES via gspread."""
-    return _read_worksheet_gspread(_ABA_EVOLUCOES)
-
-
-def _append_evolucao_row(prontuario: str, nome: str, data_hora: str, dados_json: str) -> bool:
-    """
-    Adiciona uma linha na aba EVOLUCOES via append_row (sem ler a planilha inteira).
-    Retorna True se sucesso, False caso contrário.
-    """
+def save_data_append(worksheet_name, new_data_row):
     try:
-        gs = st.secrets.get("connections", {}).get("gsheets", {})
-        if not gs or gs.get("type") != "service_account":
-            return False
-        creds = {k: v for k, v in gs.items() if k not in ("spreadsheet", "worksheet")}
-        gc = service_account_from_dict(creds)
-        sh = gc.open_by_url(SHEET_URL)
-        ws = sh.worksheet(_ABA_EVOLUCOES)
-        first_row = ws.row_values(1)
-        if not first_row or first_row[0] != "prontuario":
-            ws.update("A1:D1", [["prontuario", "nome", "data_hora", "dados_json"]])
-        ws.append_row([prontuario, nome, data_hora, dados_json], value_input_option="RAW")
-        return True
-    except Exception:
-        return False
+        existing_data = _read_worksheet_gspread(worksheet_name)
+        if existing_data is None:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
 
+        qtd_planilha = len(existing_data.columns)
+        qtd_codigo   = len(new_data_row)
 
-def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
-    """
-    Salva uma evolução diária na aba EVOLUCOES do Google Sheets.
-    Cada chamada ACRESCENTA uma nova linha — o histórico é mantido.
-    Usa append_row quando possível (mais rápido); fallback para read+update.
-    """
-    pront = str(prontuario).strip().replace(".0", "")
-    nome_ = str(nome).strip()
-    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
-    dados_json = _comprimir_dados(dados)
-
-    if _append_evolucao_row(pront, nome_, data_hora, dados_json):
-        load_data.clear()
-        return True
-
-    # Fallback: read + concat + update (aba nova ou append indisponível)
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        nova_linha = pd.DataFrame([{
-            "prontuario": pront, "nome": nome_, "data_hora": data_hora,
-            "dados_json": dados_json,
-        }])
-        try:
-            existing = conn.read(
-                spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, ttl=0,
+        if qtd_codigo != qtd_planilha:
+            st.error(
+                f"❌ ERRO DE CONTAGEM: O código está enviando {qtd_codigo} dados, "
+                f"mas o Python achou {qtd_planilha} colunas na planilha."
             )
-            updated = pd.concat([existing, nova_linha], ignore_index=True) if existing is not None and not existing.empty else nova_linha
-        except Exception:
-            updated = nova_linha
-        conn.update(spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, data=updated)
-        load_data.clear()
+            return False
+
+        new_df   = pd.DataFrame([new_data_row], columns=existing_data.columns)
+        updated  = pd.concat([existing_data, new_df], ignore_index=True)
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        conn.update(spreadsheet=SHEET_URL, worksheet=worksheet_name, data=updated)
         return True
     except Exception as e:
-        st.error(f"❌ Erro ao salvar no Google Sheets: {e}")
+        st.error(f"Erro detalhado do Google: {e}")
         return False
-
-
-def _read_evolucoes_df() -> pd.DataFrame | None:
-    """Lê a aba EVOLUCOES via gspread (sem indicador técnico na UI). Fallback para conn.read."""
-    df = _get_evolucao_worksheet()
-    if df is not None:
-        return df
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        return conn.read(spreadsheet=SHEET_URL, worksheet=_ABA_EVOLUCOES, ttl=0)
-    except Exception:
-        return None
-
-
-def check_evolucao_exists(prontuario: str) -> bool:
-    """
-    Verifica se já existe ao menos uma evolução cadastrada para o prontuário.
-    """
-    try:
-        df = _read_evolucoes_df()
-        if df is None or df.empty:
-            return False
-        df["prontuario"] = (
-            df["prontuario"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-        )
-        busca = str(prontuario).strip().replace(".0", "")
-        return not df[df["prontuario"] == busca].empty
-    except Exception:
-        return False
-
-
-def load_evolucao(prontuario: str) -> dict | None:
-    """
-    Carrega a ÚLTIMA evolução de um paciente pelo número do prontuário.
-    Retorna um dict com todos os campos salvos, ou None se não encontrado.
-    O campo '_data_hora' indica quando a evolução foi salva.
-    """
-    try:
-        df = _read_evolucoes_df()
-        if df is None or df.empty:
-            return None
-
-        df["prontuario"] = (
-            df["prontuario"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
-        )
-        busca_normalizada = str(prontuario).strip().replace(".0", "")
-        matches = df[df["prontuario"] == busca_normalizada]
-
-        if matches.empty:
-            return None
-
-        latest = matches.iloc[-1]
-        dados = _descomprimir_dados(latest["dados_json"])
-        dados["_data_hora"] = str(latest.get("data_hora", ""))
-        return dados
-
-    except Exception as e:
-        st.error(f"❌ Erro ao buscar no Google Sheets: {e}")
-        return None
 
 
 def mostrar_rodape():
-    """Exibe rodapé padrão com nota legal em todas as páginas"""
+    """Exibe rodapé padrão com nota legal em todas as páginas."""
     st.markdown("---")
     st.markdown(
         """
@@ -336,5 +283,5 @@ def mostrar_rodape():
             </p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )

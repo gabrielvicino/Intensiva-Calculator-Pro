@@ -74,6 +74,8 @@ def _fragment_prontuario() -> None:
 def _aplicar_dados_prontuario(dados: dict, fichas_mod) -> None:
     if not dados:
         return
+    # Cache do DB antes de modificar: evita load_evolucao redundante no save
+    st.session_state["_lab_db_cache"] = {k: v for k, v in dados.items() if k != "_data_hora"}
     data_hora = dados.pop("_data_hora", "")
     dados = fichas_mod.migrar_schema_legado(dados)
     campos_validos = set(fichas_mod.get_todos_campos_keys())
@@ -118,60 +120,193 @@ def _confirmar_novo_prontuario() -> None:
 
 
 # ==============================================================================
-# Agente complementar — Não Transcritos (OpenAI, chamada única)
+# Auditoria de extração — GPT-4o-mini (Opção 2) + Determinística (Opção 3)
 # ==============================================================================
 
-_PROMPT_NAO_TRANSCRITOS_OPENAI = """\
-Você é um especialista em auditoria de laudos laboratoriais brasileiros.
+_PROMPT_AUDITORIA_COMPLETA = """\
+Você é um auditor de laudos laboratoriais brasileiros. Responda em EXATAMENTE 2 linhas.
 
-TAREFA
-Leia o laudo e identifique TODOS os exames/testes laboratoriais presentes.
-Em seguida, liste APENAS os que NÃO pertencem às categorias abaixo (já extraídas por outro sistema):
+CAMPOS JÁ EXTRAÍDOS PELO SISTEMA: {campos_extraidos}
 
-CATEGORIAS JÁ COBERTAS — IGNORE:
-- Hemograma: Hb, Ht, VCM, HCM, RDW, Leucócitos e diferencial, Plaquetas
-- Renal/Eletrólitos: Creatinina, Ureia, Sódio, Potássio, Magnésio, Fósforo, Cálcio Total, Cálcio Iônico
-- Hepático/Pancreático: TGP, TGO, FAL, GGT, Bilirrubinas (BT, BD, BI), Proteínas Totais, Albumina, Amilase, Lipase
-- Cardio/Coag/Inflamação: CPK, CK-MB, BNP, Troponina, PCR, VHS, TP, RNI, TTPa, Lactato
-- Urina (EAS): Densidade, Leucócitos, Hemácias, Proteína, Nitrito, Corpos Cetônicos, Glicose, Esterase
-- Gasometria: pH, pCO2, pO2, HCO3, BE, SatO2, SvO2, Anion Gap, Cloreto
+CATEGORIAS COBERTAS (já processadas por outro sistema):
+Hemograma: Hb, Ht, VCM, HCM, RDW, Leucócitos, diferencial, Plaquetas
+Renal/Eletról: Creatinina, Ureia, Sódio, Potássio, Magnésio, Fósforo, CaT, CaI
+Hepático: TGP, TGO, FAL, GGT, Bilirrubinas, Proteínas Totais, Albumina, Amilase, Lipase
+Cardio/Coag: CPK, CK-MB, BNP, NT-proBNP, Troponina, PCR, VHS, TP, TTPa, Fibrinogênio, Lactato sérico
+Urina: Urina Tipo I, EAS, Densidade, Leucócitos/Hemácias urinárias, Proteína, Glicose, Nitrito
+Gasometria: pH, pCO2, pO2, HCO3, BE, SatO2, SvO2, Lactato da gasometria, Anion Gap
+IGNORE: qualquer exame cujo título contenha "HEMODIÁLISE"
 
-REGRAS:
-1. Liste APENAS exames fora das categorias acima.
-2. Use o nome comum em português, capitalizado (ex: TSH, T4 Livre, Ferritina, PTH, Insulina, Vancomicina sérica).
-3. Separe por vírgula e espaço: TSH, T4 Livre, Ferritina
-4. Se não houver nenhum exame extra: responda exatamente VAZIO
-5. Sem explicações, sem markdown.
+TAREFA 1 — FORA: exames no laudo que NÃO pertencem a nenhuma categoria coberta acima.
+TAREFA 2 — COBERTOS: exames cobertos que têm valor numérico EXPLÍCITO no laudo mas NÃO estão em CAMPOS JÁ EXTRAÍDOS. Máximo 5. Só inclua se certeza absoluta (nome + número visíveis no laudo).
+
+FORMATO OBRIGATÓRIO — exatamente 2 linhas, sem mais nada:
+FORA: [nomes pt-BR separados por vírgula, ou VAZIO]
+COBERTOS: [nomes separados por vírgula, ou VAZIO]
 
 LAUDO:
-{{TEXTO_INPUT}}"""
+{texto_input}"""
+
+# Mapeamento de campo do coleta dict → nome legível para o resumo do prompt
+_CAMPO_NOME_RESUMO: dict[str, str] = {
+    "hb": "Hb", "ht": "Ht", "vcm": "VCM", "hcm": "HCM", "rdw": "RDW",
+    "leuco": "Leuco", "plaq": "Plaq", "cr": "Cr", "ur": "Ur",
+    "na": "Na", "k": "K", "mg": "Mg", "pi": "Pi", "cat": "CaT", "cai": "CaI",
+    "tgp": "TGP", "tgo": "TGO", "fal": "FAL", "ggt": "GGT",
+    "bt": "BT", "bd": "BD", "alb": "Albumina", "amil": "Amilase", "lipas": "Lipase",
+    "cpk": "CPK", "bnp": "BNP", "trop": "Troponina", "pcr": "PCR",
+    "vhs": "VHS", "tp": "TP", "ttpa": "TTPa",
+    "gas_ph": "Gasometria", "ur_dens": "EAS",
+}
 
 
-def _extrair_nao_transcritos(texto: str, openai_api_key: str) -> str:
+def _resumo_campos_extraidos(coletas: list[dict]) -> str:
+    """Converte lista de coletas para string de campos extraídos (usada no prompt GPT)."""
+    extraidos: set[str] = set()
+    for coleta in coletas:
+        for k, v in coleta.items():
+            if v and str(v).strip() and k in _CAMPO_NOME_RESUMO:
+                extraidos.add(_CAMPO_NOME_RESUMO[k])
+    return ", ".join(sorted(extraidos)) if extraidos else "nenhum"
+
+
+def _auditar_laudo_gpt(
+    texto: str, coletas: list[dict], openai_api_key: str
+) -> tuple[str, list[str]]:
     """
-    Chama GPT-4o-mini para extrair nomes de exames não capturados pelo parser.
-    Retorna string "TSH, Glicose, PTH" ou "" se vazio/erro.
+    Auditoria GPT-4o-mini: detecta exames não transcritos E cobertos possivelmente ausentes.
+    Retorna (nao_transcritos_str, cobertos_suspeitos_list).
     """
     if not openai_api_key or not texto:
-        return ""
+        return "", []
     try:
         from openai import OpenAI as _OpenAI
+        campos_resumo = _resumo_campos_extraidos(coletas)
+        prompt = (
+            _PROMPT_AUDITORIA_COMPLETA
+            .replace("{campos_extraidos}", campos_resumo)
+            .replace("{texto_input}", texto[:6000])
+        )
         client = _OpenAI(api_key=openai_api_key)
-        prompt = _PROMPT_NAO_TRANSCRITOS_OPENAI.replace("{{TEXTO_INPUT}}", texto)
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=200,
+            max_tokens=300,
             seed=42,
         )
-        resultado = (resp.choices[0].message.content or "").strip()
-        if not resultado or resultado.upper() == "VAZIO":
-            return ""
-        return resultado
+        resposta = (resp.choices[0].message.content or "").strip()
+        nao_trans = ""
+        cobertos: list[str] = []
+        for linha in resposta.splitlines():
+            if linha.startswith("FORA:"):
+                val = linha[5:].strip()
+                if val and val.upper() != "VAZIO":
+                    nao_trans = val
+            elif linha.startswith("COBERTOS:"):
+                val = linha[9:].strip()
+                if val and val.upper() != "VAZIO":
+                    cobertos = [v.strip() for v in val.split(",") if v.strip()]
+        return nao_trans, cobertos
     except Exception as e:
-        print(f"[NÃO TRANSCRITOS] Erro OpenAI: {e}")
-        return ""
+        print(f"[AUDITORIA GPT] Erro: {e}")
+        return "", []
+
+
+# Mapeamento determinístico: (termos_no_texto, campos_coleta, nome_display)
+# Termos específicos para minimizar falsos positivos
+_AUDIT_TERMS: list[tuple[list[str], list[str], str]] = [
+    (["hemoglobina:"], ["hb"], "Hb"),
+    (["creatinina:"], ["cr"], "Cr"),
+    (["leucocitometria", "contagem de leucócitos", "leucócitos:"], ["leuco"], "Leuco"),
+    (["contagem de plaquetas", "plaquetas:"], ["plaq"], "Plaq"),
+    (["troponina:"], ["trop"], "Trop"),
+    (["gasometria arterial", "gasometria venosa"], ["gas_ph"], "Gasometria"),
+    (["urina tipo i", "elementos anormais e sedimento"], ["ur_dens"], "EAS"),
+    (["alanina aminotransferase:"], ["tgp"], "TGP"),
+    (["aspartato aminotransferase:"], ["tgo"], "TGO"),
+    (["proteína c reativa:"], ["pcr"], "PCR"),
+    (["bilirrubinas totais:"], ["bt"], "BT"),
+    (["albumina:"], ["alb"], "Albumina"),
+]
+
+
+def _auditar_deterministico(texto: str, coletas: list[dict]) -> list[str]:
+    """
+    Verifica se termos-chave do laudo aparecem no texto mas não foram extraídos.
+    Retorna lista de nomes de exames possivelmente omitidos (alerta discreto).
+    """
+    if not texto or not coletas:
+        return []
+    texto_lower = texto.lower()
+    campos_extraidos: dict[str, str] = {}
+    for coleta in coletas:
+        for k, v in coleta.items():
+            if v and str(v).strip():
+                campos_extraidos[k] = str(v)
+    suspeitos = []
+    for termos, campos, nome in _AUDIT_TERMS:
+        if not any(t in texto_lower for t in termos):
+            continue
+        if any(campos_extraidos.get(c, "").strip() for c in campos):
+            continue
+        suspeitos.append(nome)
+    return suspeitos
+
+
+# ==============================================================================
+# Fragment assíncrono — auditoria GPT (não bloqueia a tabela principal)
+# ==============================================================================
+
+@st.fragment
+def _fragment_auditoria_gpt(openai_api_key: str) -> None:
+    """Executa auditoria GPT-4o-mini de forma independente da tabela principal.
+
+    Fase A (1º render do fragment): mostra indicador visual e dispara re-run do fragment.
+    Fase B (2º render do fragment): executa GPT, atualiza session_state, re-roda a app.
+    O resultado: tabela aparece imediatamente após o parser; auditoria atualiza
+    apenas a área do fragment, sem bloquear o render principal.
+    """
+    if "_lab_auditoria_pendente" not in st.session_state:
+        return
+
+    if not st.session_state.get("_lab_auditoria_fase2"):
+        st.session_state["_lab_auditoria_fase2"] = True
+        st.caption("🤖 Auditando laudos (GPT-4o-mini)...")
+        st.rerun(scope="fragment")
+        return
+
+    # Fase B — executa GPT audit
+    pending = st.session_state["_lab_auditoria_pendente"]
+    logs_gpt: list[str] = []
+
+    with st.spinner("🤖 Auditando laudos (GPT-4o-mini)..."):
+        with ThreadPoolExecutor(max_workers=max(len(pending), 1)) as ex:
+            futs = {
+                ex.submit(_auditar_laudo_gpt, txt, colts, openai_api_key): (slot, idx)
+                for idx, txt, slot, colts in pending
+            }
+            for f in as_completed(futs):
+                slot, idx_text = futs[f]
+                try:
+                    nao_trans, cobertos = f.result()
+                    if nao_trans:
+                        st.session_state[f"lab_{slot}_outros"] = nao_trans
+                    if cobertos:
+                        logs_gpt.append(
+                            f"🔍 Laudo {idx_text + 1}: GPT — verificar: {', '.join(cobertos)}"
+                        )
+                except Exception:
+                    pass
+
+    st.session_state.pop("_lab_auditoria_pendente", None)
+    st.session_state.pop("_lab_auditoria_fase2", None)
+
+    if logs_gpt:
+        existing = st.session_state.get("_lab_avisos", [])
+        st.session_state["_lab_avisos"] = existing + [f"ℹ️ {lg}" for lg in logs_gpt]
+
+    st.rerun(scope="app")
 
 
 # ==============================================================================
@@ -291,7 +426,8 @@ def _extrair_com_ia(
     n_total = 0
     erros = []
     logs = []
-    regex_textos_para_gpt: list[tuple[int, str, int]] = []
+    # Rastreia todos os textos com coletas extraídas (regex e IA)
+    todos_textos_para_gpt: list[tuple[int, str, int, list[dict]]] = []
 
     for idx, texto in textos:
         coletas, caminho = resultados_paralelos.get(idx, ([], "?"))
@@ -299,11 +435,13 @@ def _extrair_com_ia(
         if coletas:
             n_coletas = 0
             primeiro_slot = None
+            coletas_adicionadas: list[dict] = []
             for coleta in coletas:
                 slot = adicionar_coleta(coleta)
                 if slot is not None:
                     if primeiro_slot is None:
                         primeiro_slot = slot
+                    coletas_adicionadas.append(coleta)
                     n_campos = len([v for k, v in coleta.items()
                                     if v and k not in ("data", "hora", "hora_cheia")])
                     n_total += n_campos
@@ -314,29 +452,18 @@ def _extrair_com_ia(
             logs.append(f"{icone} Laudo {idx + 1}: {n_coletas} coleta(s) via {via}")
             st.session_state.pop(f"_lab_input_{idx}", None)
             st.session_state[f"_lab_input_{idx}"] = ""
-            if caminho == "regex" and primeiro_slot is not None:
-                regex_textos_para_gpt.append((idx, texto, primeiro_slot))
+            # Opção 3 — auditoria determinística (sem custo de API)
+            suspeitos = _auditar_deterministico(texto, coletas_adicionadas)
+            if suspeitos:
+                logs.append(f"🔍 Laudo {idx + 1}: verificar — {', '.join(suspeitos)}")
+            if primeiro_slot is not None:
+                todos_textos_para_gpt.append((idx, texto, primeiro_slot, coletas_adicionadas))
         else:
             erros.append(f"Laudo {idx + 1}: nenhum campo extraído.")
 
-    # Fase 2: GPT não-transcritos (só para textos parseados por regex)
-    if regex_textos_para_gpt and openai_api_key:
-        if placeholder is not None:
-            with placeholder.container():
-                st.info("🤖 Buscando exames não transcritos (GPT)...")
-        with ThreadPoolExecutor(max_workers=max(len(regex_textos_para_gpt), 1)) as ex:
-            futs = {
-                ex.submit(_extrair_nao_transcritos, txt, openai_api_key): slot
-                for _, txt, slot in regex_textos_para_gpt
-            }
-            for f in as_completed(futs):
-                slot = futs[f]
-                try:
-                    nao_trans = f.result()
-                    if nao_trans:
-                        st.session_state[f"lab_{slot}_outros"] = nao_trans
-                except Exception:
-                    pass
+    # Fase 2 — Auditoria GPT desacoplada: armazena dados para _fragment_auditoria_gpt
+    if todos_textos_para_gpt and openai_api_key:
+        st.session_state["_lab_auditoria_pendente"] = todos_textos_para_gpt
 
     if placeholder is not None:
         placeholder.empty()
@@ -411,14 +538,19 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
                     st.success(aviso)
                 elif aviso.startswith("⚠️"):
                     st.warning(aviso)
+                elif aviso.startswith("🔍"):
+                    st.caption(aviso)
                 else:
                     st.info(aviso)
 
     # ── Prontuário ─────────────────────────────────────────────────────────
     _fragment_prontuario()
     _confirmar_novo_prontuario()
-    st.write("")
 
+    # ── Auditoria GPT assíncrona (roda independentemente da tabela) ─────────
+    _fragment_auditoria_gpt(openai_api_key=openai_api_key)
+
+    st.write("")
     prontuario = st.session_state.get("prontuario", "").strip()
 
     # ── Form principal ─────────────────────────────────────────────────────
@@ -540,8 +672,15 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
 
     if btn_salvar:
         _msg_topo.info("💾 Salvando exames...")
-        base = load_evolucao(prontuario) or {}
-        base.pop("_data_hora", None)
+        # Usa cache do último load (evita round-trip ao Google Sheets).
+        # Fallback para load_evolucao apenas se o cache não existir
+        # (ex.: sessão nova sem auto-load).
+        base = st.session_state.get("_lab_db_cache")
+        if base is None:
+            base = load_evolucao(prontuario) or {}
+            base.pop("_data_hora", None)
+        else:
+            base = dict(base)  # cópia para não mutar o cache
         for k in list(st.session_state.keys()):
             if k.startswith("lab_"):
                 base[k] = st.session_state[k]
@@ -551,6 +690,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
             base,
         )
         if ok:
+            # Atualiza cache com os dados recém-salvos
+            st.session_state["_lab_db_cache"] = {k: v for k, v in base.items()}
             _msg_topo.success(f"✅ Exames salvos! Prontuário: {prontuario}")
         else:
             _msg_topo.error("❌ Erro ao salvar. Verifique a conexão.")

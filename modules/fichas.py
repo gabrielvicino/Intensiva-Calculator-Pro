@@ -660,15 +660,6 @@ def render_formulario_completo():
         condutas.render()
         _rodape_secao("condutas", "Condutas")
 
-    # ── Botão principal — fora dos expanders, dentro do form ────────────────
-    st.write("")
-    if st.form_submit_button(
-        "💾 Salvar + Gerar Prontuário",
-        type="primary",
-        use_container_width=True,
-        help="Salva todos os dados no banco e atualiza o prontuário completo",
-    ):
-        st.session_state["_salvar_gerar_pendente"] = True
 
 
 def migrar_schema_legado(dados: dict) -> dict:
