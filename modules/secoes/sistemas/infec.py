@@ -5,7 +5,7 @@ from ._base import _evo_header, _evo_row
 def _campos():
     return {
         "sis_infec_pocus": "", "sis_infec_obs": "", "sis_infec_conduta": "",
-        "sis_infec_febre": None, "sis_infec_febre_vezes": "", "sis_infec_febre_ultima": "",
+        "sis_infec_febre": "Não", "sis_infec_febre_vezes": "", "sis_infec_febre_ultima": "",
         "sis_infec_atb": None, "sis_infec_atb_1": "", "sis_infec_atb_2": "",
         "sis_infec_atb_3": "", "sis_infec_atb_guiado": None,
         "sis_infec_culturas_and": None,

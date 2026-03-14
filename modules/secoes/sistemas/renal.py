@@ -9,7 +9,7 @@ def _campos():
         "sis_renal_bacum_hoje": "", "sis_renal_bacum_ult": "", "sis_renal_bacum_antepen": "",
         "sis_renal_bacum_ant4": "", "sis_renal_bacum_ant5": "",
         "sis_renal_bacum_show": False,
-        "sis_renal_volemia": None,
+        "sis_renal_volemia": "Euvolêmico",
         "sis_renal_cr_ant5": "", "sis_renal_cr_ant4": "", "sis_renal_cr_antepen": "", "sis_renal_cr_ult": "", "sis_renal_cr_hoje": "",
         "sis_renal_ur_ant5": "", "sis_renal_ur_ant4": "", "sis_renal_ur_antepen": "", "sis_renal_ur_ult": "", "sis_renal_ur_hoje": "",
         "sis_renal_diu_ant5": "", "sis_renal_diu_ant4": "", "sis_renal_diu_antepen": "", "sis_renal_diu_ult": "", "sis_renal_diu_hoje": "",
@@ -23,7 +23,7 @@ def _campos():
         "sis_renal_diu_show": False, "sis_renal_bh_show":  False,
         "sis_renal_na_show":  False, "sis_renal_k_show":   False,
         "sis_renal_mg_show":  False, "sis_renal_fos_show": False, "sis_renal_cai_show": False,
-        "sis_renal_trs": None, "sis_renal_trs_via": "",
+        "sis_renal_trs": "Não", "sis_renal_trs_via": "",
         "sis_renal_trs_ultima": "", "sis_renal_trs_proxima": "",
     }
 

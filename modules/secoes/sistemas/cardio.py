@@ -6,8 +6,8 @@ def _campos():
     return {
         "sis_cardio_pocus": "", "sis_cardio_obs": "", "sis_cardio_conduta": "",
         "sis_cardio_fc": "",
-        "sis_cardio_exame_cardio": "2BNRF, não ausculto sopros significativos",
-        "sis_cardio_cardioscopia": "", "sis_cardio_pam": "",
+        "sis_cardio_exame_cardio": "2 bulhas rítmicas e fonéticas, não ausculto sopros significativos. Pulsos palpáveis.",
+        "sis_cardio_cardioscopia": "Sinusal e regular", "sis_cardio_pam": "",
         "sis_cardio_perfusao": "Normal", "sis_cardio_tec": "< 3s",
         "sis_cardio_fluido_responsivo": None, "sis_cardio_fluido_tolerante": None,
         "sis_cardio_lac_ant5": "", "sis_cardio_lac_ant4": "", "sis_cardio_lac_antepen": "",
@@ -36,7 +36,7 @@ def render():
             st.text_input("PAM", key="sis_cardio_pam", placeholder="PAM", label_visibility="collapsed")
 
         st.markdown("**Exame Cardiológico**")
-        st.text_input("Exame Cardiológico", key="sis_cardio_exame_cardio", placeholder="2BNRF, não ausculto sopros significativos", label_visibility="collapsed")
+            st.text_input("Exame Cardiológico", key="sis_cardio_exame_cardio", placeholder="2 bulhas rítmicas e fonéticas, não ausculto sopros significativos. Pulsos palpáveis.", label_visibility="collapsed")
 
         perf_tit, tec_tit = st.columns([2, 1])
         with perf_tit: st.markdown("**Perfusão periférica**")

@@ -5,8 +5,8 @@ from ._base import _evo_header, _evo_row
 def _campos():
     return {
         "sis_neuro_pocus": "", "sis_neuro_obs": "", "sis_neuro_conduta": "",
-        "sis_neuro_ecg": "", "sis_neuro_ecg_ao": "", "sis_neuro_ecg_rv": "",
-        "sis_neuro_ecg_rm": "", "sis_neuro_ecg_p": "", "sis_neuro_rass": "",
+        "sis_neuro_ecg": "15", "sis_neuro_ecg_ao": "", "sis_neuro_ecg_rv": "",
+        "sis_neuro_ecg_rm": "", "sis_neuro_ecg_p": "15", "sis_neuro_rass": "",
         "sis_neuro_delirium": None, "sis_neuro_delirium_tipo": None,
         "sis_neuro_cam_icu": None, "sis_neuro_pupilas_tam": "Normal",
         "sis_neuro_pupilas_simetria": "Simétricas", "sis_neuro_pupilas_foto": "Fotoreagente",

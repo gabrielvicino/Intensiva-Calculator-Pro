@@ -39,20 +39,9 @@ REGRAS DE OURO CLÍNICAS
 - Conduta Fragmentada:
   • Se conduta dividida por sistemas ("CONDUTA: #Neuro: ... #Resp: ...") → campo único `conduta`
 
-- Sistemas vs. Evolução vs. Exame Físico — REGRA CRÍTICA:
-  • O campo `sistemas` captura QUALQUER descrição clínica organizada por sistemas orgânicos,
-    independentemente do nome usado no prontuário. Sinônimos frequentes:
-    - "Exame Físico", "EF", "#EF"
-    - "Evolução por Sistemas"
-    - "Avaliação por Sistemas", "Revisão por Sistemas"
-    - Seções com headers como "- Neurológico", "- Respiratório", "- Cardiovascular"
-    - Blocos com "Neuro:", "CV:", "Resp:", "Abd:", "Renal:", "Infec:", "Hemato:"
-    - Qualquer texto que descreva achados físicos e funcionais por sistema orgânico
-  • O campo `evolucao` captura apenas texto NARRATIVO subjetivo (impressão clínica, intercorrências,
-    resumo do dia, plano de cuidado geral) — SEM estrutura por sistemas.
-  • Se o texto mistura evolução narrativa COM exame físico por sistemas:
-    - Narrativa → `evolucao`
-    - Achados por sistema → `sistemas`
+- Evolução — o campo `evolucao` captura todo texto narrativo e subjetivo (impressão clínica,
+    intercorrências, resumo do dia, exame físico, achados por sistemas).
+    NÃO existe campo separado para "sistemas" — tudo vai em `evolucao`.
 
 ════════════════════════════
 MAPEAMENTO DE CAMPOS
@@ -100,20 +89,10 @@ MAPEAMENTO DE CAMPOS
 
 10. evolucao
     Gatilhos: #EVO, Evolução (narrativa), Subjetivo, Intercorrências, Resumo do dia,
-              Impressão clínica, Texto livre não estruturado por sistemas
-    NÃO incluir aqui: exame físico por sistemas, achados objetivos por órgão
+              Impressão clínica, Exame Físico, Evolução por Sistemas, Achados por sistema
+    INCLUA tudo: narrativa subjetiva E achados objetivos por sistema.
 
-11. sistemas  ← CAMPO MAIS VARIÁVEL — leia a regra acima com atenção
-    Gatilhos: #EF, Exame Físico, Exame Objetivo, Evolução por Sistemas,
-              Avaliação por Sistemas, Revisão de Sistemas,
-              "- Neurológico", "- Respiratório", "- Cardiovascular", "- Renal",
-              "- Gastrointestinal", "- Infeccioso", "- Hematológico", "- Pele",
-              "Neuro:", "CV:", "Resp:", "Abd:", "Renal:", "Infec:", "Hemato:"
-    INCLUA tudo que descreve achados clínicos e funcionais por sistema orgânico.
-    CAMPOS PARCIAIS SÃO NORMAIS: o prontuário pode descrever apenas 3-4 sistemas.
-    Capture exatamente o que está escrito, sem adicionar sistemas não mencionados.
-
-12. conduta
+11. conduta
     Gatilhos: #CD, #CONDUTA, Plano, Planejamento, Condutas, Prescrições do dia
     Inclua todas as subseções de conduta, mesmo divididas por sistemas.
     FORMATO DE SAÍDA: cada item de conduta em uma linha separada, prefixado com "- ".
@@ -138,7 +117,6 @@ ATENÇÃO JSON: Dentro dos valores, nunca use aspas duplas literais — substitu
     "antibioticos": "...",
     "complementares": "...",
     "evolucao": "...",
-    "sistemas": "...",
     "conduta": "..."
 }"""
 

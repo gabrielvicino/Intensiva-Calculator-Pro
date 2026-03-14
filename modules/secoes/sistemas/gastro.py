@@ -5,7 +5,7 @@ from ._base import _evo_header, _evo_row
 def _campos():
     return {
         "sis_gastro_pocus": "", "sis_gastro_obs": "", "sis_gastro_conduta": "",
-        "sis_gastro_exame_fisico": "Típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente",
+        "sis_gastro_exame_fisico": "Típico, RHA presente, indolor a palpação, sem sinais de peritonite",
         "sis_gastro_ictericia_presente": "Ausente", "sis_gastro_ictericia_cruzes": "",
         "sis_gastro_dieta_oral": "", "sis_gastro_dieta_enteral": "",
         "sis_gastro_dieta_enteral_vol": "", "sis_gastro_dieta_parenteral": "",
@@ -34,7 +34,7 @@ def render():
         ef_col, icter_col = st.columns([3, 1])
         with ef_col:
             st.markdown("**Exame Abdominal**")
-            st.text_input("Exame Abdominal", key="sis_gastro_exame_fisico", placeholder="Típico, RHA presente, indolor a palpação, sem sinais de peritonite, inocente", label_visibility="collapsed")
+            st.text_input("Exame Abdominal", key="sis_gastro_exame_fisico", placeholder="Típico, RHA presente, indolor a palpação, sem sinais de peritonite", label_visibility="collapsed")
         with icter_col:
             st.markdown("**Icterícia**")
             pills_col, cruzes_col = st.columns([1, 1])

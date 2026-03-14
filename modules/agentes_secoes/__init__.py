@@ -32,7 +32,6 @@ _AGENTES = {
     "antibioticos":   preencher_antibioticos,
     "complementares": preencher_complementares,
     "evolucao":       preencher_evolucao,
-    "sistemas":       preencher_sistemas,
 }
 
 _NOTAS_MAP = {
@@ -47,7 +46,6 @@ _NOTAS_MAP = {
     "antibioticos":   "antibioticos_notas",
     "complementares": "complementares_notas",
     "evolucao":       "evolucao_notas",
-    "sistemas":       "sistemas_notas",
 }
 
 NOMES_SECOES = {
@@ -63,7 +61,6 @@ NOMES_SECOES = {
     "antibioticos":    "10. Antibióticos",
     "complementares":  "11. Complementares",
     "evolucao":        "12. Evolução Clínica",
-    "sistemas":        "13. Sistemas",
     "condutas":        "15. Condutas",
     "prescricao":      "16. Prescrição",
 }
