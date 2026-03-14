@@ -676,6 +676,98 @@ def render_formulario_completo():
 
 
 
+def render_formulario_plantonista():
+    """Versão simplificada do formulário para plantonistas.
+    Renderiza apenas: Identificação, Diagnósticos, Comorbidades,
+    Dispositivos, Evolução Clínica e Evolução por Sistemas."""
+
+    if "_agent_staging" in st.session_state:
+        staging = st.session_state.pop("_agent_staging")
+        _normalizar_pills_dict(staging)
+        for k, v in staging.items():
+            if k in st.session_state:
+                del st.session_state[k]
+            st.session_state[k] = v
+
+    _sanitizar_radios()
+    _normalizar_pills_state()
+    _normalizar_datas()
+
+    # ── Reload silencioso de lab_*/ctrl_* (para tabela comparativa) ───────────
+    _pront_rl = st.session_state.get("prontuario", "").strip()
+    _labs_vazios_rl = not any(
+        st.session_state.get(f"lab_{s}_data") for s in range(1, 7)
+    )
+    if _labs_vazios_rl and _pront_rl:
+        try:
+            from utils import load_evolucao as _load_ev
+            _dados_rl = _load_ev(_pront_rl)
+            if _dados_rl:
+                _dados_rl.pop("_data_hora", None)
+                for _k, _v in _dados_rl.items():
+                    if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
+                        if _k in st.session_state:
+                            del st.session_state[_k]
+                        st.session_state[_k] = _v
+        except Exception:
+            pass
+
+    identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
+    _rodape_secao("identificacao", "Identificação")
+    st.divider()
+    hd.render(_agent_btn_callback=_btn_agente("hd"))
+    _rodape_secao("hd", "Diagnósticos")
+    st.divider()
+    comorbidades.render(_agent_btn_callback=_btn_agente("comorbidades"))
+    _rodape_secao("comorbidades", "Comorbidades")
+    st.divider()
+    dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
+    _rodape_secao("dispositivos", "Dispositivos")
+    st.divider()
+
+    # ── Análise Clínica (tabelas de labs/controles — somente leitura) ─────────
+    from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
+    _html_labs, _html_ctrl = _gerar_html_cmp()
+    if _html_labs:
+        st.session_state["_html_labs_cache"] = _html_labs
+    if _html_ctrl:
+        st.session_state["_html_ctrl_cache"] = _html_ctrl
+    _html_labs = _html_labs or st.session_state.get("_html_labs_cache", "")
+    _html_ctrl = _html_ctrl or st.session_state.get("_html_ctrl_cache", "")
+
+    st.markdown("##### 📊 Análise Clínica")
+    st.markdown(
+        "<style>"
+        ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
+        "padding:14px 18px 8px;margin-bottom:10px;"
+        "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
+        ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
+        "display:block;margin-bottom:8px}"
+        ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
+        "</style>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
+        + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido.</p>")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
+        + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido.</p>")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
+    evolucao_clinica.render()
+    _rodape_secao("evolucao", "Evolução Clínica")
+    st.divider()
+    sistemas.render(_agent_btn_callback=_btn_agente("sistemas"))
+    _rodape_secao("sistemas", "Sistemas")
+
+
 def migrar_schema_legado(dados: dict) -> dict:
     """Migra prontuários com schema antigo (hd_atual_*/hd_prev_*) para o schema atual (hd_*).
     Também normaliza valores de st.pills para garantir correspondência exata com as opções.

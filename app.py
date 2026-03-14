@@ -110,8 +110,9 @@ pg = st.navigation({
         st.Page("views/home.py", title="Home", icon="⚕️", default=True),
     ],
     "Dados Clínicos": [
-        st.Page("views/pacer.py",    title="Laboratoriais & Controles", icon="🔬"),
-        st.Page("views/evolucao.py", title="Evolução Clínica Diária",   icon="📋"),
+        st.Page("views/pacer.py",        title="Laboratoriais & Controles", icon="🔬"),
+        st.Page("views/evolucao.py",     title="Evolução Clínica Diária",   icon="📋"),
+        st.Page("views/plantonista.py",  title="Evolução Plantonista",       icon="🩺"),
     ],
     "Ferramentas Clínicas": [
         st.Page("views/infusao.py",      title="Dose Infusão Contínua",  icon="💉"),
