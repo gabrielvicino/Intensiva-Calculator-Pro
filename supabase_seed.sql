@@ -3,6 +3,27 @@
 -- Execute no SQL Editor do Supabase
 -- ============================================================
 
+-- ── Função merge_evolucao (MERGE seguro de JSONB) ─────────────
+-- Garante que um upsert parcial nunca apaga campos existentes.
+-- Em vez de substituir dados, faz: dados_existentes || dados_novos
+-- Execute este bloco uma vez no SQL Editor do Supabase:
+CREATE OR REPLACE FUNCTION merge_evolucao(
+    p_prontuario  text,
+    p_nome        text,
+    p_dados       jsonb,
+    p_atualizado  timestamptz
+) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO evolucoes (prontuario, nome, dados, atualizado)
+    VALUES (p_prontuario, p_nome, p_dados, p_atualizado)
+    ON CONFLICT (prontuario)
+    DO UPDATE SET
+        dados      = evolucoes.dados || EXCLUDED.dados,
+        nome       = EXCLUDED.nome,
+        atualizado = EXCLUDED.atualizado;
+END;
+$$;
+
 -- ── Tabela DB_IOT (drogas de intubação) ──────────────────────
 CREATE TABLE IF NOT EXISTS db_iot (
   id             BIGSERIAL PRIMARY KEY,

@@ -180,15 +180,59 @@ def _inserir_historico(pront: str, dados_limpos: dict) -> None:
         pass
 
 
+def _load_dados_db_direto(pront: str) -> dict:
+    """Carrega dados do banco diretamente, sem cache de session_state.
+    Usado internamente pelo merge em save_evolucao (thread-safe)."""
+    try:
+        sb = _get_sb()
+        resp = (
+            sb.table("evolucoes")
+            .select("dados")
+            .eq("prontuario", pront)
+            .limit(1)
+            .execute()
+        )
+        if not resp.data:
+            return {}
+        row = resp.data[0]
+        raw = row["dados"]
+        return raw if isinstance(raw, dict) else json.loads(raw)
+    except Exception:
+        return {}
+
+
 def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
     """
-    Salva evolução no Supabase via REST.
+    Salva evolução no Supabase via REST com MERGE.
+    - Carrega dados existentes e mescla: campos do banco que não estão
+      no novo save (ex: lab_*/ctrl_* salvos pelo PACER) são preservados.
+    - Novos dados têm prioridade sobre os existentes.
     - Tabela `evolucoes`: upsert síncrono (estado mais recente).
     - Tabela `evolucoes_historico`: insert assíncrono em thread (não bloqueia).
     """
     pront = str(prontuario).strip().replace(".0", "")
     nome_ = str(nome).strip()
     dados_limpos = _limpar_dados(dados)
+
+    # ── MERGE: preserva campos do banco que não estão neste save ─────────────
+    # Caso de uso crítico: auto-save da Evolução Diária pode não ter lab_*/ctrl_*
+    # no session_state, mas eles já existem no banco (salvos pelo PACER).
+    # Sem o merge, o upsert apagaria esses campos.
+    try:
+        # Tenta cache de session_state primeiro (zero custo se warm)
+        cache_key = f"_cache_evolucao_{pront}"
+        _cached = st.session_state.get(cache_key)
+        if _cached and time.time() - _cached.get("_ts", 0) < 60:
+            existing = {k: v for k, v in _cached.items() if k not in ("_ts", "_data_hora")}
+        else:
+            existing = _load_dados_db_direto(pront)
+
+        if existing:
+            base = _limpar_dados(existing)
+            base.update(dados_limpos)   # novos dados têm prioridade
+            dados_limpos = base
+    except Exception:
+        pass  # falha no merge → salva sem mesclar (sem perda de dados novos)
 
     try:
         sb = _get_sb()
@@ -203,11 +247,17 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
             target=_inserir_historico, args=(pront, dados_limpos), daemon=True
         ).start()
         # Invalida cache local para este prontuário
-        st.session_state.pop(f"_cache_evolucao_{pront}", None)
+        try:
+            st.session_state.pop(f"_cache_evolucao_{pront}", None)
+        except Exception:
+            pass
         return True
     except Exception as e:
-        st.error(f"❌ Erro ao salvar no banco: {e}")
-        st.session_state["_db_error"] = True
+        try:
+            st.error(f"❌ Erro ao salvar no banco: {e}")
+            st.session_state["_db_error"] = True
+        except Exception:
+            pass
         return False
 
 
