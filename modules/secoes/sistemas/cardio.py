@@ -36,7 +36,7 @@ def render():
             st.text_input("PAM", key="sis_cardio_pam", placeholder="PAM", label_visibility="collapsed")
 
         st.markdown("**Exame Cardiológico**")
-            st.text_input("Exame Cardiológico", key="sis_cardio_exame_cardio", placeholder="2 bulhas rítmicas e fonéticas, não ausculto sopros significativos. Pulsos palpáveis.", label_visibility="collapsed")
+        st.text_input("Exame Cardiológico", key="sis_cardio_exame_cardio", placeholder="2 bulhas rítmicas e fonéticas, não ausculto sopros significativos. Pulsos palpáveis.", label_visibility="collapsed")
 
         perf_tit, tec_tit = st.columns([2, 1])
         with perf_tit: st.markdown("**Perfusão periférica**")
