@@ -334,11 +334,16 @@ def get_todos_campos_keys() -> list:
 
 
 def inicializar_estado():
-    """Garante que todos os campos estão no session_state com seu valor padrão."""
+    """Garante que todos os campos estão no session_state com seu valor padrão.
+    Para campos com preset clínico (default não-vazio), restaura o preset
+    se o session_state contém string vazia — garante que presets apareçam
+    mesmo após carregar um prontuário cujo banco não tinha esse campo."""
     defaults = _get_campos_base_cached()
     ss = st.session_state
     for k, v in defaults.items():
         if k not in ss:
+            ss[k] = v
+        elif v and v is not True and v is not False and ss.get(k) == "":
             ss[k] = v
 
 
