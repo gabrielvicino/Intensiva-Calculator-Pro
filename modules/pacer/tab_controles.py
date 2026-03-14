@@ -318,6 +318,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
         ]
         if not dias_com_texto:
             st.session_state["_ctrl_avisos"] = ["⚠️ Cole o texto nos campos de cada coluna antes de extrair."]
+            st.session_state["_tab_index"] = 1
             st.rerun()
         else:
             _provider = "OpenAI GPT"
@@ -381,6 +382,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
 
             if n:
                 st.toast(f"✅ {n} campos preenchidos em {len(dias_com_texto)} coluna(s).", icon="⚡")
+            st.session_state["_tab_index"] = 1
             st.rerun()
 
     if btn_salvar:

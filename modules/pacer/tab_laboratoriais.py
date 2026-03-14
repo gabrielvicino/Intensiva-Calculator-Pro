@@ -654,12 +654,14 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
         if st.session_state.pop(f"_lab_clear_slot_{_slot}", False):
             limpar_slot(_slot)
             st.toast(f"🗑️ Coleta apagada.", icon="🗑️")
+            st.session_state["_tab_index"] = 0
             st.rerun()
 
     if btn_extrair:
         _extrair_com_ia(
             api_key, modelo, openai_api_key=openai_api_key, placeholder=_msg_topo
         )
+        st.session_state["_tab_index"] = 0
         st.rerun()
 
     if btn_nova:
@@ -674,6 +676,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
             st.toast(f"Nova coleta criada: {hoje} {hc:02d}h", icon="➕")
         else:
             st.warning(f"Limite de {MAX_SLOTS} coletas atingido.")
+        st.session_state["_tab_index"] = 0
         st.rerun()
 
     if btn_salvar:

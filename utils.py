@@ -219,20 +219,24 @@ def save_evolucao(prontuario: str, nome: str, dados: dict) -> bool:
     # no session_state, mas eles já existem no banco (salvos pelo PACER).
     # Sem o merge, o upsert apagaria esses campos.
     try:
-        # Tenta cache de session_state primeiro (zero custo se warm)
-        cache_key = f"_cache_evolucao_{pront}"
-        _cached = st.session_state.get(cache_key)
-        if _cached and time.time() - _cached.get("_ts", 0) < 60:
-            existing = {k: v for k, v in _cached.items() if k not in ("_ts", "_data_hora")}
-        else:
+        existing = {}
+        try:
+            cache_key = f"_cache_evolucao_{pront}"
+            _cached = st.session_state.get(cache_key)
+            if _cached and time.time() - _cached.get("_ts", 0) < 60:
+                existing = {k: v for k, v in _cached.items() if k not in ("_ts", "_data_hora")}
+            else:
+                existing = _load_dados_db_direto(pront)
+        except Exception:
+            # st.session_state indisponível (background thread) — vai direto ao banco
             existing = _load_dados_db_direto(pront)
 
         if existing:
             base = _limpar_dados(existing)
-            base.update(dados_limpos)   # novos dados têm prioridade
+            base.update(dados_limpos)
             dados_limpos = base
     except Exception:
-        pass  # falha no merge → salva sem mesclar (sem perda de dados novos)
+        pass
 
     try:
         sb = _get_sb()

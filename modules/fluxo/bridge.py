@@ -189,6 +189,8 @@ def completar_sistemas_de_outros_blocos(rerun: bool = True) -> None:
                 if _db:
                     for _k, _v in _db.items():
                         if _k.startswith("lab_") and _v:
+                            if _k in st.session_state:
+                                del st.session_state[_k]
                             st.session_state[_k] = _v
                     lab_slots_recentes = list(reversed(_get_lab_slots()))
             except Exception:
