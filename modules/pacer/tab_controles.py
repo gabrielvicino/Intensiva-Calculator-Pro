@@ -90,6 +90,8 @@ def _aplicar_dados_prontuario_ctrl(dados: dict, fichas_mod) -> None:
         if k in campos_validos:
             # Só sobrescreve se o Sheets tiver valor, ou se o campo estiver vazio
             if v or not st.session_state.get(k):
+                if k in st.session_state:
+                    del st.session_state[k]
                 st.session_state[k] = v
     st.session_state["_data_hora_carregado"] = data_hora
     st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
@@ -150,6 +152,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
             campos_validos = set(fichas.get_todos_campos_keys())
             for k, v in _dados_autoload.items():
                 if k in campos_validos and (v or not st.session_state.get(k)):
+                    if k in st.session_state:
+                        del st.session_state[k]
                     st.session_state[k] = v
             st.toast("Controles carregados do prontuário.", icon="💧")
         st.session_state["_ctrl_ultimo_reload"] = _pront_autoload

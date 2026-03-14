@@ -64,6 +64,8 @@ def _aplicar_dados_prontuario_presc(dados: dict, fichas_mod) -> None:
     for k, v in dados.items():
         if k in campos_validos:
             if v or not st.session_state.get(k):
+                if k in st.session_state:
+                    del st.session_state[k]
                 st.session_state[k] = v
     st.session_state["_data_hora_carregado"] = data_hora
     st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
@@ -129,6 +131,8 @@ def render(motor: str, api_key: str, modelo: str):
             _PRESC_PREFIXES = ("presc_", "prescricao_")
             for k, v in _dados_autoload.items():
                 if k.startswith(_PRESC_PREFIXES) and (v or not st.session_state.get(k)):
+                    if k in st.session_state:
+                        del st.session_state[k]
                     st.session_state[k] = v
             if st.session_state.get("prescricao_formatada", "").strip():
                 st.toast("Prescrição carregada do prontuário.", icon="💊")

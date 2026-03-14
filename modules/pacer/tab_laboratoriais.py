@@ -101,6 +101,8 @@ def _aplicar_dados_prontuario(dados: dict, fichas_mod) -> None:
     for k, v in dados.items():
         if k in campos_validos:
             if v or not st.session_state.get(k):
+                if k in st.session_state:
+                    del st.session_state[k]
                 st.session_state[k] = v
     st.session_state["_data_hora_carregado"] = data_hora
     st.toast(f"Prontuário carregado — última evolução: {data_hora}", icon="✅")
@@ -526,6 +528,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
         pending_update = st.session_state.pop("_lab_pending_update")
         for k, v in pending_update.items():
             if v is not None and str(v).strip() != "":
+                if k in st.session_state:
+                    del st.session_state[k]
                 st.session_state[k] = v
 
     st.subheader("🧪 Exames Laboratoriais")
