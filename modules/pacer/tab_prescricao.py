@@ -201,13 +201,13 @@ def render(motor: str, api_key: str, modelo: str):
                        and "❌" not in output_presc and "⚠️" not in output_presc)
 
     if st.button(
-        "💾 Salvar no Prontuário",
+        "💾 Salvar e ir para Evolução Diária →",
         type="primary",
         use_container_width=True,
         disabled=not prontuario,
         help=(
-            "Salva prescrição processada, exames laboratoriais e controles & BH "
-            "no prontuário ativo em uma única operação."
+            "Salva prescrição, exames laboratoriais e controles & BH "
+            "e abre a página de Evolução Diária."
         ),
     ):
         if not output_presc:
@@ -231,10 +231,6 @@ def render(motor: str, api_key: str, modelo: str):
         )
 
         if ok:
-            _msg_salvar.success(
-                f"✅ Salvo com sucesso! Prontuário: {prontuario}"
-                + (" — Prescrição, Labs e Controles atualizados." if pode_salvar
-                   else " — Labs e Controles atualizados.")
-            )
+            st.switch_page("views/evolucao.py")
         else:
             _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão com o banco de dados.")

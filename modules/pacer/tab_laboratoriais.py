@@ -582,7 +582,7 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
             )
         with b3:
             btn_salvar = st.form_submit_button(
-                "💾 Salvar no Prontuário",
+                "💾 Salvar e ir para Controles →",
                 use_container_width=True,
                 type="primary",
                 disabled=not prontuario,
@@ -692,8 +692,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o", openai_api_key: str = "") 
                 base,
             )
         if ok:
-            # Atualiza cache com os dados recém-salvos
             st.session_state["_lab_db_cache"] = {k: v for k, v in base.items()}
-            _msg_topo.success(f"✅ Exames salvos! Prontuário: {prontuario}")
+            st.session_state["_tab_index"] = 1  # → aba Controles & BH
+            st.rerun()
         else:
             _msg_topo.error("❌ Erro ao salvar. Verifique a conexão.")

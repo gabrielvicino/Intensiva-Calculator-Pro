@@ -96,6 +96,27 @@ if st.session_state.get("prontuario", "").strip():
         height=0,
     )
 
+# ── Navegação programática entre abas ─────────────────────────────────────────
+_ir_para = st.session_state.pop("_tab_index", None)
+if _ir_para is not None:
+    import streamlit.components.v1 as _cv1
+    _cv1.html(
+        f"""<script>
+        (function() {{
+            function clickTab() {{
+                var tabs = window.parent.document.querySelectorAll('[role="tab"]');
+                if (tabs.length > {_ir_para}) {{
+                    tabs[{_ir_para}].click();
+                }} else {{
+                    setTimeout(clickTab, 100);
+                }}
+            }}
+            setTimeout(clickTab, 200);
+        }})();
+        </script>""",
+        height=0,
+    )
+
 tab_lab, tab_ctrl, tab_presc, tab_cmp = st.tabs([
     "🧪 Laboratoriais",
     "💧 Controles & BH",

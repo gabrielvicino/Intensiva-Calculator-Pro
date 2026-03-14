@@ -195,9 +195,9 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
             )
         with c3:
             btn_salvar = st.form_submit_button(
-                "💾 Salvar no Prontuário", use_container_width=True,
+                "💾 Salvar e ir para Prescrição →", use_container_width=True,
                 type="primary", disabled=not prontuario,
-                help="Salva todos os campos no Google Sheets",
+                help="Salva os controles e avança para a aba de Prescrição",
             )
 
         def _render_ctrl_block(dias_list: list) -> None:
@@ -388,7 +388,8 @@ def render(api_key: str = "", modelo: str = "gpt-4o"):
                 base[k] = st.session_state[k]
         ok = save_evolucao(prontuario, st.session_state.get("nome", "").strip(), base)
         if ok:
-            _msg_salvar.success(f"✅ Controles salvos! Prontuário: {prontuario}")
+            st.session_state["_tab_index"] = 2  # → aba Prescrição
+            st.rerun()
         else:
             _msg_salvar.error("❌ Erro ao salvar. Verifique a conexão.")
 
