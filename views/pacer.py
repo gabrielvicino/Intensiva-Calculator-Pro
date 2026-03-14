@@ -96,6 +96,20 @@ if st.session_state.get("prontuario", "").strip():
         height=0,
     )
 
+# ── Gate: bloqueia o restante da página até um prontuário ser informado ───────
+if not st.session_state.get("prontuario", "").strip():
+    st.markdown(
+        '<div style="text-align:center;padding:80px 20px;color:#9e9e9e">'
+        '<p style="font-size:2.5rem;margin-bottom:4px">🔒</p>'
+        '<p style="font-size:1.1rem;font-weight:600;color:#666">Digite o número do prontuário para começar</p>'
+        '<p style="font-size:0.85rem">Busque um prontuário na página <strong>Evolução Clínica Diária</strong> e volte aqui.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    from utils import mostrar_rodape
+    mostrar_rodape()
+    st.stop()
+
 # ── Navegação programática entre abas ─────────────────────────────────────────
 _ir_para = st.session_state.pop("_tab_index", None)
 if _ir_para is not None:
