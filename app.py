@@ -89,6 +89,19 @@ def verificar_autenticacao():
 if not verificar_autenticacao():
     st.stop()
 
+# Mantém grupos da sidebar sempre expandidos (sem botão de collapse)
+st.markdown("""
+<style>
+[data-testid="stSidebarNavSectionHeader"] button { display: none !important; }
+[data-testid="stSidebarNavItems"] {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ==============================================================================
 # SISTEMA DE NAVEGAÇÃO (ROUTER)
 # ==============================================================================
@@ -96,12 +109,14 @@ pg = st.navigation({
     "Principal": [
         st.Page("views/home.py", title="Home", icon="⚕️", default=True),
     ],
+    "Dados Clínicos": [
+        st.Page("views/pacer.py",    title="Laboratoriais & Controles", icon="🔬"),
+        st.Page("views/evolucao.py", title="Evolução Clínica Diária",   icon="📋"),
+    ],
     "Ferramentas Clínicas": [
-        st.Page("views/evolucao.py", title="Evolução Diária", icon="📋"),
-        st.Page("views/pacer.py", title="Laboratoriais & Controles", icon="🔬"),
-        st.Page("views/infusao.py", title="Infusão Contínua", icon="💉"),
-        st.Page("views/intubacao.py", title="Intubação Orotraqueal", icon="⚡"),
-        st.Page("views/conversao.py", title="Conversor Universal", icon="🔄"),
+        st.Page("views/infusao.py",      title="Ajuste de Bomba de Infusão Contínua",  icon="💉"),
+        st.Page("views/intubacao.py",    title="Dose Intubação Orotraqueal",           icon="⚡"),
+        st.Page("views/conversao.py",    title="Conversor Universal de Doses",         icon="🔄"),
         st.Page("views/calculadoras.py", title="[EM CONSTRUÇÃO] Calculadoras Médicas", icon="🚧"),
     ],
 })
