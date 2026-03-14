@@ -458,9 +458,6 @@ if _agente_pendente:
                 _sa.update(label="✅ Concluído", state="complete")
         st.rerun()
 
-if st.session_state.pop("_completar_blocos_sistemas", False):
-    fluxo.completar_sistemas_de_outros_blocos()
-
 # ── Handler: Gerar Prontuário (flag vinda do form_submit_button) ──────────────
 if st.session_state.pop("_gerar_pront_pendente", False):
     _pront_gerar = st.session_state.get("prontuario", "").strip()

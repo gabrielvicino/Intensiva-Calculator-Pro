@@ -583,19 +583,6 @@ if _agente_pendente:
     else:
         _aplicar_agentes_paralelo([_agente_pendente])
 
-# ── Parsing Sistemas (determinístico) ─────────────────────────────────────────
-if st.session_state.pop("_sistemas_deterministico_pendente", False):
-    texto_sist = st.session_state.get("sistemas_notas", "").strip()
-    if not texto_sist:
-        st.warning("Cole a evolução por sistemas no campo de notas do Bloco 13 primeiro.")
-    else:
-        fluxo.aplicar_sistemas_deterministico(texto_sist)
-
-# ── Completar Bloco 13 a partir dos Blocos Anteriores ─────────────────────────
-if st.session_state.pop("_completar_blocos_sistemas", False):
-    fluxo.completar_sistemas_de_outros_blocos()
-
-
 # ── Handler: Gerar Prontuário (flag vinda do form_submit_button) ──────────────
 if st.session_state.pop("_gerar_pront_pendente", False):
     _pront_gerar = st.session_state.get("prontuario", "").strip()

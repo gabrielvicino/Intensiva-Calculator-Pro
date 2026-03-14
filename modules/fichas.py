@@ -470,40 +470,6 @@ def render_formulario_completo():
     if st.session_state.pop("_sofa_registrar_pendente", False):
         scores._shift_sofa()
 
-    # Aplica valores capturados pela Evolução Diária (bridge Bloco 10/11 → Bloco 13)
-    # Usa del+set para evitar StreamlitAPIException em chaves de widget já instanciadas
-    if "_evo_bridge_hoje" in st.session_state:
-        _bridge_vals = st.session_state.pop("_evo_bridge_hoje")
-        for _k, _v in _bridge_vals.items():
-            if _v:
-                if _k in st.session_state:
-                    del st.session_state[_k]
-                st.session_state[_k] = _v
-
-    # ── Reload silencioso de lab_*/ctrl_* ──────────────────────────────────────
-    # DEVE ficar aqui, antes de qualquer widget ser criado.
-    # Roda sempre que labs estão vazios no session_state mas há um prontuário.
-    # Isso garante que labs salvos no PACER apareçam na Evolução mesmo que o
-    # usuário não tenha recarregado a página manualmente.
-    _pront_rl = st.session_state.get("prontuario", "").strip()
-    _labs_vazios_rl = not any(
-        st.session_state.get(f"lab_{s}_data")
-        for s in range(1, 7)
-    )
-    if _labs_vazios_rl and _pront_rl:
-        try:
-            from utils import load_evolucao as _load_ev
-            _dados_rl = _load_ev(_pront_rl)
-            if _dados_rl:
-                _dados_rl.pop("_data_hora", None)
-                for _k, _v in _dados_rl.items():
-                    if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
-                        if _k in st.session_state:
-                            del st.session_state[_k]
-                        st.session_state[_k] = _v
-        except Exception:
-            pass
-
     # Aplica resultados de agentes pendentes ANTES de instanciar qualquer widget.
     # Usa del+set (igual ao _evo_bridge_hoje) para garantir que widgets já
     # existentes no session_state recebam o novo valor sem StreamlitAPIException.
@@ -571,100 +537,9 @@ def render_formulario_completo():
     # 3. EVOLUÇÃO DIÁRIA
     # ==========================================
     with st.expander("Evolução Diária", expanded=True):
-        # ── Botão global: Evolução Hoje para todos os blocos diários ──────────
-        if st.form_submit_button(
-            "📅 Evolução Diária",
-            key="_fsbtn_evo_hoje_global",
-            use_container_width=True,
-            type="primary",
-            help="Desloca Labs, Controles e Sistemas (hoje→ontem→…). "
-                 "Os dados de hoje são carregados automaticamente no Bloco 13.",
-        ):
-            from modules.fluxo.bridge import _SLOTS, _BRIDGE_LAB, _BRIDGE_CTRL, _lac_do_dia
-            from modules.fluxo.state import _limpar
-
-            # ── Captura valores de HOJE antes de qualquer deslocamento ──────────
-            # (lab_1/* e ctrl_hoje/* ainda têm os dados do dia atual)
-            _captura: dict = {}
-            for sis_suf, ctrl_dia, lab_idx in _SLOTS:
-                if sis_suf != "hoje":
-                    continue
-                for dest_pat, suf_lab, fn in _BRIDGE_LAB:
-                    val = fn(st.session_state.get(f"lab_{lab_idx}_{suf_lab}", ""))
-                    if val:
-                        _captura[dest_pat.format(s=sis_suf)] = val
-                for dest_pat, suf_ctrl, fn in _BRIDGE_CTRL:
-                    val = fn(st.session_state.get(f"ctrl_{ctrl_dia}_{suf_ctrl}", ""))
-                    if val:
-                        _captura[dest_pat.format(s=sis_suf)] = val
-                lac = _lac_do_dia(lab_idx)
-                if lac:
-                    _captura[f"sis_cardio_lac_{sis_suf}"] = lac
-                # Campos fixos (diurese e balanço do dia)
-                for sis_key, ctrl_key in [
-                    ("sis_renal_diurese", "ctrl_hoje_diurese"),
-                    ("sis_renal_balanco",  "ctrl_hoje_balanco"),
-                ]:
-                    v = _limpar(st.session_state.get(ctrl_key, ""))
-                    if v:
-                        _captura[sis_key] = v
-
-            if _captura:
-                st.session_state["_evo_bridge_hoje"] = _captura
-
-            # ── Deslocamentos (ordem: sistemas → labs → controles) ──────────────
-            sistemas._deslocar_sistemas()
-            laboratoriais._deslocar_laboratoriais()
-            controles._deslocar_dias()
-            st.toast("✅ Evolução Diária aplicada — Sistemas serão preenchidos.", icon="📅")
-
-        st.divider()
-
-        # ── 12. Análise Clínica ─────────────────────────────────────────────
-        from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
-
-        # ── Gera tabela e armazena cache ──────────────────────────────────
-        # O cache garante que a tabela NUNCA suma: se a geração atual retornar
-        # vazia (por qualquer motivo), usa o último HTML gerado com dados reais.
-        _html_labs, _html_ctrl = _gerar_html_cmp()
-        if _html_labs:
-            st.session_state["_html_labs_cache"] = _html_labs
-        if _html_ctrl:
-            st.session_state["_html_ctrl_cache"] = _html_ctrl
-        _html_labs = _html_labs or st.session_state.get("_html_labs_cache", "")
-        _html_ctrl = _html_ctrl or st.session_state.get("_html_ctrl_cache", "")
-
-        st.markdown("##### 📊 12. Análise Clínica")
-        st.markdown(
-            "<style>"
-            ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
-            "padding:14px 18px 8px;margin-bottom:10px;"
-            "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
-            ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
-            "display:block;margin-bottom:8px}"
-            ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
-            "</style>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
-            + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido. Acesse a aba Laboratoriais.</p>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
-            + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido. Acesse a aba Controles & BH.</p>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-
-        st.divider()
-        # ── 13. Evolução Clínica ────────────────────────────────────────────
         evolucao_clinica.render()
         _rodape_secao("evolucao", "Evolução Clínica")
         st.divider()
-        # ── 14. Evolução por Sistemas ───────────────────────────────────────
         sistemas.render(_agent_btn_callback=_btn_agente("sistemas"))
         _rodape_secao("sistemas", "Sistemas")
         st.divider()
@@ -706,26 +581,7 @@ def render_formulario_plantonista():
     _normalizar_pills_state()
     _normalizar_datas()
 
-    # ── Reload silencioso de lab_*/ctrl_* (para tabela comparativa) ───────────
-    _pront_rl = st.session_state.get("prontuario", "").strip()
-    _labs_vazios_rl = not any(
-        st.session_state.get(f"lab_{s}_data") for s in range(1, 7)
-    )
-    if _labs_vazios_rl and _pront_rl:
-        try:
-            from utils import load_evolucao as _load_ev
-            _dados_rl = _load_ev(_pront_rl)
-            if _dados_rl:
-                _dados_rl.pop("_data_hora", None)
-                for _k, _v in _dados_rl.items():
-                    if (_k.startswith("lab_") or _k.startswith("ctrl_")) and _v:
-                        if _k in st.session_state:
-                            del st.session_state[_k]
-                        st.session_state[_k] = _v
-        except Exception:
-            pass
-
-    with st.expander("Dados do Paciente & Análise Clínica", expanded=False):
+    with st.expander("Dados do Paciente", expanded=False):
         identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
         _rodape_secao("identificacao", "Identificação")
         st.divider()
@@ -737,41 +593,6 @@ def render_formulario_plantonista():
         st.divider()
         dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
         _rodape_secao("dispositivos", "Dispositivos")
-        st.divider()
-
-        from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
-        _html_labs, _html_ctrl = _gerar_html_cmp()
-        if _html_labs:
-            st.session_state["_html_labs_cache"] = _html_labs
-        if _html_ctrl:
-            st.session_state["_html_ctrl_cache"] = _html_ctrl
-        _html_labs = _html_labs or st.session_state.get("_html_labs_cache", "")
-        _html_ctrl = _html_ctrl or st.session_state.get("_html_ctrl_cache", "")
-
-        st.markdown("##### 📊 Análise Clínica")
-        st.markdown(
-            "<style>"
-            ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
-            "padding:14px 18px 8px;margin-bottom:10px;"
-            "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
-            ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
-            "display:block;margin-bottom:8px}"
-            ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
-            "</style>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
-            + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido.</p>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
-            + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido.</p>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
 
     st.write("")
     evolucao_clinica.render()
