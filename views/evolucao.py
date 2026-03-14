@@ -259,8 +259,6 @@ if not st.session_state.get("prontuario", "").strip():
             try:
                 from modules import ia_extrator
                 from modules.ia_config import get_ia_config
-                from modules.parsers.hc_unicamp import parsear
-                from modules.gerador.html import gerar_html_comparativo
             except Exception:
                 pass
         threading.Thread(target=_preload, daemon=True).start()
