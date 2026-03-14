@@ -31,8 +31,6 @@ _AGENTES = {
     "culturas":       preencher_culturas,
     "antibioticos":   preencher_antibioticos,
     "complementares": preencher_complementares,
-    "laboratoriais":  preencher_laboratoriais,
-    "controles":      preencher_controles,
     "evolucao":       preencher_evolucao,
     "sistemas":       preencher_sistemas,
 }
@@ -48,8 +46,6 @@ _NOTAS_MAP = {
     "culturas":       "culturas_notas",
     "antibioticos":   "antibioticos_notas",
     "complementares": "complementares_notas",
-    "laboratoriais":  "laboratoriais_notas",
-    "controles":      "controles_notas",
     "evolucao":       "evolucao_notas",
     "sistemas":       "sistemas_notas",
 }
@@ -66,10 +62,8 @@ NOMES_SECOES = {
     "culturas":        "9. Culturas",
     "antibioticos":    "10. Antibióticos",
     "complementares":  "11. Complementares",
-    "laboratoriais":   "12. Exames Laboratoriais",
-    "controles":       "12. Controles & Balanço",
-    "evolucao":        "13. Evolução Clínica",
-    "sistemas":        "14. Sistemas",
+    "evolucao":        "12. Evolução Clínica",
+    "sistemas":        "13. Sistemas",
     "condutas":        "15. Condutas",
     "prescricao":      "16. Prescrição",
 }

@@ -98,26 +98,12 @@ MAPEAMENTO DE CAMPOS
     Gatilhos (junte todos): #EXAMES, Imagem, TC, RX, Raio-X, USG, ECO, Ecocardiograma,
               CATE, Ressonância, Cintilografia, Pareceres, Laudos, Endoscopia, Broncoscopia
 
-10. laboratoriais
-    Gatilhos: #LAB, Laboratório, Gasometria, Hb, Leuco, Leucócitos, Cr, Creatinina,
-              Bioquímica, Coagulograma, Hemograma, Eletrólitos, resultados numéricos em série
-
-11. controles
-    Gatilhos: #CTRL, Controles, Sinais Vitais, PAS, PAD, PAM, FC, FR, SatO2, SpO2,
-              Temperatura, Dextro, Glicemia, Balanço Hídrico, Diurese
-    Capture o bloco COMPLETO, preservando EXATAMENTE o formato original, incluindo:
-    - Cabeçalho do bloco (ex: "# Controles - 24 horas", "## Controles & Balanço Hídrico")
-    - Datas de cada dia (ex: "> 18/02/2026", "> 07/03/2026")
-    - Todas as linhas de vitais: "PAS: 100-132 | PAD: 41-60 | FC: 72-95 | SatO2: 96-99"
-    - Linhas de balanço hídrico: "Balanço Hídrico Total: -420ml | Diurese: 1450ml"
-    NÃO truncar, NÃO resumir. Copiar todos os dias presentes, inclusive histórico.
-
-12. evolucao
+10. evolucao
     Gatilhos: #EVO, Evolução (narrativa), Subjetivo, Intercorrências, Resumo do dia,
               Impressão clínica, Texto livre não estruturado por sistemas
     NÃO incluir aqui: exame físico por sistemas, achados objetivos por órgão
 
-13. sistemas  ← CAMPO MAIS VARIÁVEL — leia a regra acima com atenção
+11. sistemas  ← CAMPO MAIS VARIÁVEL — leia a regra acima com atenção
     Gatilhos: #EF, Exame Físico, Exame Objetivo, Evolução por Sistemas,
               Avaliação por Sistemas, Revisão de Sistemas,
               "- Neurológico", "- Respiratório", "- Cardiovascular", "- Renal",
@@ -127,7 +113,7 @@ MAPEAMENTO DE CAMPOS
     CAMPOS PARCIAIS SÃO NORMAIS: o prontuário pode descrever apenas 3-4 sistemas.
     Capture exatamente o que está escrito, sem adicionar sistemas não mencionados.
 
-14. conduta
+12. conduta
     Gatilhos: #CD, #CONDUTA, Plano, Planejamento, Condutas, Prescrições do dia
     Inclua todas as subseções de conduta, mesmo divididas por sistemas.
     FORMATO DE SAÍDA: cada item de conduta em uma linha separada, prefixado com "- ".
@@ -151,8 +137,6 @@ ATENÇÃO JSON: Dentro dos valores, nunca use aspas duplas literais — substitu
     "culturas": "...",
     "antibioticos": "...",
     "complementares": "...",
-    "laboratoriais": "...",
-    "controles": "...",
     "evolucao": "...",
     "sistemas": "...",
     "conduta": "..."
