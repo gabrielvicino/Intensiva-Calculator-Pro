@@ -674,6 +674,19 @@ def render_formulario_completo():
         condutas.render()
         _rodape_secao("condutas", "Condutas")
 
+    st.divider()
+    if st.form_submit_button(
+        "📋 Gerar Prontuário Completo",
+        type="primary",
+        use_container_width=True,
+    ):
+        st.session_state["_gerar_pront_pendente"] = True
+
+    if st.form_submit_button(
+        "💾 Salvar Formulário",
+        use_container_width=True,
+    ):
+        st.session_state["_salvar_form_pendente"] = True
 
 
 def render_formulario_plantonista():
@@ -712,60 +725,74 @@ def render_formulario_plantonista():
         except Exception:
             pass
 
-    identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
-    _rodape_secao("identificacao", "Identificação")
-    st.divider()
-    hd.render(_agent_btn_callback=_btn_agente("hd"))
-    _rodape_secao("hd", "Diagnósticos")
-    st.divider()
-    comorbidades.render(_agent_btn_callback=_btn_agente("comorbidades"))
-    _rodape_secao("comorbidades", "Comorbidades")
-    st.divider()
-    dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
-    _rodape_secao("dispositivos", "Dispositivos")
-    st.divider()
+    with st.expander("Dados do Paciente & Análise Clínica", expanded=False):
+        identificacao.render(_agent_btn_callback=_btn_agente("identificacao"))
+        _rodape_secao("identificacao", "Identificação")
+        st.divider()
+        hd.render(_agent_btn_callback=_btn_agente("hd"))
+        _rodape_secao("hd", "Diagnósticos")
+        st.divider()
+        comorbidades.render(_agent_btn_callback=_btn_agente("comorbidades"))
+        _rodape_secao("comorbidades", "Comorbidades")
+        st.divider()
+        dispositivos.render(_agent_btn_callback=_btn_agente("dispositivos"))
+        _rodape_secao("dispositivos", "Dispositivos")
+        st.divider()
 
-    # ── Análise Clínica (tabelas de labs/controles — somente leitura) ─────────
-    from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
-    _html_labs, _html_ctrl = _gerar_html_cmp()
-    if _html_labs:
-        st.session_state["_html_labs_cache"] = _html_labs
-    if _html_ctrl:
-        st.session_state["_html_ctrl_cache"] = _html_ctrl
-    _html_labs = _html_labs or st.session_state.get("_html_labs_cache", "")
-    _html_ctrl = _html_ctrl or st.session_state.get("_html_ctrl_cache", "")
+        from modules.gerador.html import gerar_html_comparativo as _gerar_html_cmp
+        _html_labs, _html_ctrl = _gerar_html_cmp()
+        if _html_labs:
+            st.session_state["_html_labs_cache"] = _html_labs
+        if _html_ctrl:
+            st.session_state["_html_ctrl_cache"] = _html_ctrl
+        _html_labs = _html_labs or st.session_state.get("_html_labs_cache", "")
+        _html_ctrl = _html_ctrl or st.session_state.get("_html_ctrl_cache", "")
 
-    st.markdown("##### 📊 Análise Clínica")
-    st.markdown(
-        "<style>"
-        ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
-        "padding:14px 18px 8px;margin-bottom:10px;"
-        "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
-        ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
-        "display:block;margin-bottom:8px}"
-        ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
-        "</style>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
-        + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido.</p>")
-        + "</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
-        + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido.</p>")
-        + "</div>",
-        unsafe_allow_html=True,
-    )
+        st.markdown("##### 📊 Análise Clínica")
+        st.markdown(
+            "<style>"
+            ".ac-sec{background:#fff;border:1px solid #e0e0e0;border-radius:10px;"
+            "padding:14px 18px 8px;margin-bottom:10px;"
+            "box-shadow:0 1px 4px rgba(60,64,67,.12)}"
+            ".ac-tit{font-size:.88rem;font-weight:600;color:#1a73e8;"
+            "display:block;margin-bottom:8px}"
+            ".ac-empty{color:#888;font-size:.84rem;padding:4px 0}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div class='ac-sec'><span class='ac-tit'>🧪 Exames Laboratoriais</span>"
+            + (_html_labs if _html_labs else "<p class='ac-empty'>Nenhum exame preenchido.</p>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div class='ac-sec'><span class='ac-tit'>💧 Controles & Balanço Hídrico</span>"
+            + (_html_ctrl if _html_ctrl else "<p class='ac-empty'>Nenhum controle preenchido.</p>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
 
-    st.divider()
+    st.write("")
     evolucao_clinica.render()
     _rodape_secao("evolucao", "Evolução Clínica")
     st.divider()
     sistemas.render(_agent_btn_callback=_btn_agente("sistemas"))
     _rodape_secao("sistemas", "Sistemas")
+
+    st.divider()
+    if st.form_submit_button(
+        "📋 Gerar Prontuário Completo",
+        type="primary",
+        use_container_width=True,
+    ):
+        st.session_state["_gerar_pront_pendente"] = True
+
+    if st.form_submit_button(
+        "💾 Salvar Formulário",
+        use_container_width=True,
+    ):
+        st.session_state["_salvar_form_pendente"] = True
 
 
 def migrar_schema_legado(dados: dict) -> dict:

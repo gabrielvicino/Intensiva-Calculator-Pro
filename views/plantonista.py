@@ -461,13 +461,8 @@ if _agente_pendente:
 if st.session_state.pop("_completar_blocos_sistemas", False):
     fluxo.completar_sistemas_de_outros_blocos()
 
-
-# ==============================================================================
-# BLOCO 3: PRONTUÁRIO COMPLETO
-# ==============================================================================
-ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
-
-if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_width=True, key="btn_gerar_plan"):
+# ── Handler: Gerar Prontuário (flag vinda do form_submit_button) ──────────────
+if st.session_state.pop("_gerar_pront_pendente", False):
     _pront_gerar = st.session_state.get("prontuario", "").strip()
     if _pront_gerar:
         _dados_gerar = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
@@ -477,7 +472,21 @@ if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_wi
             daemon=True,
         ).start()
     st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
-    st.rerun()
+
+# ── Handler: Salvar via form ─────────────────────────────────────────────────
+if st.session_state.pop("_salvar_form_pendente", False):
+    _pront_sf = st.session_state.get("prontuario", "").strip()
+    if _pront_sf:
+        _dados_sf = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        with st.spinner("💾 Salvando evolução..."):
+            _ok_sf = save_evolucao(_pront_sf, st.session_state.get("nome", "").strip(), _dados_sf)
+        if _ok_sf:
+            st.toast(f"✅ Evolução salva! Prontuário: {_pront_sf}", icon="💾")
+
+# ==============================================================================
+# BLOCO 3: PRONTUÁRIO COMPLETO
+# ==============================================================================
+ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
 
 _texto_gerado = st.session_state.get("texto_final_gerado", "")
 with st.container(border=True):
