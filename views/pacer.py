@@ -99,13 +99,14 @@ if st.session_state.get("prontuario", "").strip():
 # ── Gate: bloqueia o restante da página até um prontuário ser informado ───────
 if not st.session_state.get("prontuario", "").strip():
     st.markdown(
-        '<div style="text-align:center;padding:80px 20px;color:#9e9e9e">'
+        '<div style="text-align:center;padding:40px 20px 16px;color:#9e9e9e">'
         '<p style="font-size:2.5rem;margin-bottom:4px">🔒</p>'
         '<p style="font-size:1.1rem;font-weight:600;color:#666">Digite o número do prontuário para começar</p>'
-        '<p style="font-size:0.85rem">Busque um prontuário na página <strong>Evolução Clínica Diária</strong> e volte aqui.</p>'
         '</div>',
         unsafe_allow_html=True,
     )
+    tab_laboratoriais._fragment_prontuario()
+    tab_laboratoriais._confirmar_novo_prontuario()
     from utils import mostrar_rodape
     mostrar_rodape()
     st.stop()
