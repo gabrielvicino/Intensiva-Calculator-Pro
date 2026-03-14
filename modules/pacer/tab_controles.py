@@ -28,6 +28,25 @@ _CSS_DATAS = """
         text-align: center;
         text-transform: uppercase;
     }
+    /* Responsivo: compacta inputs em telas pequenas */
+    @media (max-width: 1200px) {
+        [data-testid="stHorizontalBlock"] input {
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+            font-size: 0.82rem !important;
+        }
+        [data-testid="stHorizontalBlock"] textarea {
+            font-size: 0.82rem !important;
+            min-height: 54px !important;
+        }
+    }
+    @media (max-width: 900px) {
+        [data-testid="stHorizontalBlock"] input {
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+            font-size: 0.75rem !important;
+        }
+    }
 </style>
 """
 
