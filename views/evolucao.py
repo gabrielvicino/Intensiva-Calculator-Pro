@@ -1,5 +1,7 @@
 import streamlit as st
 import json
+import time
+import threading
 import streamlit.components.v1 as components
 from pathlib import Path
 from modules import ui, fichas, gerador, fluxo, agentes_secoes
@@ -206,6 +208,16 @@ if (_pront_autoload
     if _dados_auto and _aplicar_dados_prontuario(_dados_auto, silencioso=True):
         st.rerun()
 
+# ── Sincronizar ?p= na URL a cada render ──────────────────────────────────────
+# Garante que reconexões/reloads sempre encontrem o prontuário na URL.
+_p_sync = st.session_state.get("prontuario", "").strip()
+if _p_sync:
+    try:
+        if st.query_params.get("p", "") != _p_sync:
+            st.query_params["p"] = _p_sync
+    except Exception:
+        pass
+
 # ── Confirmação de criação de novo prontuário ──────────────────────────────────
 if "_busca_pendente_criar" in st.session_state:
     pend = st.session_state["_busca_pendente_criar"]
@@ -243,7 +255,6 @@ if not st.session_state.get("prontuario", "").strip():
     # Pré-importa módulos pesados em background enquanto o usuário vê a tela de cadeado.
     # Python cacheia em sys.modules — quando o prontuário for digitado, estarão prontos.
     if not st.session_state.get("_preload_started"):
-        import threading
         def _preload():
             try:
                 from modules import ia_extrator
@@ -265,6 +276,20 @@ if not st.session_state.get("prontuario", "").strip():
     )
     mostrar_rodape()
     st.stop()
+
+# ── Auto-save periódico (a cada 60 s de atividade, sem bloquear a UI) ─────────
+# Roda em background thread — zero impacto no rerun do usuário.
+_as_pront = st.session_state.get("prontuario", "").strip()
+if _as_pront:
+    _agora_as = time.time()
+    if (_agora_as - st.session_state.get("_ultimo_autosave", 0)) >= 60:
+        st.session_state["_ultimo_autosave"] = _agora_as
+        _as_dados = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
+        threading.Thread(
+            target=save_evolucao,
+            args=(_as_pront, st.session_state.get("nome", "").strip(), _as_dados),
+            daemon=True,
+        ).start()
 
 # ── Barra de identificação do paciente ────────────────────────────────────────
 ui.render_barra_paciente()
@@ -579,9 +604,8 @@ ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
 if st.button("📋 Gerar Prontuário Completo", type="primary", use_container_width=True):
     _pront_gerar = st.session_state.get("prontuario", "").strip()
     if _pront_gerar:
-        import threading as _thr_gen
         _dados_gerar = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
-        _thr_gen.Thread(
+        threading.Thread(
             target=save_evolucao,
             args=(_pront_gerar, st.session_state.get("nome", "").strip(), _dados_gerar),
             daemon=True,

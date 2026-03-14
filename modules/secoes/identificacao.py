@@ -34,7 +34,7 @@ def render(_agent_btn_callback=None):
         c_nome.markdown("**Nome Completo**")
         c_nome.text_input("Nome Completo", key="nome", label_visibility="collapsed")
         c_pront.markdown("**Prontuário**")
-        c_pront.text_input("Prontuário", value=st.session_state.get('prontuario', ''), disabled=True, label_visibility="collapsed")
+        c_pront.text_input("Prontuário", key="prontuario", disabled=True, label_visibility="collapsed")
         
         c1, c2, c3, c4, c5 = st.columns([1, 1.2, 1.5, 1.5, 1.5])
         c1.markdown("**Idade**")
