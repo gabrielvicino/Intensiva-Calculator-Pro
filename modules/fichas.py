@@ -39,6 +39,7 @@ def _fmt_data(val: str) -> str:
     """
     Converte dígitos para formato de data com barras.
     Formatação fluida: 01 → 01/, 0101 → 01/01/, 01012026 → 01/01/2026
+    Suporta MM/AAAA (ex: 03/2026) quando o dia não é relevante.
     Aceita valores com ou sem barras. Só formata se o valor contiver apenas dígitos e barras.
     """
     if not isinstance(val, str):
@@ -46,9 +47,20 @@ def _fmt_data(val: str) -> str:
     stripped = val.strip()
     if not stripped:
         return val
-    # Só formata se contiver apenas dígitos e barras (evita sobrescrever texto extra)
     if not all(c.isdigit() or c == "/" for c in stripped):
         return val
+
+    # Detecta MM/AAAA já digitado com barra (ex: "03/2026", "3/2026")
+    if "/" in stripped:
+        partes = stripped.split("/")
+        if len(partes) == 2 and partes[1] and len(partes[1]) == 4:
+            try:
+                mm = int(partes[0])
+                if 1 <= mm <= 12:
+                    return f"{mm:02d}/{partes[1]}"
+            except ValueError:
+                pass
+
     digitos = "".join(c for c in stripped if c.isdigit())
     if not digitos:
         return val
@@ -58,11 +70,13 @@ def _fmt_data(val: str) -> str:
     if n <= 4:
         return f"{digitos[0:2]}/{digitos[2:4]}/"
     if n == 6:
-        # DD/MM/AA → DD/MM/20AA (ex: 040326 → 04/03/2026)
+        # Ambiguidade: DDMMAA (ex: 040326) vs MMAAAA (ex: 032026)
+        ano_candidato = int(digitos[2:6])
+        if 2000 <= ano_candidato <= 2099:
+            return f"{digitos[0:2]}/{digitos[2:6]}"
         return f"{digitos[0:2]}/{digitos[2:4]}/20{digitos[4:6]}"
     if n <= 8:
         return f"{digitos[0:2]}/{digitos[2:4]}/{digitos[4:8]}"
-    # Mais de 8 dígitos: formata só os 8 primeiros
     return f"{digitos[0:2]}/{digitos[2:4]}/{digitos[4:8]}"
 
 
