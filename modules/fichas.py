@@ -343,7 +343,7 @@ def inicializar_estado():
     for k, v in defaults.items():
         if k not in ss:
             ss[k] = v
-        elif v and v is not True and v is not False and ss.get(k) == "":
+        elif v and v is not True and v is not False and ss.get(k) in ("", None):
             ss[k] = v
 
 
