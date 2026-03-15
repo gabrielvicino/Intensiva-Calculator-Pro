@@ -13,9 +13,10 @@ def _secao_comorbidades() -> list[str]:
         val = st.session_state.get(key)
         if not val:
             return None
-        exibir = "Nega" if val == "Ausente" else ("Ativo" if val == "Presente" else val)
+        _MAP = {"Ausente": "Nega", "Presente": "Ativo", "Uso Prévio": "Uso prévio"}
+        exibir = _MAP.get(val, val)
         obs = _get(obs_key)
-        if exibir == "Ativo" and obs:
+        if exibir in ("Ativo", "Uso prévio") and obs:
             return f"{label}: {exibir}; {obs}"
         return f"{label}: {exibir}"
 

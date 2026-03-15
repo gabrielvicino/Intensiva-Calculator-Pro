@@ -1,7 +1,7 @@
 import streamlit as st
 
 # 1. Definição das Variáveis (10 Slots Total)
-_OPCOES_ETIL_TBG_SPA = ["Desconhecido", "Ausente", "Presente"]
+_OPCOES_ETIL_TBG_SPA = ["Desconhecido", "Ausente", "Uso Prévio", "Presente"]
 
 def get_campos():
     campos = {

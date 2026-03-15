@@ -33,12 +33,12 @@ Ler o texto fornecido na tag <TEXTO_ALVO> e extrair exclusivamente as comorbidad
 Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 
 # --- ETILISMO, TABAGISMO, SUBSTÂNCIAS PSICOATIVAS ---
-- etilismo (string): EXATAMENTE "Desconhecido", "Ausente" ou "Presente". Se não mencionado, "".
-- etilismo_obs (string): Observação sobre etilismo (ex: "em abstinência", "ex-etilista"). Se ausente, "".
-- tabagismo (string): EXATAMENTE "Desconhecido", "Ausente" ou "Presente". Se não mencionado, "".
-- tabagismo_obs (string): Observação sobre tabagismo (ex: "20 anos-maço", "ex-tabagista"). Se ausente, "".
-- spa (string): EXATAMENTE "Desconhecido", "Ausente" ou "Presente" (Substâncias Psicoativas). Se não mencionado, "".
-- spa_obs (string): Observação sobre SPA (ex: "crack", "maconha"). Se ausente, "".
+- etilismo (string): EXATAMENTE "Desconhecido", "Ausente", "Uso Prévio" ou "Presente". "Uso Prévio" = ex-etilista/parou. Se não mencionado, "".
+- etilismo_obs (string): Observação sobre etilismo (ex: "parou há 5 anos", "em abstinência"). Se ausente, "".
+- tabagismo (string): EXATAMENTE "Desconhecido", "Ausente", "Uso Prévio" ou "Presente". "Uso Prévio" = ex-tabagista/parou. Se não mencionado, "".
+- tabagismo_obs (string): Observação sobre tabagismo (ex: "20 anos-maço, parou há 3 anos"). Se ausente, "".
+- spa (string): EXATAMENTE "Desconhecido", "Ausente", "Uso Prévio" ou "Presente" (Substâncias Psicoativas). "Uso Prévio" = ex-usuário/parou. Se não mencionado, "".
+- spa_obs (string): Observação sobre SPA (ex: "crack", "maconha, parou há 2 anos"). Se ausente, "".
 
 # --- COMORBIDADES PRÉ-EXISTENTES ---
 # 1. NOMES DOS ANTECEDENTES (Ordem do texto original. Expandir siglas: "HAS" → "Hipertensão Arterial Sistêmica", etc. Sem classificação ou datas. Title Case)
@@ -67,10 +67,10 @@ Extraia exatamente as seguintes chaves JSON, gerando-as nesta exata ordem:
 
 # EXEMPLO DE SAÍDA PERFEITA
 {
-  "etilismo": "Ausente",
-  "etilismo_obs": "",
-  "tabagismo": "Presente",
-  "tabagismo_obs": "40 anos-maço, ex-tabagista há 5 anos",
+  "etilismo": "Uso Prévio",
+  "etilismo_obs": "parou há 10 anos",
+  "tabagismo": "Uso Prévio",
+  "tabagismo_obs": "40 anos-maço, parou há 5 anos",
   "spa": "Ausente",
   "spa_obs": "",
   "comorbidade_1_nome": "Hipertensão Arterial Sistêmica",
@@ -113,7 +113,7 @@ def preencher_comorbidades(texto, api_key, provider, modelo):
         ("spa", "cmd_spa", "cmd_spa_obs"),
     ]:
         v = _s(key_ia)
-        if v in ("Desconhecido", "Ausente", "Presente"):
+        if v in ("Desconhecido", "Ausente", "Uso Prévio", "Presente"):
             resultado[key_ui] = v
         else:
             resultado[key_ui] = None

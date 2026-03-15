@@ -30,11 +30,11 @@ f'cmd_{i}_conduta' # conduta — nunca preenchida pelo agente
 
 Campos globais:
 ```python
-'cmd_etilismo'      # "Desconhecido" | "Ausente" | "Presente"
-'cmd_etilismo_obs'  # texto livre (ex: "5 doses/dia, abstinência há 2 anos")
-'cmd_tabagismo'     # "Desconhecido" | "Ausente" | "Presente"
-'cmd_tabagismo_obs' # texto livre
-'cmd_spa'           # "Desconhecido" | "Ausente" | "Presente"
+'cmd_etilismo'      # "Desconhecido" | "Ausente" | "Uso Prévio" | "Presente"
+'cmd_etilismo_obs'  # texto livre (ex: "parou há 5 anos")
+'cmd_tabagismo'     # "Desconhecido" | "Ausente" | "Uso Prévio" | "Presente"
+'cmd_tabagismo_obs' # texto livre (ex: "40 anos-maço, parou há 3 anos")
+'cmd_spa'           # "Desconhecido" | "Ausente" | "Uso Prévio" | "Presente"
 'cmd_spa_obs'       # texto livre
 'comorbidades_notas' # nunca preenchido pelo agente
 ```
@@ -64,20 +64,20 @@ Campos globais:
 
 ```
 # Comorbidades
-Etilismo: Ativo | Tabagismo: Nega | SPA: Desconhecido
+Etilismo: Uso prévio; parou há 5 anos | Tabagismo: Nega | SPA: Desconhecido
 
 1- Insuficiência Cardíaca; FE 35% - CF III
 2- Diabetes Mellitus tipo 2
 3- DPOC; GOLD III
 ```
 
-- "Ausente" → "Nega"; "Presente" → "Ativo" (no gerador)
+- "Ausente" → "Nega"; "Presente" → "Ativo"; "Uso Prévio" → "Uso prévio" (no gerador)
 
 ---
 
 ## Regras Especiais
 
-- Pills de hábitos: EXATAMENTE "Desconhecido", "Ausente" ou "Presente"
+- Pills de hábitos: EXATAMENTE "Desconhecido", "Ausente", "Uso Prévio" ou "Presente"
 - `preencher_comorbidades()`: se valor inválido para pills → `None`
 - **Sem reordenação** (diferente de HD, MUC, Dispositivos)
 - UI: 3 visíveis, 4–10 em expander
