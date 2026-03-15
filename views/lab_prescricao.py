@@ -20,11 +20,10 @@ st.caption("Cole os textos brutos e clique em **Extrair** — a IA formata tudo 
 
 _LP_KEYS = ["lp_input_lab", "lp_input_presc", "lp_output_lab", "lp_output_presc"]
 
-if st.session_state.get("_lp_limpar"):
+
+def _on_limpar():
     for k in _LP_KEYS:
-        if k in st.session_state:
-            del st.session_state[k]
-    st.session_state["_lp_limpar"] = False
+        st.session_state[k] = ""
 
 # ── 1. Entrada ────────────────────────────────────────────────────────────────
 ui.render_header_secao("Dados de Entrada", "📄", ui.COLOR_BLUE)
@@ -61,14 +60,9 @@ with col_extrair:
         "⚡ Extrair", type="primary", use_container_width=True,
     )
 with col_limpar:
-    limpar_btn = st.button(
-        "🗑️ Limpar Tudo", use_container_width=True,
+    st.button(
+        "🗑️ Limpar Tudo", use_container_width=True, on_click=_on_limpar,
     )
-
-# ── Handler: Limpar ──────────────────────────────────────────────────────────
-if limpar_btn:
-    st.session_state["_lp_limpar"] = True
-    st.rerun()
 
 # ── Handler: Extrair ─────────────────────────────────────────────────────────
 if extrair_btn:
