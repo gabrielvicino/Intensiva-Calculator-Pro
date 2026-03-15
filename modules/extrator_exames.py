@@ -24,14 +24,17 @@ def _chamar_ia(provider: str, api_key: str, modelo: str,
     try:
         if "gemini" in provider.lower() or "google" in provider.lower():
             client = _genai_new.Client(api_key=api_key)
+            cfg_kwargs: dict = {
+                "system_instruction": prompt_system,
+                "temperature": 0.0,
+            }
+            is_pro = "pro" in _MODELO_GEMINI_QUALIDADE.lower()
+            if not is_pro:
+                cfg_kwargs["thinking_config"] = _genai_types.ThinkingConfig(thinking_budget=0)
             response = client.models.generate_content(
-                model=_MODELO_GEMINI_QUALIDADE,  # sempre Pro para exames/prescrição
+                model=_MODELO_GEMINI_QUALIDADE,
                 contents=input_text,
-                config=_genai_types.GenerateContentConfig(
-                    system_instruction=prompt_system,
-                    temperature=0.0,
-                    thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
-                ),
+                config=_genai_types.GenerateContentConfig(**cfg_kwargs),
             )
             return response.text
         else:
