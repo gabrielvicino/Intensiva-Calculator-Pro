@@ -9,12 +9,13 @@ from utils import mostrar_rodape
 
 ui.carregar_css()
 
-# Inicializa campos do bloco 14 com presets
-for k, v in sistemas.get_campos().items():
-    if k not in st.session_state:
+# Estado isolado: limpa campos sis_* na primeira entrada para não herdar dados de outras páginas
+if not st.session_state.get("_sistemas_page_initialized"):
+    for k, v in sistemas.get_campos().items():
+        if k in st.session_state:
+            del st.session_state[k]
         st.session_state[k] = v
-    elif v and v is not True and v is not False and st.session_state.get(k) in ("", None):
-        st.session_state[k] = v
+    st.session_state["_sistemas_page_initialized"] = True
 
 st.title("📝 Evolução por Sistemas")
 st.write("")
