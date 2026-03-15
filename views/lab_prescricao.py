@@ -10,10 +10,10 @@ from utils import mostrar_rodape, carregar_chave_api, verificar_rate_limit
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 ui.carregar_css()
-GOOGLE_API_KEY = carregar_chave_api("GOOGLE_API_KEY", "GOOGLE_API_KEY")
+OPENAI_API_KEY = carregar_chave_api("OPENAI_API_KEY", "OPENAI_API_KEY")
 
-_PROVIDER = "google"
-_MODELO = "gemini-2.5-pro"
+_PROVIDER = "openai"
+_MODELO = "gpt-4o"
 
 st.title("🔬 Laboratoriais & Prescrição")
 st.caption("Cole os textos brutos e clique em **Extrair** — a IA formata tudo automaticamente.")
@@ -71,7 +71,7 @@ if extrair_btn:
 
     if not has_lab and not has_presc:
         st.warning("Cole pelo menos um texto (exames ou prescrição) para extrair.")
-    elif not GOOGLE_API_KEY:
+    elif not OPENAI_API_KEY:
         st.error("🔑 Chave Google API não configurada. Verifique `.env` ou `secrets.toml`.")
     else:
         ok, msg = verificar_rate_limit()
@@ -84,12 +84,12 @@ if extrair_btn:
 
                 def _run_lab():
                     return extrair_exames(
-                        texto_lab, GOOGLE_API_KEY, _PROVIDER, _MODELO,
+                        texto_lab, OPENAI_API_KEY, _PROVIDER, _MODELO,
                     )
 
                 def _run_presc():
                     return extrair_prescricao(
-                        texto_presc, GOOGLE_API_KEY, _PROVIDER, _MODELO,
+                        texto_presc, OPENAI_API_KEY, _PROVIDER, _MODELO,
                     )
 
                 with ThreadPoolExecutor(max_workers=2) as executor:
