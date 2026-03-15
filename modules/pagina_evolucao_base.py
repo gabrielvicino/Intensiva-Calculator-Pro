@@ -52,7 +52,8 @@ def _testar_google(key: str) -> tuple[bool, str]:
         return False, "Chave não configurada"
     try:
         from google import genai as _g
-        _g.Client(api_key=key).models.list()
+        client = _g.Client(api_key=key)
+        client.models.list()
         return True, ""
     except Exception as e:
         msg = str(e)
