@@ -110,7 +110,8 @@ pg = st.navigation({
         st.Page("views/home.py", title="Home", icon="⚕️", default=True),
     ],
     "Ferramentas Clínicas": [
-        st.Page("views/infusao.py",      title="Dose Infusão Contínua",                icon="💉"),
+        st.Page("views/infusao_tabela.py",      title="Dose Infusão Tabela",          icon="💉"),
+        st.Page("views/infusao_medicamento.py", title="Dose Infusão Medicamento",   icon="💊"),
         st.Page("views/intubacao.py",    title="Dose Intubação Orotraqueal",            icon="⚡"),
         st.Page("views/conversao.py",    title="Conversor Universal de Doses",          icon="🔄"),
         st.Page("views/calculadoras.py", title="[EM CONSTRUÇÃO] Calculadoras Médicas",  icon="🚧"),
