@@ -233,7 +233,6 @@ gb = GridOptionsBuilder.from_dataframe(df_grid)
 gb.configure_default_column(
     sortable=False, filterable=False, resizable=True,
     cellStyle={"textAlign": "center"},
-    suppressSizeToFit=True,
 )
 
 gb.configure_grid_options(
@@ -325,7 +324,7 @@ response = AgGrid(
     gridOptions=gb.build(),
     update_mode=GridUpdateMode.VALUE_CHANGED,
     allow_unsafe_jscode=True,
-    fit_columns_on_grid_load=False,
+    fit_columns_on_grid_load=True,
     theme="streamlit",
     custom_css=_AGGRID_CSS,
     height=_grid_height,
