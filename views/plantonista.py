@@ -68,7 +68,6 @@ with st.sidebar:
             st.error(f"❌ OpenAI: {_err_openai}")
 
 st.title("📝 Evolução Plantonista")
-st.caption("Versão simplificada — preencha apenas o essencial.")
 st.write("")
 
 # ── Proteção contra perda de dados ────────────────────────────────────────────
