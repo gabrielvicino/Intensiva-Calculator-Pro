@@ -294,7 +294,7 @@ with st.container(border=True):
             else:
                 with st.status("⚡ Extraindo e preenchendo campos...", expanded=True) as _status:
                     # Fase 1: fatiamento
-                    st.write("🔪 Fatiando prontuário com IA...")
+                    st.write("📄 Seccionando prontuário com IA...")
                     from modules.ia_config import get_ia_config
                     from modules import ia_extrator
                     _ext_key, _ext_prov, _ext_mod = get_ia_config("ia_extrator", GOOGLE_API_KEY, OPENAI_API_KEY)
