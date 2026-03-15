@@ -67,7 +67,7 @@ def get_campos():
     return campos
 
 
-def render(_agent_btn_callback=None):
+def render(_agent_btn_callback=None, *, show_toolbar: bool = True):
     """Renderiza o bloco completo de Evolução por Sistemas."""
     st.markdown('<span id="sec-14"></span>', unsafe_allow_html=True)
     st.markdown("##### 14. Evolução por Sistemas")
@@ -75,27 +75,29 @@ def render(_agent_btn_callback=None):
     st.text_area("Notas", key="sistemas_notas", height="content",
                  placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
     st.write("")
-    col_evo, col_puxar, col_ag, _ = st.columns([1, 1.5, 1, 6.5])
-    with col_evo:
-        evo_clicked = st.form_submit_button(
-            "Evolução Hoje", key="btn_evolucao_hoje_sistemas",
-            use_container_width=True,
-            help="Anteontem some; ontem vira anteontem; hoje vira ontem; hoje fica vazio.",
-        )
-        if evo_clicked:
-            _deslocar_sistemas()
-            st.toast("✅ Dados deslocados. Ontem → anteontem, hoje → ontem. Campos de hoje prontos para preenchimento.", icon="✅")
-    with col_puxar:
-        if st.form_submit_button(
-            "Completar Blocos Anteriores", key="btn_completar_blocos_sistemas",
-            help="Preenche campos da Seção 13 com dados já preenchidos: Controles, Lab, Antibióticos e Culturas",
-            use_container_width=True,
-            type="primary",
-        ):
-            st.session_state["_completar_blocos_sistemas"] = True
-    with col_ag:
-        if _agent_btn_callback:
-            _agent_btn_callback()
+
+    if show_toolbar:
+        col_evo, col_puxar, col_ag, _ = st.columns([1, 1.5, 1, 6.5])
+        with col_evo:
+            evo_clicked = st.form_submit_button(
+                "Evolução Hoje", key="btn_evolucao_hoje_sistemas",
+                use_container_width=True,
+                help="Anteontem some; ontem vira anteontem; hoje vira ontem; hoje fica vazio.",
+            )
+            if evo_clicked:
+                _deslocar_sistemas()
+                st.toast("✅ Dados deslocados. Ontem → anteontem, hoje → ontem. Campos de hoje prontos para preenchimento.", icon="✅")
+        with col_puxar:
+            if st.form_submit_button(
+                "Completar Blocos Anteriores", key="btn_completar_blocos_sistemas",
+                help="Preenche campos da Seção 13 com dados já preenchidos: Controles, Lab, Antibióticos e Culturas",
+                use_container_width=True,
+                type="primary",
+            ):
+                st.session_state["_completar_blocos_sistemas"] = True
+        with col_ag:
+            if _agent_btn_callback:
+                _agent_btn_callback()
 
     neuro.render()
     resp.render()
