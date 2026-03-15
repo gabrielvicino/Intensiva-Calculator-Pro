@@ -67,14 +67,15 @@ def get_campos():
     return campos
 
 
-def render(_agent_btn_callback=None, *, show_toolbar: bool = True):
+def render(_agent_btn_callback=None, *, show_toolbar: bool = True, show_notas: bool = True):
     """Renderiza o bloco completo de Evolução por Sistemas."""
     st.markdown('<span id="sec-14"></span>', unsafe_allow_html=True)
     st.markdown("##### 14. Evolução por Sistemas")
 
-    st.text_area("Notas", key="sistemas_notas", height="content",
-                 placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
-    st.write("")
+    if show_notas:
+        st.text_area("Notas", key="sistemas_notas", height="content",
+                     placeholder="Cole neste campo a evolução...", label_visibility="collapsed")
+        st.write("")
 
     if show_toolbar:
         col_evo, col_puxar, col_ag, _ = st.columns([1, 1.5, 1, 6.5])

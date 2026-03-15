@@ -21,7 +21,7 @@ st.write("")
 
 # ── Formulário ────────────────────────────────────────────────────────────────
 with st.form("form_sistemas_rapido"):
-    sistemas.render(show_toolbar=False)
+    sistemas.render(show_toolbar=False, show_notas=False)
 
     st.markdown("---")
     col_gerar, col_limpar, _ = st.columns([2, 1, 5])
