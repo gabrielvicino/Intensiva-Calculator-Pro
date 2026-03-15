@@ -109,18 +109,18 @@ pg = st.navigation({
     "Principal": [
         st.Page("views/home.py", title="Home", icon="⚕️", default=True),
     ],
-    "Dados Clínicos": [
-        # st.Page("views/pacer.py",        title="Laboratoriais & Controles", icon="🔬"),  # DESATIVADO — reativar quando integração estiver pronta
-        st.Page("views/lab_prescricao.py", title="Laboratoriais & Prescrição", icon="🔬"),
-        st.Page("views/evolucao.py",      title="Evolução Clínica Diária",    icon="📋"),
-        st.Page("views/plantonista.py",   title="Evolução Plantonista",        icon="🩺"),
-        st.Page("views/sistemas.py",      title="Evolução por Sistemas",       icon="📝"),
-    ],
     "Ferramentas Clínicas": [
-        st.Page("views/infusao.py",      title="Dose Infusão Contínua",  icon="💉"),
-        st.Page("views/intubacao.py",    title="Dose Intubação Orotraqueal",           icon="⚡"),
-        st.Page("views/conversao.py",    title="Conversor Universal de Doses",         icon="🔄"),
-        st.Page("views/calculadoras.py", title="[EM CONSTRUÇÃO] Calculadoras Médicas", icon="🚧"),
+        st.Page("views/infusao.py",      title="Dose Infusão Contínua",                icon="💉"),
+        st.Page("views/intubacao.py",    title="Dose Intubação Orotraqueal",            icon="⚡"),
+        st.Page("views/conversao.py",    title="Conversor Universal de Doses",          icon="🔄"),
+        st.Page("views/calculadoras.py", title="[EM CONSTRUÇÃO] Calculadoras Médicas",  icon="🚧"),
+    ],
+    "Dados Clínicos": [
+        # st.Page("views/pacer.py",        title="Laboratoriais & Controles", icon="🔬"),  # DESATIVADO
+        st.Page("views/sistemas.py",      title="Evolução por Sistemas",       icon="📝"),
+        st.Page("views/plantonista.py",   title="Evolução Plantonista",        icon="🩺"),
+        st.Page("views/evolucao.py",      title="Evolução Clínica Diária",    icon="📋"),
+        st.Page("views/lab_prescricao.py", title="Laboratoriais & Prescrição", icon="🔬"),
     ],
 })
 
