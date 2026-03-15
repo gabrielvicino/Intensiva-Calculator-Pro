@@ -18,6 +18,14 @@ _MODELO = "gpt-4o"
 st.title("🔬 Laboratoriais & Prescrição")
 st.caption("Cole os textos brutos e clique em **Extrair** — a IA formata tudo automaticamente.")
 
+_LP_KEYS = ["lp_input_lab", "lp_input_presc", "lp_output_lab", "lp_output_presc"]
+
+if st.session_state.get("_lp_limpar"):
+    for k in _LP_KEYS:
+        if k in st.session_state:
+            del st.session_state[k]
+    st.session_state["_lp_limpar"] = False
+
 # ── 1. Entrada ────────────────────────────────────────────────────────────────
 ui.render_header_secao("Dados de Entrada", "📄", ui.COLOR_BLUE)
 
@@ -59,9 +67,7 @@ with col_limpar:
 
 # ── Handler: Limpar ──────────────────────────────────────────────────────────
 if limpar_btn:
-    for k in ["lp_input_lab", "lp_input_presc", "lp_output_lab", "lp_output_presc"]:
-        if k in st.session_state:
-            del st.session_state[k]
+    st.session_state["_lp_limpar"] = True
     st.rerun()
 
 # ── Handler: Extrair ─────────────────────────────────────────────────────────
