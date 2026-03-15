@@ -113,6 +113,7 @@ pg = st.navigation({
         # st.Page("views/pacer.py",        title="Laboratoriais & Controles", icon="🔬"),  # DESATIVADO — reativar quando integração estiver pronta
         st.Page("views/evolucao.py",     title="Evolução Clínica Diária",   icon="📋"),
         st.Page("views/plantonista.py",  title="Evolução Plantonista",       icon="🩺"),
+        st.Page("views/sistemas.py",    title="Evolução por Sistemas",      icon="🧠"),
     ],
     "Ferramentas Clínicas": [
         st.Page("views/infusao.py",      title="Dose Infusão Contínua",  icon="💉"),
