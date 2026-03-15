@@ -22,7 +22,49 @@ def _campos():
     }
 
 
+def _sync_from_atb_cult():
+    """Preenche campos vazios do Infeccioso a partir de Antibióticos e Culturas."""
+    ss = st.session_state
+
+    atb_atuais: list[str] = []
+    tem_guiado = False
+    for i in range(1, 9):
+        nome = (ss.get(f"atb_{i}_nome") or "").strip()
+        status = ss.get(f"atb_{i}_status")
+        if nome and status == "Atual":
+            atb_atuais.append(nome)
+            if ss.get(f"atb_{i}_tipo") == "Guiado por Cultura":
+                tem_guiado = True
+
+    if atb_atuais:
+        if not ss.get("sis_infec_atb"):
+            ss["sis_infec_atb"] = "Sim"
+        if not ss.get("sis_infec_atb_guiado"):
+            ss["sis_infec_atb_guiado"] = "Sim" if tem_guiado else "Não"
+        for j, nome in enumerate(atb_atuais[:3], 1):
+            if not ss.get(f"sis_infec_atb_{j}"):
+                ss[f"sis_infec_atb_{j}"] = nome
+
+    pendentes: list[tuple[str, str]] = []
+    for i in range(1, 9):
+        sitio = (ss.get(f"cult_{i}_sitio") or "").strip()
+        status = ss.get(f"cult_{i}_status") or ""
+        if sitio and ("Pendente" in status or "aguarda" in status):
+            pendentes.append((sitio, (ss.get(f"cult_{i}_data_coleta") or "")))
+
+    if pendentes:
+        if not ss.get("sis_infec_culturas_and"):
+            ss["sis_infec_culturas_and"] = "Sim"
+        for j, (sitio, data) in enumerate(pendentes[:4], 1):
+            if not ss.get(f"sis_infec_cult_{j}_sitio"):
+                ss[f"sis_infec_cult_{j}_sitio"] = sitio
+            if not ss.get(f"sis_infec_cult_{j}_data"):
+                ss[f"sis_infec_cult_{j}_data"] = data
+
+
 def render():
+    _sync_from_atb_cult()
+
     with st.container(border=True):
         st.markdown("**Infeccioso**")
 
