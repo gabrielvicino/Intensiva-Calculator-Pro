@@ -125,11 +125,16 @@ def render_pagina(
             return False
         data_hora = dados.pop("_data_hora", "")
         dados = fichas.migrar_schema_legado(dados)
+
+        defaults = fichas._get_campos_base_cached()
+        for k, v in defaults.items():
+            st.session_state[k] = v
+
         campos_validos = set(fichas.get_todos_campos_keys())
         for k, v in dados.items():
             if k not in campos_validos:
                 continue
-            if v or not st.session_state.get(k):
+            if v:
                 st.session_state[k] = v
         st.session_state["_data_hora_carregado"] = data_hora
 
@@ -240,6 +245,8 @@ def render_pagina(
                 if st.button("Criar prontuário", type="primary",
                              use_container_width=True, key=f"_btn_criar_sim{sfx}"):
                     st.session_state.pop(_busca_criar_key, None)
+                    for _k, _v in fichas._get_campos_base_cached().items():
+                        st.session_state[_k] = _v
                     st.session_state["prontuario"] = pend
                     try:
                         st.query_params["p"] = str(pend).strip()
