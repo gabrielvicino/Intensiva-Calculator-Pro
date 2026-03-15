@@ -495,9 +495,10 @@ GRUPO 3: SOLUÇÕES (Soros e Infusões Contínuas)
    Siga a mesma lógica (Fixos > SN).
 
 # ESTRUTURA DE SAÍDA
-Separe em dois blocos: MEDICAÇÕES e SOLUÇÕES.
-Inicie a numeração em 1 para cada bloco.
-Use quebra de linha dupla entre os blocos.
+Separe em três blocos visuais dentro de MEDICAÇÕES: Fixos, depois uma LINHA EM BRANCO, depois Se Necessário.
+Se houver SOLUÇÕES, separe com uma linha em branco adicional após MEDICAÇÕES.
+A numeração é SEQUENCIAL e CONTÍNUA dentro de MEDICAÇÕES (não reinicia no Se Necessário).
+Inicie em 1 para SOLUÇÕES separadamente.
 
 # FORMATO DE CADA LINHA
 [Número]. [Nome]; [Dose]; [Via]; [Dose x Frequência ou Se Necessário]
@@ -505,8 +506,11 @@ Use quebra de linha dupla entre os blocos.
 # EXEMPLO DE SAÍDA
 MEDICAÇÕES
 1. Amicacina 500mg; 1 amp; Endovenoso; 1 amp x 1 vez ao dia
-2. Sinvastatina 20mg; 40 mg; Oral; 40 mg x 1 vez ao dia
-3. Dipirona 1g; 1 g; Endovenoso; Se Necessário
+2. Enoxaparina 40mg; 40 mg; Subcutâneo; 40 mg x 1 vez ao dia
+3. Sinvastatina 20mg; 40 mg; Oral; 40 mg x 1 vez ao dia
+
+4. Dipirona 1g; 1 g; Endovenoso; Se Necessário
+5. Insulina Regular 100 UI/mL; 2 UI; Endovenoso; Se Necessário
 
 SOLUÇÕES
 1. Norepinefrina 4 amp + Cloreto de Sodio 0,9% 234 ml; Endovenoso; A Critério Médico
