@@ -371,7 +371,12 @@ with st.container(border=True):
         key="texto_bruto_original",
     )
     st.write("")
-    extrair_btn = st.button("✨ Extrair Seções", type="primary", use_container_width=True)
+    extrair_btn = st.button(
+        "⚡ Extrair Seções e Completar Campos",
+        type="primary",
+        use_container_width=True,
+        help="Fatia o prontuário em seções e preenche todos os campos com IA em um único passo.",
+    )
 
     if extrair_btn:
         if not GOOGLE_API_KEY and not OPENAI_API_KEY:
@@ -383,7 +388,9 @@ with st.container(border=True):
             if not _ok:
                 st.error(f"🚫 {_msg}")
             else:
-                with st.spinner("Extraindo seções com IA..."):
+                with st.status("⚡ Extraindo e preenchendo campos...", expanded=True) as _status_box:
+                    # ── Fase 1: Fatiamento ────────────────────────────────────
+                    st.write("🔪 **Fase 1/2** — Fatiando prontuário com IA...")
                     from modules.ia_config import get_ia_config
                     from modules import ia_extrator
                     _ext_key, _ext_prov, _ext_mod = get_ia_config("ia_extrator", GOOGLE_API_KEY, OPENAI_API_KEY)
@@ -394,56 +401,59 @@ with st.container(border=True):
                         modelo=_ext_mod,
                     )
                     fluxo.atualizar_notas_ia(dados_notas)
-                    # Auto-save: persiste o texto original + notas fatiadas no banco
+
                     _pront_fat = st.session_state.get("prontuario", "").strip()
                     if _pront_fat:
                         _dados_fat = {k: st.session_state.get(k) for k in fichas.get_todos_campos_keys()}
                         save_evolucao(_pront_fat, st.session_state.get("nome", "").strip(), _dados_fat)
-                st.toast("Seções extraídas e salvas com sucesso.", icon="✅")
+
+                    st.write("✅ Fatiamento concluído.")
+
+                    # ── Fase 2: Agentes em paralelo ───────────────────────────
+                    _all_secoes = list(agentes_secoes._AGENTES.keys())
+                    n_tarefas = sum(
+                        1 for sec in _all_secoes
+                        if st.session_state.get(agentes_secoes._NOTAS_MAP.get(sec, ""), "").strip()
+                    )
+                    if n_tarefas:
+                        st.write(f"🤖 **Fase 2/2** — Preenchendo {n_tarefas} seções com IA...")
+                        progresso = st.progress(0, text="Iniciando agentes...")
+
+                        def _on_progress(concluidos_n, total, nome):
+                            pct = concluidos_n / total
+                            txt = f"✅ {nome} — {concluidos_n}/{total}" if nome else f"{concluidos_n}/{total}"
+                            progresso.progress(pct, text=txt)
+
+                        n_ok, erros = fluxo.rodar_agentes_paralelo(
+                            _all_secoes, GOOGLE_API_KEY, OPENAI_API_KEY,
+                            on_progress=_on_progress,
+                        )
+                        progresso.empty()
+
+                        if erros:
+                            _status_box.update(
+                                label=f"⚠️ {n_ok} seções OK — {len(erros)} com erro",
+                                state="error", expanded=True,
+                            )
+                            for e in erros:
+                                st.warning(e)
+                        else:
+                            _status_box.update(
+                                label=f"✅ Extração completa — {n_ok} seções preenchidas",
+                                state="complete", expanded=False,
+                            )
+                    else:
+                        _status_box.update(
+                            label="✅ Fatiamento concluído (sem seções para agentes)",
+                            state="complete", expanded=False,
+                        )
+
                 st.session_state["_secoes_recortadas"] = {
                     sec: bool(st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
                     for sec in agentes_secoes._NOTAS_MAP
                     if sec in agentes_secoes._AGENTES
                 }
-
-# ── Checklist dinâmico + botão de agentes ─────────────────────────────────────
-# Só exibe o checklist se já foi feita ao menos uma extração (_secoes_recortadas
-# inicializado). A cada render, recalcula ao vivo para refletir o estado atual
-# das notas — evita a mensagem "Processando N seções" ficar desatualizada.
-if "_secoes_recortadas" in st.session_state:
-    st.session_state["_secoes_recortadas"] = {
-        sec: bool(st.session_state.get(agentes_secoes._NOTAS_MAP[sec], "").strip())
-        for sec in agentes_secoes._NOTAS_MAP
-        if sec in agentes_secoes._AGENTES
-    }
-    _status    = st.session_state["_secoes_recortadas"]
-    _com_texto = sum(_status.values())
-
-    with st.container(border=True):
-        st.markdown("**Seções Preenchidas**")
-        st.write("")
-        _items = list(_status.items())
-        _cols  = st.columns(4)
-        for _i, (_sec, _tem) in enumerate(_items):
-            _nome = agentes_secoes.NOMES_SECOES.get(_sec, _sec)
-            with _cols[_i % 4]:
-                st.write(("✅" if _tem else "⬜") + f" {_nome}")
-        st.write("")
-        _ci, _cb = st.columns([3, 4])
-        with _ci:
-            st.caption(f"**{_com_texto}** de {len(_status)} seções com conteúdo")
-        with _cb:
-            if st.button(
-                f"Completar Todos os Campos  ({_com_texto})",
-                type="primary",
-                use_container_width=True,
-                disabled=(_com_texto == 0),
-                key="btn_aplicar_agentes",
-            ):
-                if not GOOGLE_API_KEY and not OPENAI_API_KEY:
-                    st.error("Sem chave API.")
-                else:
-                    _aplicar_agentes_paralelo(list(agentes_secoes._AGENTES.keys()))
+                st.rerun()
 
 # ==============================================================================
 # BLOCO 2: DADOS CLÍNICOS
