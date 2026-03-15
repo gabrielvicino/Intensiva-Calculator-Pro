@@ -233,6 +233,7 @@ gb = GridOptionsBuilder.from_dataframe(df_grid)
 gb.configure_default_column(
     sortable=False, filterable=False, resizable=True,
     cellStyle={"textAlign": "center"},
+    suppressSizeToFit=True,
 )
 
 gb.configure_grid_options(
@@ -249,37 +250,53 @@ gb.configure_column("_vel", hide=True)
 
 gb.configure_column("Medicação",
     cellStyle={"textAlign": "left", "fontWeight": "700", "color": "#222"},
-    width=190, pinned="left")
+    width=190, minWidth=170, pinned="left")
 
 _C = {"textAlign": "center"}
 _EDIT = {**_C, "backgroundColor": "#F5F5F5", "fontWeight": "600"}
 
 gb.configure_column("*Nº Ampolas",
-    editable=True, cellStyle=_EDIT, width=105)
+    editable=True, cellStyle=_EDIT, width=105, minWidth=95)
 
 gb.configure_column("*Vol. Diluente",
-    editable=True, cellStyle=_EDIT, width=115)
+    editable=True, cellStyle=_EDIT, width=115, minWidth=105)
 
-gb.configure_column("Vol. Total", cellStyle=_C, width=90)
-gb.configure_column("Concentração", cellStyle=_C, width=115)
+gb.configure_column("Vol. Total", cellStyle=_C, width=90, minWidth=85)
+gb.configure_column("Concentração", cellStyle=_C, width=115, minWidth=105)
 
 gb.configure_column("Vel. Mínima",
     cellStyle={**_C, "color": "#1565C0", "fontWeight": "bold"},
-    width=155)
+    width=120, minWidth=100)
 
 gb.configure_column("Vel. Máx. Habitual",
     cellStyle={**_C, "color": "#E65100", "fontWeight": "bold"},
-    width=170)
+    width=145, minWidth=130)
 
 gb.configure_column("Vel. Máx. Estudada",
     cellStyle={**_C, "color": "#C62828", "fontWeight": "bold"},
-    width=170)
+    width=145, minWidth=130)
 
 gb.configure_column("*Vel. Bomba",
-    editable=True, cellStyle=_EDIT, width=105)
+    editable=True, cellStyle=_EDIT, width=105, minWidth=95)
+
+_DOSE_JS = JsCode("""
+function(params) {
+    var base = {textAlign:'center'};
+    var interp = params.data['Interpretação'] || '';
+    if (interp.indexOf('Adequada') >= 0)
+        return Object.assign(base, {color:'#2E7D32', fontWeight:'bold'});
+    if (interp.indexOf('Abaixo') >= 0)
+        return Object.assign(base, {color:'#1565C0', fontWeight:'bold'});
+    if (interp.indexOf('Acima hab') >= 0)
+        return Object.assign(base, {color:'#E65100', fontWeight:'bold'});
+    if (interp.indexOf('Acima') >= 0)
+        return Object.assign(base, {color:'#C62828', fontWeight:'bold'});
+    return base;
+}
+""")
 
 gb.configure_column("Dose Atual",
-    cellStyle=_C, width=150)
+    cellStyle=_DOSE_JS, width=140, minWidth=120)
 
 _INTERP_JS = JsCode("""
 function(params) {
@@ -297,7 +314,7 @@ function(params) {
 }
 """)
 
-gb.configure_column("Interpretação", cellStyle=_INTERP_JS, width=140)
+gb.configure_column("Interpretação", cellStyle=_INTERP_JS, width=140, minWidth=120)
 
 # ── Renderizar grid ──────────────────────────────────────────────────────────
 
@@ -308,7 +325,7 @@ response = AgGrid(
     gridOptions=gb.build(),
     update_mode=GridUpdateMode.VALUE_CHANGED,
     allow_unsafe_jscode=True,
-    fit_columns_on_grid_load=True,
+    fit_columns_on_grid_load=False,
     theme="streamlit",
     custom_css=_AGGRID_CSS,
     height=_grid_height,
