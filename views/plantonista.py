@@ -468,7 +468,11 @@ if st.session_state.pop("_gerar_pront_pendente", False):
             args=(_pront_gerar, st.session_state.get("nome", "").strip(), _dados_gerar),
             daemon=True,
         ).start()
-    st.session_state["texto_final_gerado"] = gerador.gerar_texto_final()
+    _texto_gen = gerador.gerar_texto_final()
+    if "texto_final_gerado" in st.session_state:
+        del st.session_state["texto_final_gerado"]
+    st.session_state["texto_final_gerado"] = _texto_gen
+    st.rerun()
 
 # ── Handler: Salvar via form ─────────────────────────────────────────────────
 if st.session_state.pop("_salvar_form_pendente", False):
@@ -485,16 +489,13 @@ if st.session_state.pop("_salvar_form_pendente", False):
 # ==============================================================================
 ui.render_header_secao("3. Prontuário Completo", "✅", ui.COLOR_GREEN)
 
-_texto_gerado = st.session_state.get("texto_final_gerado", "")
 with st.container(border=True):
-    _editado = st.text_area(
-        "Prontuário Gerado", value=_texto_gerado, height=250,
+    st.text_area(
+        "Prontuário Gerado", height=250,
         label_visibility="collapsed",
         placeholder="Clique em Gerar Prontuário Completo.",
-        key="ta_gerado_plan",
+        key="texto_final_gerado",
     )
-    if _editado != _texto_gerado:
-        st.session_state["texto_final_gerado"] = _editado
 
 _c_copy_esp, _c_copy_btn = st.columns([4, 1])
 with _c_copy_btn:
