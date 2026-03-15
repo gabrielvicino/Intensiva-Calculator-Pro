@@ -1,7 +1,5 @@
 streamlit>=1.37.0
 pandas
-st-gsheets-connection
-gspread
 google-genai
 openai
 Pillow

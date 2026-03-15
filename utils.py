@@ -6,7 +6,6 @@ import pandas as pd
 import json
 from datetime import datetime
 from pathlib import Path
-from calculos.infusao_data import _DADOS_INFUSAO_PADRAO
 
 _PROJECT_DIR = Path(__file__).resolve().parent
 try:
@@ -350,98 +349,6 @@ def load_db_infusao() -> pd.DataFrame:
     except Exception as e:
         st.error(f"❌ Erro ao carregar DB_INFUSAO: {e}")
         return pd.DataFrame()
-
-
-# ── Google Sheets — mantido apenas para save_data_append legado ───────────────
-
-try:
-    from streamlit_gsheets import GSheetsConnection
-    from gspread import service_account_from_dict
-    _GSHEETS_OK = True
-except ImportError:
-    _GSHEETS_OK = False
-
-SHEET_URL = "https://docs.google.com/spreadsheets/d/15Rxc1tYYmgG7Sikn2UOvz-GFN6jvneMHnA-l-O8keNs/edit?gid=0#gid=0"
-
-
-def sync_infusao_to_sheet() -> bool:
-    """Envia dados padrão de infusão para a aba DB_INFUSAO no Google Sheets."""
-    if not _GSHEETS_OK:
-        st.warning("Google Sheets não disponível (pacotes não instalados).")
-        return False
-    try:
-        df = pd.DataFrame(_DADOS_INFUSAO_PADRAO)
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        conn.update(spreadsheet=SHEET_URL, worksheet="DB_INFUSAO", data=df)
-        return True
-    except Exception as e:
-        st.error(f"❌ Erro ao sincronizar: {e}")
-        return False
-
-
-@st.cache_data(ttl=600, show_spinner=False)
-def load_data(worksheet_name: str) -> pd.DataFrame:
-    """Carrega dados do Google Sheets com cache de 10 minutos (legado)."""
-    if not _GSHEETS_OK:
-        st.warning("Google Sheets não disponível.")
-        return pd.DataFrame()
-    try:
-        df = _read_worksheet_gspread(worksheet_name)
-        if df is not None:
-            return df
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        return conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=600)
-    except Exception as e:
-        st.error(f"❌ Erro ao conectar com Google Sheets: {e}")
-        return pd.DataFrame()
-
-
-def _read_worksheet_gspread(worksheet_name: str) -> pd.DataFrame | None:
-    """Lê qualquer aba do Sheets via gspread. Retorna DataFrame ou None."""
-    if not _GSHEETS_OK:
-        return None
-    try:
-        gs = st.secrets.get("connections", {}).get("gsheets", {})
-        if not gs or gs.get("type") != "service_account":
-            return None
-        creds = {k: v for k, v in gs.items() if k not in ("spreadsheet", "worksheet")}
-        gc = service_account_from_dict(creds)
-        sh = gc.open_by_url(SHEET_URL)
-        ws = sh.worksheet(worksheet_name)
-        records = ws.get_all_records()
-        return pd.DataFrame(records) if records else pd.DataFrame()
-    except Exception:
-        return None
-
-
-def save_data_append(worksheet_name, new_data_row):
-    if not _GSHEETS_OK:
-        st.warning("Google Sheets não disponível.")
-        return False
-    try:
-        existing_data = _read_worksheet_gspread(worksheet_name)
-        if existing_data is None:
-            conn = st.connection("gsheets", type=GSheetsConnection)
-            existing_data = conn.read(spreadsheet=SHEET_URL, worksheet=worksheet_name, ttl=0)
-
-        qtd_planilha = len(existing_data.columns)
-        qtd_codigo = len(new_data_row)
-
-        if qtd_codigo != qtd_planilha:
-            st.error(
-                f"❌ ERRO DE CONTAGEM: O código está enviando {qtd_codigo} dados, "
-                f"mas o Python achou {qtd_planilha} colunas na planilha."
-            )
-            return False
-
-        new_df = pd.DataFrame([new_data_row], columns=existing_data.columns)
-        updated = pd.concat([existing_data, new_df], ignore_index=True)
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        conn.update(spreadsheet=SHEET_URL, worksheet=worksheet_name, data=updated)
-        return True
-    except Exception as e:
-        st.error(f"Erro detalhado do Google: {e}")
-        return False
 
 
 def mostrar_rodape():
