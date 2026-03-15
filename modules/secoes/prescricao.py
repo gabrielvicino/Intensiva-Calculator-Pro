@@ -10,8 +10,8 @@ def get_campos():
 
 def render():
     """Renderiza o bloco 14 — Prescrição (dentro do st.form)."""
-    st.markdown('<span id="sec-15"></span>', unsafe_allow_html=True)
-    st.markdown("##### 15. Prescrição")
+    st.markdown('<span id="sec-14"></span>', unsafe_allow_html=True)
+    st.markdown("##### 14. Prescrição")
 
     st.caption(
         "Processe a prescrição na página **Laboratoriais & Controles → aba 💊 Prescrição** "

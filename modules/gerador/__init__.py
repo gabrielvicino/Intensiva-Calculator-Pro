@@ -23,8 +23,6 @@ from .muc import _secao_muc
 from .comorbidades import _secao_comorbidades
 from .antibioticos import _secao_antibioticos
 from .complementares import _secao_complementares
-from .laboratoriais import _secao_laboratoriais
-from .controles import _secao_controles
 from .evolucao_clinica import _secao_evolucao_clinica
 from .condutas import _secao_condutas
 from .prescricao import _secao_prescricao
@@ -47,8 +45,6 @@ def _init_secao_map():
         "culturas":       _secao_culturas,
         "antibioticos":   _secao_antibioticos,
         "complementares": _secao_complementares,
-        "laboratoriais":  _secao_laboratoriais,
-        "controles":      _secao_controles,
         "evolucao":       _secao_evolucao_clinica,
         "sistemas":       _secao_sistemas,
         "condutas":       _secao_condutas,
@@ -93,8 +89,6 @@ def gerar_texto_final() -> str:
     if _inc("intraoperatorio"): secoes.append(_secao_intraoperatorio())
     if _inc("antibioticos"):    secoes.append(_secao_antibioticos())
     if _inc("complementares"):  secoes.append(_secao_complementares())
-    if _inc("laboratoriais"):   secoes.append(_secao_laboratoriais())
-    if _inc("controles"):       secoes.append(_secao_controles())
     if _inc("evolucao"):        secoes.append(_secao_evolucao_clinica())
     if _inc("sistemas"):        secoes.append(_secao_sistemas())
     if _inc("condutas"):        secoes.append(_secao_condutas())

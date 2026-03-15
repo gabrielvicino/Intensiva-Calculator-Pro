@@ -205,11 +205,10 @@ _GUIA_SECOES = [
     (9,  "Culturas"),
     (10, "Antibióticos"),
     (11, "Exames Complementares"),
-    (12, "Análise Clínica"),
-    (13, "Evolução Clínica"),
-    (14, "Evolução por Sistemas"),
-    (15, "Prescrição"),
-    (16, "Plano Terapêutico & Condutas"),
+    (12, "Evolução Clínica"),
+    (13, "Evolução por Sistemas"),
+    (14, "Prescrição"),
+    (15, "Plano Terapêutico & Condutas"),
 ]
 
 

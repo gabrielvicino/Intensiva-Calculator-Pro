@@ -15,10 +15,8 @@ from .dispositivos import preencher_dispositivos
 from .culturas import preencher_culturas
 from .antibioticos import preencher_antibioticos
 from .complementares import preencher_complementares
-from .laboratoriais import preencher_laboratoriais
 from .evolucao import preencher_evolucao
 from .sistemas import preencher_sistemas
-from .controles import preencher_controles
 
 _AGENTES = {
     "identificacao":  preencher_identificacao,
@@ -61,8 +59,8 @@ NOMES_SECOES = {
     "antibioticos":    "10. Antibióticos",
     "complementares":  "11. Complementares",
     "evolucao":        "12. Evolução Clínica",
-    "condutas":        "15. Condutas",
-    "prescricao":      "16. Prescrição",
+    "condutas":        "14. Condutas",
+    "prescricao":      "15. Prescrição",
 }
 
 

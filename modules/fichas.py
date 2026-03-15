@@ -193,11 +193,9 @@ from modules.secoes import intraoperatorio               # 5
 from modules.secoes import dispositivos       # 6
 from modules.secoes import culturas           # 7
 from modules.secoes import antibioticos       # 8
-from modules.secoes import complementares     # 9
-from modules.secoes import laboratoriais      # 10
-from modules.secoes import evolucao_clinica   # 11
-from modules.secoes import sistemas           # 12
-from modules.secoes import controles          # 13
+from modules.secoes import complementares     # 11
+from modules.secoes import evolucao_clinica   # 12
+from modules.secoes import sistemas           # 13
 from modules.secoes import prescricao         # 14
 from modules.secoes import condutas           # 15
 from modules import agentes_secoes as _agentes_secoes
@@ -220,10 +218,8 @@ def _get_secoes_modulos() -> dict:
             "culturas":       culturas,
             "antibioticos":   antibioticos,
             "complementares": complementares,
-            "laboratoriais":  laboratoriais,
             "evolucao":       evolucao_clinica,
             "sistemas":       sistemas,
-            "controles":      controles,
             "prescricao":     prescricao,
             "condutas":       condutas,
         }
@@ -260,10 +256,8 @@ def _campos_base() -> dict:
     campos.update(culturas.get_campos())
     campos.update(antibioticos.get_campos())
     campos.update(complementares.get_campos())
-    campos.update(laboratoriais.get_campos())
     campos.update(evolucao_clinica.get_campos())
     campos.update(sistemas.get_campos())
-    campos.update(controles.get_campos())
     campos.update(prescricao.get_campos())
     campos.update(condutas.get_campos())
     campos.update({
@@ -273,7 +267,7 @@ def _campos_base() -> dict:
         'identificacao_notas': '', 'scores_notas': '', 'hd_notas': '', 'comorbidades_notas': '',
         'muc_notas': '', 'hmpa_texto': '', 'dispositivos_notas': '',
         'culturas_notas': '', 'antibioticos_notas': '', 'complementares_notas': '',
-        'laboratoriais_notas': '', 'controles_notas': '', 'evolucao_notas': '',
+        'evolucao_notas': '',
         'sistemas_notas': '',
         # flags de inclusão na saída deterministíca (True = incluir, padrão)
         'inc_identificacao':   True,
@@ -287,8 +281,6 @@ def _campos_base() -> dict:
         'inc_culturas':        True,
         'inc_antibioticos':    True,
         'inc_complementares':  True,
-        'inc_laboratoriais':   False,
-        'inc_controles':       False,
         'inc_evolucao':        True,
         'inc_sistemas':        True,
         'inc_prescricao':      True,
