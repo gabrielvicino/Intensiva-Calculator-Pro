@@ -351,6 +351,21 @@ def load_db_infusao() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_db_atb() -> pd.DataFrame:
+    """Carrega tabela db_atb (antibióticos - ajuste renal) do Supabase."""
+    try:
+        sb = _get_sb()
+        resp = sb.table("db_atb").select(
+            "farmaco, condicao_clinica, tfg_min, tfg_max, "
+            "modalidade_dialise, dose_1, dose_2, dose_3, dose_4, dose_5"
+        ).execute()
+        return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar DB_ATB: {e}")
+        return pd.DataFrame()
+
+
 def mostrar_rodape():
     """Exibe rodapé padrão com nota legal em todas as páginas."""
     st.markdown("---")

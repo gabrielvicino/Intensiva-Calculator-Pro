@@ -106,3 +106,19 @@ INSERT INTO db_infusao (nome_formatado, mg_amp, vol_amp, dose_min, dose_max_hab,
   ('Adrenalina 1ml (1mg/ml)',             1,     1,    0.01,  1,    2,    'mcg/kg/min',4,  246),
   ('Terbutalina 1ml (0.5mg/ml)',          0.5,   1,    0.1,   0.4,  0.6,  'mcg/kg/min',5,   95),
   ('Octreotida 1ml (0,1mg/ml)',           0.1,   1,    50,    50,   50,   'mcg/h',     5,   95);
+
+
+-- ── Tabela DB_ATB (antibióticos — ajuste renal) ────────────────
+CREATE TABLE IF NOT EXISTS db_atb (
+  id                  BIGSERIAL PRIMARY KEY,
+  farmaco             TEXT NOT NULL,
+  condicao_clinica    TEXT NOT NULL,
+  tfg_min             INTEGER NOT NULL DEFAULT 0,
+  tfg_max             INTEGER NOT NULL DEFAULT 0,
+  modalidade_dialise  TEXT NOT NULL DEFAULT '-',
+  dose_1              TEXT NOT NULL DEFAULT '-',
+  dose_2              TEXT NOT NULL DEFAULT '-',
+  dose_3              TEXT NOT NULL DEFAULT '-',
+  dose_4              TEXT NOT NULL DEFAULT '-',
+  dose_5              TEXT NOT NULL DEFAULT '-'
+);
