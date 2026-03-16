@@ -166,10 +166,9 @@ if tfg_valor is not None:
 else:
     faixa_str = modalidade_sel
 
-st.markdown(
+html_card = (
     f'<div class="card-atb" style="border-left-color:{COLOR_PRIMARY}">'
-    f'<div class="card-atb-title">{farmaco_sel.upper()} — {titulo_contexto}</div>',
-    unsafe_allow_html=True,
+    f'<div class="card-atb-title">{farmaco_sel.upper()} — {titulo_contexto}</div>'
 )
 
 for _, row in df_filtrado.iterrows():
@@ -180,22 +179,21 @@ for _, row in df_filtrado.iterrows():
         continue
 
     html_doses = ""
-    for j, d in enumerate(doses):
-        label = f"Dose {j+1}" if len(doses) > 1 else "Prescrição"
+    for d in doses:
         html_doses += (
             f'<div class="card-atb-dose">'
             f'<span style="color:{COLOR_ACCENT};font-weight:600">▸</span> {d}'
             f'</div>'
         )
 
-    st.markdown(
+    html_card += (
         f'<div class="card-atb-subtitle">'
         f'<div class="card-atb-label">{condicao}</div>'
         f'{html_doses}'
-        f'</div>',
-        unsafe_allow_html=True,
+        f'</div>'
     )
 
-st.markdown('</div>', unsafe_allow_html=True)
+html_card += '</div>'
+st.markdown(html_card, unsafe_allow_html=True)
 
 mostrar_rodape()
